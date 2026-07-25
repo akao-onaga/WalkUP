@@ -42,6 +42,12 @@ final class PurchaseManager {
     /// 直近の失敗理由。取得失敗をペイウォールに出すために保持する。
     private(set) var errorMessage: String?
 
+    /// 開発時のみ表示する、丸める前の生のエラー。
+    ///
+    /// `errorMessage` は利用者向けに文言を整形しており、原因の切り分けには使えない。
+    /// 実機のログを外から取る手段が塞がっている場面が多いので、画面に出せるようにしておく。
+    private(set) var debugDetail: String?
+
     private var customerInfoTask: Task<Void, Never>?
 
     // MARK: - 初期化
@@ -96,6 +102,7 @@ final class PurchaseManager {
 
         isLoadingOfferings = true
         errorMessage = nil
+        debugDetail = nil
         defer { isLoadingOfferings = false }
 
         do {
@@ -107,9 +114,43 @@ final class PurchaseManager {
             if currentOffering == nil {
                 errorMessage = "販売情報を取得できませんでした。時間をおいて再度お試しください。"
             }
+            debugDetail = Self.detail(offerings: offerings, chosen: currentOffering)
         } catch {
             errorMessage = Self.message(for: error)
+            debugDetail = Self.detail(for: error)
         }
+    }
+
+    /// 取得できた場合の内訳。Offering は返るのに商品が0件、というのが最も多い失敗の形。
+    private static func detail(offerings: Offerings, chosen: Offering?) -> String {
+        var lines = ["offerings.all: \(offerings.all.keys.sorted().joined(separator: ", "))"]
+        lines.append("current: \(offerings.current?.identifier ?? "nil")")
+        if let chosen {
+            lines.append("packages: \(chosen.availablePackages.count)")
+            for package in chosen.availablePackages {
+                lines.append("  - \(package.identifier) → \(package.storeProduct.productIdentifier)")
+            }
+            if chosen.availablePackages.isEmpty {
+                lines.append("⚠️ Offering は取れたが商品が0件。StoreKit が商品を引けていない。")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func detail(for error: Error) -> String {
+        guard let rcError = error as? RevenueCat.ErrorCode else {
+            return String(describing: error)
+        }
+        var lines = ["ErrorCode: \(rcError)"]
+        lines.append("description: \(rcError.localizedDescription)")
+        let nsError = rcError as NSError
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] {
+            lines.append("underlying: \(underlying)")
+        }
+        if let readable = nsError.userInfo["readable_error_code"] {
+            lines.append("readable: \(readable)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - 購入・復元

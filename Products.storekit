@@ -1,0 +1,63 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "ja_JP",
+        "policyText" : "",
+        "policyURL" : "https://akao-onaga.github.io/WalkUP/privacy-policy.html"
+      }
+    ]
+  },
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [
+  ],
+  "products" : [
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6794604332",
+    "_developerTeamID" : "C3QY49MZ54",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "ja_JP",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "22263431",
+      "localizations" : [
+      ],
+      "name" : "Walk UP Pass",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+          ],
+          "codeOffers" : [
+          ],
+          "displayPrice" : "480",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6794621905",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "ダルモン討伐の報酬が増え、復興が早く進む月額パス。",
+              "displayName" : "活力パス",
+              "locale" : "ja_JP"
+            }
+          ],
+          "productID" : "walkup_pass_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "活力パス",
+          "subscriptionGroupID" : "22263431",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

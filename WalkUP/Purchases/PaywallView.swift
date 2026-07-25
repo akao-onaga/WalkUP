@@ -1,5 +1,6 @@
 import StoreKit
 import SwiftUI
+import UIKit
 import RevenueCat
 
 /// 活力パスのペイウォール（画面 #6）。
@@ -21,6 +22,7 @@ struct PaywallView: View {
                     benefits
                     purchaseArea
                     legalLinks
+                    diagnostics
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 32)
@@ -137,7 +139,7 @@ struct PaywallView: View {
                 .frame(maxWidth: .infinity, minHeight: 52)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Palette.accent)
+            .tint(Palette.accentFill)
             .disabled(purchases.isPurchasing)
 
             Text("自動更新サブスクリプションです。解約するまで毎月 \(package.storeProduct.localizedPriceString) が請求されます。解約は App Store の設定からいつでも行えます。")
@@ -180,6 +182,30 @@ struct PaywallView: View {
         .foregroundStyle(.secondary)
     }
 
+    /// 開発ビルド専用の診断表示。
+    ///
+    /// 実機のログを外から取れない場面が多いため、原因を画面から読めるようにしている。
+    /// `#if DEBUG` で囲っているので Release ビルドには一切含まれない。
+    @ViewBuilder
+    private var diagnostics: some View {
+        #if DEBUG
+        if let detail = purchases.debugDetail {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("診断（開発ビルドのみ）", systemImage: "stethoscope")
+                    .font(.caption.bold())
+                Text(detail)
+                    .font(.system(.caption2, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Palette.card, in: RoundedRectangle(cornerRadius: 10))
+            .foregroundStyle(.secondary)
+        }
+        #endif
+    }
+
     // MARK: - 結果処理
 
     private var showsResult: Binding<Bool> {
@@ -202,10 +228,38 @@ struct PaywallView: View {
 
 /// ART_PROMPTS.md の STYLE SPEC と揃えた最小限のパレット。
 /// ゲーム画面を作り込む段階で共通の Theme に昇格させる。
+///
+/// **背景色を固定するなら、文字色も必ずセットで面倒を見ること。**
+/// 背景だけ固定して文字を `.primary` / `.secondary` のまま放置すると、
+/// ダークモードで「明るい背景に白文字」になり読めなくなる。
+/// ここでは背景側をモード追従にすることで、`.primary` / `.secondary` を
+/// そのまま正しく機能させている。
 private enum Palette {
-    static let background = Color(red: 0.910, green: 0.894, blue: 0.863) // #E8E4DC
-    static let card = Color(red: 0.965, green: 0.957, blue: 0.937)
-    static let accent = Color(red: 0.451, green: 0.435, blue: 0.545)     // グレーバイオレット
+    static let background = adaptive(light: 0xE8E4DC, dark: 0x1B1922)
+    static let card       = adaptive(light: 0xF6F4EF, dark: 0x26232F)
+
+    /// アイコンと強調テキスト。背景の明暗が反転するので、こちらも明度を入れ替える。
+    static let accent     = adaptive(light: 0x5F5B76, dark: 0xADA5C9)
+
+    /// 主ボタンの塗り。上に白文字を載せるため、両モードとも十分に暗い色で固定する。
+    static let accentFill = adaptive(light: 0x6B6782, dark: 0x6B6782)
+
+    private static func adaptive(light: Int, dark: Int) -> Color {
+        Color(uiColor: UIColor { traits in
+            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+}
+
+private extension UIColor {
+    convenience init(rgb: Int) {
+        self.init(
+            red:   CGFloat((rgb >> 16) & 0xFF) / 255,
+            green: CGFloat((rgb >> 8) & 0xFF) / 255,
+            blue:  CGFloat(rgb & 0xFF) / 255,
+            alpha: 1
+        )
+    }
 }
 
 // MARK: - 法務リンク
@@ -221,7 +275,14 @@ enum LegalURL {
     static let privacyPolicy = URL(string: "https://akao-onaga.github.io/WalkUP/privacy-policy.html")!
 }
 
-#Preview {
+#Preview("ライト") {
     PaywallView()
         .environment(PurchaseManager())
+}
+
+// 背景色を固定している画面なので、ダーク側を常に並べて確認できるようにしておく。
+#Preview("ダーク") {
+    PaywallView()
+        .environment(PurchaseManager())
+        .preferredColorScheme(.dark)
 }
