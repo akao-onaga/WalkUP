@@ -5,5 +5,12 @@
 	<!-- ビルド設定から注入される。実体は Secrets.xcconfig（.gitignore 済み）。 -->
 	<key>RevenueCatAPIKey</key>
 	<string>$(REVENUECAT_API_KEY)</string>
+
+	<!-- アセットカタログのアイコンセット名。
+	     actool は CFBundleIcons の入れ子にしか出力せず、トップレベルには入らない。
+	     App Store のアップロード検証はトップレベルを要求するため、ここで明示する。
+	     消すと「A value for the Info.plist key 'CFBundleIconName' is missing」で弾かれる。 -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 </dict>
 </plist>
