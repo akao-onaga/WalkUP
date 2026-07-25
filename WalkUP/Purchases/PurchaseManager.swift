@@ -1,4 +1,5 @@
 import Foundation
+import StoreKit
 import RevenueCat
 
 /// RevenueCat との唯一の接点。
@@ -119,7 +120,46 @@ final class PurchaseManager {
             errorMessage = Self.message(for: error)
             debugDetail = Self.detail(for: error)
         }
+
+        #if DEBUG
+        // RevenueCat を迂回して StoreKit に直接聞く。原因の切り分けはこれで一意に決まる。
+        debugDetail = [debugDetail, await Self.storeKitProbe()]
+            .compactMap { $0 }
+            .joined(separator: "\n\n")
+        #endif
     }
+
+    #if DEBUG
+    /// StoreKit へ直接の商品照会。
+    ///
+    /// RevenueCat の `configurationError` は「商品が取れない」としか言わず、
+    /// 原因が Apple 側か RevenueCat の設定側かを区別できない。ここで直接聞くことで分離する。
+    ///
+    /// - 0件 → Apple 側。ASC の伝播待ちか、商品／契約の状態
+    /// - 1件 → Apple 側は正常。RevenueCat ダッシュボードの設定が原因
+    private static func storeKitProbe() async -> String {
+        var lines = ["--- StoreKit 直接照会（RevenueCat を迂回）---"]
+        lines.append("storefront: \(await Storefront.current?.countryCode ?? "不明")")
+
+        do {
+            let products = try await StoreKit.Product.products(
+                for: [PurchaseIdentifiers.passMonthlyProduct]
+            )
+            if products.isEmpty {
+                lines.append("結果: 0件")
+                lines.append("→ Apple 側から商品が返っていない。RevenueCat の設定は無関係。")
+            } else {
+                for product in products {
+                    lines.append("結果: \(product.id) / \(product.displayPrice)")
+                }
+                lines.append("→ Apple 側は正常。RevenueCat ダッシュボードの設定が原因。")
+            }
+        } catch {
+            lines.append("結果: 例外 \(error)")
+        }
+        return lines.joined(separator: "\n")
+    }
+    #endif
 
     /// 取得できた場合の内訳。Offering は返るのに商品が0件、というのが最も多い失敗の形。
     private static func detail(offerings: Offerings, chosen: Offering?) -> String {
