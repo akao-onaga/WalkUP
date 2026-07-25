@@ -223,11 +223,15 @@ Shipaton の審査期間は 10/1〜10/13 で、**審査員は歩かない**。
 
 | Product ID | 種別 | 価格（想定） | 内容 |
 |---|---|---|---|
-| `walque_pass_monthly` | 自動更新サブスク | ¥480/月 | **本命**。やり込み層の報酬トラック強化 |
-| `walque_skin_pack_01` | 買い切り | ¥360 | 装備スキン。ゲームバランスに非干渉 |
-| `walque_step_recovery` | 消費型 | ¥120 | 3日前まで遡って歩数を回収 |
+| `walkup_pass_monthly` | 自動更新サブスク | ¥480/月 | **本命**。やり込み層の報酬トラック強化。**登録済み** |
+| `walkup_skin_pack_01` | 買い切り | ¥360 | 装備スキン。ゲームバランスに非干渉。未登録 |
+| `walkup_step_recovery` | 消費型 | ¥120 | 3日前まで遡って歩数を回収。未登録 |
 
 RevenueCat Entitlement: `pass`（表示名「活力パス」）
+
+接頭辞は `walque_` ではなく **`walkup_`**。App Store Connect と RevenueCat には
+`walkup_` で登録済みなので、以後この表記に統一する。
+アプリ側の参照は `WalkUP/Purchases/PurchaseIdentifiers.swift` に集約している。
 
 ### 登録済みの識別子（2026-07-25 時点）
 
@@ -262,43 +266,45 @@ RevenueCat Entitlement: `pass`（表示名「活力パス」）
 ### 未完了（次にやること）
 
 1. ~~RevenueCat の確認メール~~ ✅ 完了
-2. RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加し、Public API Key を `Secrets.xcconfig` に記入
-3. ペイウォール画面の実装
-4. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+2. ~~RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加~~ ✅ 完了（5.81.2、`upToNextMajor`）
+3. ~~ペイウォール画面の実装~~ ✅ 完了（`WalkUP/Purchases/PaywallView.swift`）
+4. **Public API Key を `Secrets.xcconfig` に記入**（未了 / ユーザー作業）
+   RevenueCat ダッシュボード → Project settings → API keys の
+   「Public app-specific API key」（`appl_` で始まる）を貼る。
+   未設定でもビルド・起動は通り、ペイウォールは「課金機能は現在無効です」を表示する。
+5. **プライバシーポリシーの URL を用意する**（未了）
+   現状 `LegalURL.privacyPolicy` はリポジトリ URL の仮置き。
+   App Store Connect にも同じ URL の登録が必要で、未設定だと審査で止まる。
+6. Sandbox アカウントでの購入・復元の実機確認（キー記入後）
+7. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+
+### 7.3 アプリ側の実装方針
+
+| 判断 | 内容 |
+|---|---|
+| 課金状態の判定 | **Entitlement `pass` 一本**。商品 ID で分岐しない。商品追加や価格改定でアプリを直さずに済む |
+| 状態の更新経路 | `customerInfoStream` に一本化。購入メソッド内で `hasPass` を書き換えない。失効・返金・別端末での購入も同じ経路を通る |
+| キー未設定時 | `Purchases.configure` を呼ばず `.disabled` のまま動作継続。課金以外の全機能は影響を受けない |
+| ペイウォール UI | RevenueCatUI ではなく自前の SwiftUI。配色を ART_PROMPTS.md の STYLE SPEC に合わせるため |
+| 法務リンク | 利用規約は Apple 標準 EULA。プライバシーポリシーは要差し替え（上記5） |
 
 ---
 
-## 15. 未決の技術判断
 
-以下は**まだ決めていない**。実装着手前に判断が必要なものを優先度順に並べる。
+## 8. データモデル（Codable + JSON）
 
-| # | 項目 | 判断が必要な時期 | 備考 |
-|---|---|---|---|
-| 1 | **SwiftData の採用可否** | 8月前半 | 紙の上で決めただけで一行も書いていない。マイグレーションや `@Model` の制約で詰まる可能性がある。詰まったら素直に `Codable` + JSON ファイルに退避する判断を早めに下す |
-| 2 | **戦闘演出の実装方式** | 8月前半 | SwiftUI のアニメーションのみで足りるか、SpriteKit 等が要るか。自動戦闘のログ再生なら SwiftUI で足りる見込みだが未検証 |
-| 3 | **英語ローカライズの有無** | 8月後半 | **Shipaton の審査員は英語圏**。日本語のみだと審査で体験が伝わらない可能性がある。少なくとも UI とストア説明は英語対応を検討すべき |
-| 4 | ローカル通知 | 9月 | 「今日まだ歩いていない」等のリマインド。継続率に効くが審査には影響しない |
-| 5 | HealthKit のバックグラウンド更新 | 9月 | 現状はアプリ起動時のみ取得。ウィジェット等を作らないなら不要 |
-| 6 | ウィジェット / Live Activity | スコープ外 | 初期案では検討したが MVP からは外している。余裕があれば |
-| 7 | テスト方針 | 随時 | 現状ゼロ。少なくとも歩数の二重計上防止ロジックには自動テストを書くべき |
-| 8 | アナリティクス | 不要 | 入れない |
-
-### 7.2 なぜこの配置か
-
-- サブスクは月次の歩行サイクルと噛み合い、RevenueCat の設計にそのまま乗る
-- スキンはバランス非干渉なので安全
-- 遡り回収は「歩いた事実」を変えないため、アプリの前提を否定しない
-
-### 7.3 コスト見積もり
-
-現時点で外部APIへの依存は無い（AI生成テキスト・TTS は MVP から除外）。
-サーバー不要・オンデバイス完結のため、ランニングコストは実質ゼロ。
-
----
-
-## 8. データモデル（SwiftData 想定）
+SwiftData は不採用（理由はセクション15）。全状態を1つの `GameState` にまとめ、
+`Codable` で JSON ファイルとして丸ごと保存・読込する。純粋な値型なのでテストが容易。
 
 ```swift
+GameState                      // ← これ全体を1ファイルに保存する
+  player: PlayerState
+  equipment: [Equipment]
+  chapters: [ChapterProgress]
+  regions: [RegionState]
+  bestiary: [BestiaryEntry]
+  schemaVersion: Int           // 将来の形式変更に備える
+
 PlayerState
   level: Int
   exp: Int
@@ -433,6 +439,13 @@ Sendable 対応が不完全なフレームワークを扱うと大量のエラ�
 - `WalkUP/ContentView.swift` — 疎通確認画面（→ ホーム画面に差し替える）
 - `WalkUP/AppSecrets.swift` — 秘匿値へのアクセス層
 - `Config.xcconfig` / `Secrets.xcconfig.example` / `Info.plist` — 秘匿値の注入経路
+- `WalkUP/Purchases/PurchaseIdentifiers.swift` — Entitlement / Offering / Product ID の集約
+- `WalkUP/Purchases/PurchaseManager.swift` — RevenueCat との唯一の接点（初期化・取得・購入・復元）
+- `WalkUP/Purchases/PaywallView.swift` — 活力パスのペイウォール（画面 #6）
+
+依存: `purchases-ios-spm` 5.81.2（`upToNextMajorVersion`）。
+`Package.resolved` はコミット対象。ビルドは iPhone 17 Pro シミュレータで確認済み
+（API キー未設定のため、ペイウォールは無効表示の経路のみ動作確認）。
 
 ### 秘匿値の扱い
 
@@ -481,3 +494,68 @@ cp Secrets.xcconfig.example Secrets.xcconfig
 
 - ~~アプリ名~~ → ストア名 **Walk UP! 万歩計RPG** / 表示名 **Walk UP!**（2026-07-25 確定。どちらも後から変更可能）
 - ~~Bundle ID~~ → **`com.akaoonaga.walkup`**（2026-07-25 確定。**変更不可**）
+
+---
+## 15. 技術判断（2026-07-25 確定）
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 永続化 | **Codable + JSON ファイル**（SwiftData は不採用） |
+| 2 | 戦闘演出 | **SwiftUI のみ**（SpriteKit は使わない） |
+| 3 | 言語対応 | **完全二言語（日本語 / 英語）**。物語本文も含む |
+| 4 | ローカル通知 | **入れる**。1日1通。**第1章クリア後**に許可を求める |
+| 5 | HealthKit バックグラウンド更新 | **不要**（アプリ起動時のみ取得） |
+| 6 | ウィジェット / Live Activity | **スコープ外** |
+| 7 | テスト | **歩数変換と戦闘計算のみユニットテスト**。UI テストは書かない |
+| 8 | アナリティクス | **入れない** |
+
+### 1. 永続化を JSON にした理由
+
+データは単一ユーザーの数十KB程度で、クエリもリレーションも不要。SwiftData はマイグレーション周りで
+詰まると原因究明に時間を取られ、2ヶ月の締切では致命傷になりうる。JSON なら状態を丸ごと
+保存・読込するだけで、純粋関数として書けるためテストも容易。将来の移行も可能。
+
+### 3. 完全二言語化の方針
+
+**全てのユーザー向け文言を最初から String Catalog（`.xcstrings`）に通すこと。**
+後から retrofit すると、散らばったハードコード文字列を拾い直す作業が翻訳本体より高くつく。
+現時点で `ContentView.swift` / `StepProvider.swift` にハードコードされた日本語も対象。
+
+翻訳は LLM を使う。ただし**固有名詞の対訳表を先に固定する**こと。放置すると同じ語が章ごとに
+違う訳語になる。
+
+| 日本語 | English | 備考 |
+|---|---|---|
+| ダルモン | **Dullmon** | 「怠い＋モン」と "dull + mon" が同じ構造。訳ではなく等価物なので品質が落ちない |
+| ダラリ | Darari | 固有名はローマ字表記で統一 |
+| ネムケ | Nemuke | 同上 |
+| ゴロネ | Gorone | 同上 |
+| 活力 | Vigor | ゲーム内資源（AP） |
+| 活力パス | Vigor Pass | サブスク表示名 |
+| 復興 | Restoration | やり込み層の軸 |
+
+**App Store Connect 側の英語対応も必要。** 現状サブスクリプションの表示名・説明は日本語のみ。
+ストア掲載情報（アプリ説明・スクリーンショット）も英語版が要る。
+
+### 4. 通知を第1章クリア後にする理由
+
+初回起動時に許可を求めるとオンボーディングが重くなり、初日離脱が増える。
+第1章クリアは「面白い」と判断した直後なので、許可率が最も高くなる地点。
+
+### 7. テスト対象を絞る理由
+
+歩数の二重計上（日付変更・端末時刻の巻き戻し）と戦闘バランスは、目視テストでは必ず漏れる。
+逆に UI テストは維持コストが高く、締切に合わない。
+
+### 7.2 なぜこの配置か
+
+- サブスクは月次の歩行サイクルと噛み合い、RevenueCat の設計にそのまま乗る
+- スキンはバランス非干渉なので安全
+- 遡り回収は「歩いた事実」を変えないため、アプリの前提を否定しない
+
+### 7.3 コスト見積もり
+
+現時点で外部APIへの依存は無い（AI生成テキスト・TTS は MVP から除外）。
+サーバー不要・オンデバイス完結のため、ランニングコストは実質ゼロ。
+
+---
