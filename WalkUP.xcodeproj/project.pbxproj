@@ -10,16 +10,32 @@
 		AA11BB22CC33DD44EE550022 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = AA11BB22CC33DD44EE550021 /* RevenueCat */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AA11BB22CC33DD44EE550037 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA11BB22CC33DD44EE550001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA11BB22CC33DD44EE550005;
+			remoteInfo = WalkUP;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AA11BB22CC33DD44EE550004 /* WalkUP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WalkUP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA11BB22CC33DD44EE550010 /* WalkUP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalkUP.entitlements; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550011 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550030 /* WalkUPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WalkUPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AA11BB22CC33DD44EE550006 /* WalkUP */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WalkUP;
+			sourceTree = "<group>";
+		};
+		AA11BB22CC33DD44EE550031 /* WalkUPTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WalkUPTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +49,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA11BB22CC33DD44EE550032 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -40,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				AA11BB22CC33DD44EE550006 /* WalkUP */,
+				AA11BB22CC33DD44EE550031 /* WalkUPTests */,
 				AA11BB22CC33DD44EE550010 /* WalkUP.entitlements */,
 				AA11BB22CC33DD44EE550011 /* Config.xcconfig */,
 				AA11BB22CC33DD44EE550003 /* Products */,
@@ -50,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				AA11BB22CC33DD44EE550004 /* WalkUP.app */,
+				AA11BB22CC33DD44EE550030 /* WalkUPTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -79,6 +104,26 @@
 			productName = WalkUP;
 			productReference = AA11BB22CC33DD44EE550004 /* WalkUP.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AA11BB22CC33DD44EE550034 /* WalkUPTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA11BB22CC33DD44EE550038 /* Build configuration list for PBXNativeTarget "WalkUPTests" */;
+			buildPhases = (
+				AA11BB22CC33DD44EE550033 /* Sources */,
+				AA11BB22CC33DD44EE550032 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA11BB22CC33DD44EE550036 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA11BB22CC33DD44EE550031 /* WalkUPTests */,
+			);
+			name = WalkUPTests;
+			productName = WalkUPTests;
+			productReference = AA11BB22CC33DD44EE550030 /* WalkUPTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -114,6 +159,7 @@
 			projectRoot = "";
 			targets = (
 				AA11BB22CC33DD44EE550005 /* WalkUP */,
+				AA11BB22CC33DD44EE550034 /* WalkUPTests */,
 			);
 		};
 /* End PBXProject section */
@@ -136,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA11BB22CC33DD44EE550033 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA11BB22CC33DD44EE550036 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA11BB22CC33DD44EE550005 /* WalkUP */;
+			targetProxy = AA11BB22CC33DD44EE550037 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA11BB22CC33DD44EE55000C /* Debug */ = {
@@ -198,9 +259,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WalkUP.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = C3QY49MZ54;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = C3QY49MZ54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
@@ -231,9 +292,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WalkUP.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = C3QY49MZ54;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = C3QY49MZ54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
@@ -256,6 +317,44 @@
 			};
 			name = Release;
 		};
+		AA11BB22CC33DD44EE550039 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C3QY49MZ54;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akaoonaga.walkup.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WalkUP.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WalkUP";
+			};
+			name = Debug;
+		};
+		AA11BB22CC33DD44EE55003A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C3QY49MZ54;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akaoonaga.walkup.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WalkUP.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WalkUP";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -273,6 +372,15 @@
 			buildConfigurations = (
 				AA11BB22CC33DD44EE55000E /* Debug */,
 				AA11BB22CC33DD44EE55000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA11BB22CC33DD44EE550038 /* Build configuration list for PBXNativeTarget "WalkUPTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA11BB22CC33DD44EE550039 /* Debug */,
+				AA11BB22CC33DD44EE55003A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
