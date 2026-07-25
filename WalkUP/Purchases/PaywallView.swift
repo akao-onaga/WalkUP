@@ -214,9 +214,11 @@ enum LegalURL {
     /// 独自の EULA を用意しない場合、Apple の標準 EULA を提示するのが正規の手順。
     static let termsOfUse = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
-    /// TODO: 公開用のプライバシーポリシーを用意して差し替える。
-    /// App Store Connect にも同じ URL を登録する必要があり、未設定だと審査で止まる。
-    static let privacyPolicy = URL(string: "https://github.com/akao-onaga/Walque2")!
+    /// 本文は `docs/privacy-policy.html`。GitHub Pages で配信する。
+    ///
+    /// App Store Connect の「App のプライバシー」にも**同一の URL** を登録すること。
+    /// 片方だけ変えると審査で指摘される。
+    static let privacyPolicy = URL(string: "https://akao-onaga.github.io/WalkUP/privacy-policy.html")!
 }
 
 #Preview {

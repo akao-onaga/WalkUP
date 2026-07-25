@@ -272,11 +272,24 @@ RevenueCat Entitlement: `pass`（表示名「活力パス」）
    RevenueCat ダッシュボード → Project settings → API keys の
    「Public app-specific API key」（`appl_` で始まる）を貼る。
    未設定でもビルド・起動は通り、ペイウォールは「課金機能は現在無効です」を表示する。
-5. **プライバシーポリシーの URL を用意する**（未了）
-   現状 `LegalURL.privacyPolicy` はリポジトリ URL の仮置き。
-   App Store Connect にも同じ URL の登録が必要で、未設定だと審査で止まる。
-6. Sandbox アカウントでの購入・復元の実機確認（キー記入後）
-7. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+5. ~~プライバシーポリシーの本文を用意する~~ ✅ 完了（`docs/privacy-policy.html`・日英併記）
+6. **App Store Connect にプライバシーポリシー URL を登録**（未了 / ユーザー作業）
+   アプリ内リンク（`LegalURL.privacyPolicy`）と**同一の URL** にすること。食い違うと審査で指摘される。
+7. Sandbox アカウントでの購入・復元の実機確認（キー記入後）
+8. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+
+### 7.2 法務・公開情報
+
+| 項目 | 値 |
+|---|---|
+| プライバシーポリシー | `docs/privacy-policy.html` → https://akao-onaga.github.io/WalkUP/privacy-policy.html |
+| 配信方法 | GitHub Pages（`main` / `docs`）。`docs/.nojekyll` により HTML をそのまま配信 |
+| 利用規約 | Apple 標準 EULA（独自 EULA は用意しない） |
+| 公開連絡先 | `akao.gamedev@gmail.com`（ASC のサポート連絡先とも揃えること） |
+
+**ポリシー本文の要点**: ヘルスケアの歩数は端末外に出ない。一方で購入情報（匿名ID・購入履歴・
+端末情報・IP）は RevenueCat（米国）に送信され、**課金しない利用者でも商品情報の取得で通信が発生する**。
+ここを省くと ASC の「App のプライバシー」申告と食い違うため、実装を変えたら本文も必ず追従させる。
 
 ### 7.3 アプリ側の実装方針
 
