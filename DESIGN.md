@@ -342,7 +342,7 @@ BestiaryEntry
 
 | 期間 | 内容 |
 |---|---|
-| 7/25〜7/31 | ✅ Xcode プロジェクト作成 / ✅ HealthKit 疎通確認 / App Store Connect アプリ枠作成 / RevenueCat 登録 / Devpost 登録 / アートスタイル確定（ダルモン3体で試作） |
+| 7/25〜7/31 | ✅ Xcode プロジェクト作成 / ✅ HealthKit 疎通確認 / ✅ Identifier 登録（HealthKit 有効）/ ✅ App Store Connect アプリ枠作成 / ✅ Git 公開リポジトリ / RevenueCat 登録 / Devpost 登録 / アートスタイル確定（ダルモン3体で試作） |
 | 8/1〜8/14 | コアループ実装（歩数→EXP/AP→自動戦闘→報酬）。**公開はしない** |
 | 8/15〜8/31 | ストーリー3章・地域・ボス・装備システム |
 | 9/1〜9/10 | RevenueCat 課金とペイウォール・やり込み層・TestFlight |
