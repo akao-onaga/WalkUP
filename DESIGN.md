@@ -243,13 +243,28 @@ RevenueCat Entitlement: `pass`（表示名「活力パス」）
 | RevenueCat Entitlement | `pass`（REST ID `entlbfd2b34887`） |
 | RevenueCat Offering | `default`（REST ID `ofrnge1a1926a25`） |
 
+### ダッシュボード設定の完了状況
+
+| 項目 | 状態 |
+|---|---|
+| App Store Connect API キー | ✅ Valid credentials |
+| In-App Purchase キー | ✅ Valid credentials |
+| 商品インポート | ✅ `walkup_pass_monthly` |
+| Entitlement `pass` → 商品 | ✅ 紐付け済み |
+| Offering `default` → `$rc_monthly` | ✅ `walkup_pass_monthly` を紐付け済み |
+
+**In-App Purchase キーは、商品を1つも作っていない間は `Credentials need attention` になる。**
+入力値の誤りではないので、この段階で慌ててキーを作り直さないこと。商品作成後に自動で解消する。
+
+`$rc_annual` / `$rc_lifetime` パッケージには Test Store の商品のみが残っている。
+対応する App Store 商品が無いため実害はないが、不要になったら削除してよい。
+
 ### 未完了（次にやること）
 
-1. **Offering の Monthly パッケージ（`$rc_monthly`）に `walkup_pass_monthly` を紐付ける**
-   現在は オンボーディング時に自動生成された Test Store の商品が入っている
-2. **In-App Purchase キーの再検証** — 商品作成後もまだ `Credentials need attention` の可能性あり
-3. RevenueCat の確認メールのリンクを踏む
-4. RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加し、Public API Key を `Secrets.xcconfig` に記入
+1. RevenueCat の確認メールのリンクを踏む
+2. RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加し、Public API Key を `Secrets.xcconfig` に記入
+3. ペイウォール画面の実装
+4. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
 
 ### 7.2 なぜこの配置か
 
