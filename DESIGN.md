@@ -268,15 +268,46 @@ RevenueCat Entitlement: `pass`（表示名「活力パス」）
 1. ~~RevenueCat の確認メール~~ ✅ 完了
 2. ~~RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加~~ ✅ 完了（5.81.2、`upToNextMajor`）
 3. ~~ペイウォール画面の実装~~ ✅ 完了（`WalkUP/Purchases/PaywallView.swift`）
-4. **Public API Key を `Secrets.xcconfig` に記入**（未了 / ユーザー作業）
-   RevenueCat ダッシュボード → Project settings → API keys の
-   「Public app-specific API key」（`appl_` で始まる）を貼る。
-   未設定でもビルド・起動は通り、ペイウォールは「課金機能は現在無効です」を表示する。
+4. ~~Public API Key を `Secrets.xcconfig` に記入~~ ✅ 完了（SDK 初期化・サーバー到達を確認済み）
 5. ~~プライバシーポリシーの本文を用意する~~ ✅ 完了（`docs/privacy-policy.html`・日英併記）
-6. **App Store Connect にプライバシーポリシー URL を登録**（未了 / ユーザー作業）
+6. ~~TestFlight へ初回ビルドをアップロード~~ ✅ 完了（0.1.0 / build 1・2026-07-26）
+7. **GitHub Pages を有効化**（未了 / ユーザー作業）
+   `Settings → Pages → main / docs`。有効化しないとポリシー URL が 404 のまま。
+8. **App Store Connect にプライバシーポリシー URL を登録**（未了 / ユーザー作業）
    アプリ内リンク（`LegalURL.privacyPolicy`）と**同一の URL** にすること。食い違うと審査で指摘される。
-7. Sandbox アカウントでの購入・復元の実機確認（キー記入後）
-8. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+9. **Sandbox での購入・復元の実機確認**（未了・下記 7.4 の状況）
+10. 最初のサブスクリプショングループは**新しいアプリバージョンとともに審査提出する必要がある**（App Store Connect の注意書き）
+
+### 7.4 商品が取得できない問題（2026-07-26 時点・未解決）
+
+実機・シミュレータのいずれでも、Offering の取得が
+**`RevenueCat.ErrorCode error 23`（`configurationError`）** で失敗する。
+ペイウォールには「現在この商品を購入できません」が表示される。
+
+切り分けの結果、**アプリの実装側に問題は無い**ことが確定している。
+
+| 除外できた原因 | 根拠 |
+|---|---|
+| Sandbox アカウント | 未サインインのシミュレータでも同一エラー |
+| 実機／端末設定 | 同上 |
+| API キー | 誤っていれば `invalidCredentialsError` になる。SDK 初期化とサーバー到達は成功している |
+| ペイウォール実装 | エラーは商品取得段階。UI に到達していない |
+| ASC のメタデータ不足 | ステータス確認済み（不足なし） |
+
+残る原因は **StoreKit が App Store Connect から `walkup_pass_monthly` を引けていない**こと。
+RevenueCat 側は取得すべき商品 ID を正しく認識しており、Apple 側から返ってこない。
+
+**有力な仮説**（確定ではない。error 23 は理由を返さないため）
+
+1. **ビルドが ASC に存在しなかった** — 2026-07-26 に初回アップロード済み。処理完了後に再確認する
+2. **商品作成からの伝播待ち** — 商品登録は 2026-07-25。最大24時間かかることがある
+
+**この段階で実装をいじらないこと。** 原因が Apple 側にある間に手を入れると、
+動き出した時に何が効いたのか分からなくなる。
+
+診断は `WalkUP/Purchases/PaywallView.swift` の `diagnostics`（`#if DEBUG` 限定）が
+ペイウォール下部に表示する。macOS 26 の `log stream` は実機ログの取得に対応しなくなっており、
+外からログを読む手段が無いため画面に出している。
 
 ### 7.2 法務・公開情報
 
@@ -456,9 +487,22 @@ Sendable 対応が不完全なフレームワークを扱うと大量のエラ�
 - `WalkUP/Purchases/PurchaseManager.swift` — RevenueCat との唯一の接点（初期化・取得・購入・復元）
 - `WalkUP/Purchases/PaywallView.swift` — 活力パスのペイウォール（画面 #6）
 
-依存: `purchases-ios-spm` 5.81.2（`upToNextMajorVersion`）。
-`Package.resolved` はコミット対象。ビルドは iPhone 17 Pro シミュレータで確認済み
-（API キー未設定のため、ペイウォールは無効表示の経路のみ動作確認）。
+- `WalkUP/Assets.xcassets/AppIcon.appiconset/` — **暫定**アプリアイコン（差し替え前提）
+
+依存: `purchases-ios-spm` 5.81.2（`upToNextMajorVersion`）。`Package.resolved` はコミット対象。
+
+検証済みの範囲: シミュレータ・実機の両方でビルド・起動、SDK 初期化、RevenueCat
+サーバーへの到達、ペイウォールのライト/ダーク表示。**購入・復元は未検証**（§7.4）。
+
+### App Store アップロード時に必要だった構成（再発防止）
+
+初回アップロードが検証で3件弾かれた。いずれも構成の不足で、実装とは無関係。
+
+| 項目 | 注意点 |
+|---|---|
+| アプリアイコン | 1024px を1枚。**透過不可**（アルファチャンネルを持たせない） |
+| `NSHealthUpdateUsageDescription` | 書き込まなくても、**HealthKit entitlement を持つだけで必須** |
+| `CFBundleIconName` | actool は `CFBundleIcons` の入れ子にしか出力しない。**トップレベルに明示が必要**（`Info.plist`） |
 
 ### 秘匿値の扱い
 
@@ -521,6 +565,26 @@ cp Secrets.xcconfig.example Secrets.xcconfig
 | 6 | ウィジェット / Live Activity | **スコープ外** |
 | 7 | テスト | **歩数変換と戦闘計算のみユニットテスト**。UI テストは書かない |
 | 8 | アナリティクス | **入れない** |
+| 9 | ダークモード対応 | **未決**（下記） |
+
+### 9. ダークモード対応（未決・ホーム画面の実装前に決めること）
+
+ダルモンのアートは **背景 `#E8E4DC` で焼き込み**（ART_PROMPTS.md の STYLE SPEC）。
+このためダークモードでは、暗い画面の中にモンスターの明るい四角が浮く。
+
+選択肢は2つ。
+
+| 案 | 内容 | 代償 |
+|---|---|---|
+| A | アプリ全体をライト固定（`.preferredColorScheme(.light)`） | 夜に遊ぶゲームで眩しい。本作は「夜1セッション3分」が前提（§2）なので相性が悪い |
+| B | アートを背景透過で書き出し、背景はアプリ側で敷く | 後処理（ART_PROMPTS.md §4）に背景除去の工程が増える |
+
+**量産前に決めること。** 12〜15体を焼き込み背景で作った後に B へ倒すと、全部作り直しになる。
+
+なお実装上の教訓として、**背景色を固定するなら文字色も必ずセットで面倒を見ること**。
+ペイウォールで背景だけ固定し文字を `.primary` / `.secondary` のままにしたところ、
+ダークモードで「明るい背景に白文字」になり読めなくなった（コミット `ac0ce1a`）。
+現在は背景側をモード追従にして解決している。
 
 ### 1. 永続化を JSON にした理由
 
