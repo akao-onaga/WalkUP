@@ -3,7 +3,9 @@ import SwiftUI
 /// HealthKit 疎通確認用の暫定画面。
 /// ゲーム本体の実装が始まったら差し替える。
 struct ContentView: View {
+    @Environment(PurchaseManager.self) private var purchases
     @State private var model = StepDashboardModel()
+    @State private var isShowingPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -11,6 +13,7 @@ struct ContentView: View {
                 sourceSection
                 todaySection
                 chapterGateSection
+                passSection
                 historySection
                 if let message = model.errorMessage {
                     Section {
@@ -29,6 +32,31 @@ struct ContentView: View {
                 .disabled(model.isLoading)
             }
             .task { await model.requestAuthorizationAndLoad() }
+            .sheet(isPresented: $isShowingPaywall) {
+                PaywallView()
+            }
+        }
+    }
+
+    /// ペイウォールへの暫定導線。ホーム画面を作り込む段階で正式な位置に移す。
+    private var passSection: some View {
+        Section("活力パス") {
+            Button {
+                isShowingPaywall = true
+            } label: {
+                HStack {
+                    Label(
+                        purchases.hasPass ? "有効" : "活力パスを見る",
+                        systemImage: purchases.hasPass ? "checkmark.seal.fill" : "sparkles"
+                    )
+                    Spacer()
+                    if purchases.availability == .disabled {
+                        Text("キー未設定")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 
@@ -103,4 +131,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environment(PurchaseManager())
 }

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA11BB22CC33DD44EE550022 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = AA11BB22CC33DD44EE550021 /* RevenueCat */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		AA11BB22CC33DD44EE550004 /* WalkUP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WalkUP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA11BB22CC33DD44EE550010 /* WalkUP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalkUP.entitlements; sourceTree = "<group>"; };
@@ -25,6 +29,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA11BB22CC33DD44EE550022 /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +73,9 @@
 				AA11BB22CC33DD44EE550006 /* WalkUP */,
 			);
 			name = WalkUP;
+			packageProductDependencies = (
+				AA11BB22CC33DD44EE550021 /* RevenueCat */,
+			);
 			productName = WalkUP;
 			productReference = AA11BB22CC33DD44EE550004 /* WalkUP.app */;
 			productType = "com.apple.product-type.application";
@@ -97,6 +105,9 @@
 			);
 			mainGroup = AA11BB22CC33DD44EE550002;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA11BB22CC33DD44EE550020 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA11BB22CC33DD44EE550003 /* Products */;
 			projectDirPath = "";
@@ -265,6 +276,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA11BB22CC33DD44EE550020 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.81.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA11BB22CC33DD44EE550021 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA11BB22CC33DD44EE550020 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA11BB22CC33DD44EE550001 /* Project object */;
 }
