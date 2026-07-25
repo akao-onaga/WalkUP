@@ -227,7 +227,29 @@ Shipaton の審査期間は 10/1〜10/13 で、**審査員は歩かない**。
 | `walque_skin_pack_01` | 買い切り | ¥360 | 装備スキン。ゲームバランスに非干渉 |
 | `walque_step_recovery` | 消費型 | ¥120 | 3日前まで遡って歩数を回収 |
 
-RevenueCat Entitlement: `pass`
+RevenueCat Entitlement: `pass`（表示名「活力パス」）
+
+### 登録済みの識別子（2026-07-25 時点）
+
+| 項目 | 値 |
+|---|---|
+| App Store Connect App ID | `6794604332` |
+| サブスクリプショングループ | `Walk UP Pass`（ID `22263431`） |
+| サブスクリプション Apple ID | `6794621905` |
+| 製品ID | `walkup_pass_monthly`（1か月・¥480・175の国と地域） |
+| 表示名 / 説明 | 活力パス / ダルモン討伐の報酬が増え、復興が早く進む月額パス。 |
+| RevenueCat Project ID | `86f6ac0c` |
+| RevenueCat App ID | `appce2026adfe` |
+| RevenueCat Entitlement | `pass`（REST ID `entlbfd2b34887`） |
+| RevenueCat Offering | `default`（REST ID `ofrnge1a1926a25`） |
+
+### 未完了（次にやること）
+
+1. **Offering の Monthly パッケージ（`$rc_monthly`）に `walkup_pass_monthly` を紐付ける**
+   現在は オンボーディング時に自動生成された Test Store の商品が入っている
+2. **In-App Purchase キーの再検証** — 商品作成後もまだ `Credentials need attention` の可能性あり
+3. RevenueCat の確認メールのリンクを踏む
+4. RevenueCat SDK（`purchases-ios-spm`）を Xcode に追加し、Public API Key を `Secrets.xcconfig` に記入
 
 ### 7.2 なぜこの配置か
 
