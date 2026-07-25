@@ -9,6 +9,7 @@
 /* Begin PBXFileReference section */
 		AA11BB22CC33DD44EE550004 /* WalkUP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WalkUP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA11BB22CC33DD44EE550010 /* WalkUP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalkUP.entitlements; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550011 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +36,7 @@
 			children = (
 				AA11BB22CC33DD44EE550006 /* WalkUP */,
 				AA11BB22CC33DD44EE550010 /* WalkUP.entitlements */,
+				AA11BB22CC33DD44EE550011 /* Config.xcconfig */,
 				AA11BB22CC33DD44EE550003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -179,6 +181,7 @@
 		};
 		AA11BB22CC33DD44EE55000E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA11BB22CC33DD44EE550011 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -189,6 +192,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Walk UP!";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "歩いた歩数をゲームの活力と経験値に変換するために、ヘルスケアの歩数データを読み取ります。データが端末の外に送信されることはありません。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -209,6 +213,7 @@
 		};
 		AA11BB22CC33DD44EE55000F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA11BB22CC33DD44EE550011 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -219,6 +224,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Walk UP!";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "歩いた歩数をゲームの活力と経験値に変換するために、ヘルスケアの歩数データを読み取ります。データが端末の外に送信されることはありません。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

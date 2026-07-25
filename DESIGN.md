@@ -370,6 +370,33 @@ BestiaryEntry
 - `WalkUP/Health/MockStepProvider.swift` — 決定論的な擬似データ（開発／審査／デモ兼用）
 - `WalkUP/StepDashboardModel.swift` — 疎通確認用モデル（→ 活力変換層に発展させる）
 - `WalkUP/ContentView.swift` — 疎通確認画面（→ ホーム画面に差し替える）
+- `WalkUP/AppSecrets.swift` — 秘匿値へのアクセス層
+- `Config.xcconfig` / `Secrets.xcconfig.example` / `Info.plist` — 秘匿値の注入経路
+
+### 秘匿値の扱い
+
+```
+Secrets.xcconfig (.gitignore 済み)
+  → ビルド設定 REVENUECAT_API_KEY
+  → Info.plist の RevenueCatAPIKey
+  → AppSecrets.revenueCatAPIKey
+```
+
+`Config.xcconfig` が既定値を空で定義したうえで `#include?` により `Secrets.xcconfig` を
+任意読み込みするため、**クローン直後（キー未設定）でもビルドが通る**。
+未設定時 `AppSecrets.revenueCatAPIKey` は `nil` を返すので、課金機能を無効化して動作を継続できる。
+
+セットアップ手順:
+
+```
+cp Secrets.xcconfig.example Secrets.xcconfig
+# RevenueCat ダッシュボード → Project settings → API keys の
+# Public app-specific API key (appl_ で始まる) を記入する
+```
+
+なお `INFOPLIST_KEY_<任意名>` は任意キーには使えないため、`Info.plist` を明示指定している。
+`GENERATE_INFOPLIST_FILE = YES` と併用しており、表示名や HealthKit 説明文は従来どおり
+ビルド設定から自動生成される（検証済み）。
 
 **検証済み**（2026-07-25、iPhone 17 Pro / iOS 26.2 シミュレータ）
 

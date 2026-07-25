@@ -1,0 +1,10 @@
+// ビルド設定の入口。これはコミットする。
+//
+// 秘匿値の既定値をここで空定義しておくことで、Secrets.xcconfig が無い環境
+// （クローン直後や CI）でもビルドが通る。
+
+REVENUECAT_API_KEY =
+
+// 実際のキーは Secrets.xcconfig に置く。こちらは .gitignore 済みでコミットされない。
+// 後から読み込むことで上書きされる。
+#include? "Secrets.xcconfig"
