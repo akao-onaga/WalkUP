@@ -5,10 +5,14 @@ struct WalkUPApp: App {
     /// 課金の状態は全画面から参照するため、アプリ生存期間で1つだけ持つ。
     @State private var purchases = PurchaseManager()
 
+    /// ゲームの状態も同様。保存済みのセーブがあれば読み込まれる。
+    @State private var game = GameModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
                 .environment(purchases)
+                .environment(game)
                 // API キー未設定なら中で何もせず .disabled のまま進む。
                 .task { purchases.configure() }
         }

@@ -1,6 +1,5 @@
 import StoreKit
 import SwiftUI
-import UIKit
 import RevenueCat
 
 /// 活力パスのペイウォール（画面 #6）。
@@ -27,7 +26,7 @@ struct PaywallView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 32)
             }
-            .background(Palette.background.ignoresSafeArea())
+            .background(Theme.background.ignoresSafeArea())
             .navigationTitle("活力パス")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -56,7 +55,7 @@ struct PaywallView: View {
         VStack(spacing: 12) {
             Image(systemName: "figure.walk.motion")
                 .font(.system(size: 52, weight: .medium))
-                .foregroundStyle(Palette.accent)
+                .foregroundStyle(Theme.accent)
                 .padding(.top, 8)
 
             Text("歩いた分を、もっと世界へ")
@@ -78,14 +77,14 @@ struct PaywallView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 16))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func benefit(_ title: String, detail: String, icon: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(Palette.accent)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.subheadline.bold())
@@ -139,7 +138,7 @@ struct PaywallView: View {
                 .frame(maxWidth: .infinity, minHeight: 52)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Palette.accentFill)
+            .tint(Theme.accentFill)
             .disabled(purchases.isPurchasing)
 
             Text("自動更新サブスクリプションです。解約するまで毎月 \(package.storeProduct.localizedPriceString) が請求されます。解約は App Store の設定からいつでも行えます。")
@@ -152,9 +151,9 @@ struct PaywallView: View {
     private var activeNotice: some View {
         Label("活力パスは有効です", systemImage: "checkmark.seal.fill")
             .font(.headline)
-            .foregroundStyle(Palette.accent)
+            .foregroundStyle(Theme.accent)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Palette.card, in: RoundedRectangle(cornerRadius: 12))
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var unavailableNotice: some View {
@@ -168,7 +167,7 @@ struct PaywallView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(16)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 
     /// App Store のガイドライン上、サブスクを販売する画面には
@@ -200,7 +199,7 @@ struct PaywallView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(Palette.card, in: RoundedRectangle(cornerRadius: 10))
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
             .foregroundStyle(.secondary)
         }
         #endif
@@ -221,44 +220,6 @@ struct PaywallView: View {
         case .failed(let message):
             resultMessage = message
         }
-    }
-}
-
-// MARK: - 配色
-
-/// ART_PROMPTS.md の STYLE SPEC と揃えた最小限のパレット。
-/// ゲーム画面を作り込む段階で共通の Theme に昇格させる。
-///
-/// **背景色を固定するなら、文字色も必ずセットで面倒を見ること。**
-/// 背景だけ固定して文字を `.primary` / `.secondary` のまま放置すると、
-/// ダークモードで「明るい背景に白文字」になり読めなくなる。
-/// ここでは背景側をモード追従にすることで、`.primary` / `.secondary` を
-/// そのまま正しく機能させている。
-private enum Palette {
-    static let background = adaptive(light: 0xE8E4DC, dark: 0x1B1922)
-    static let card       = adaptive(light: 0xF6F4EF, dark: 0x26232F)
-
-    /// アイコンと強調テキスト。背景の明暗が反転するので、こちらも明度を入れ替える。
-    static let accent     = adaptive(light: 0x5F5B76, dark: 0xADA5C9)
-
-    /// 主ボタンの塗り。上に白文字を載せるため、両モードとも十分に暗い色で固定する。
-    static let accentFill = adaptive(light: 0x6B6782, dark: 0x6B6782)
-
-    private static func adaptive(light: Int, dark: Int) -> Color {
-        Color(uiColor: UIColor { traits in
-            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
-        })
-    }
-}
-
-private extension UIColor {
-    convenience init(rgb: Int) {
-        self.init(
-            red:   CGFloat((rgb >> 16) & 0xFF) / 255,
-            green: CGFloat((rgb >> 8) & 0xFF) / 255,
-            blue:  CGFloat(rgb & 0xFF) / 255,
-            alpha: 1
-        )
     }
 }
 

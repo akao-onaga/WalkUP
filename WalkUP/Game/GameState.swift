@@ -21,6 +21,12 @@ struct GameState: Codable, Equatable {
 
     /// 解放済みの「世界の記述」ID（§18.4）。
     var unlockedLore: [String] = []
+
+    /// 未開封の道標の数（§18.3）。
+    ///
+    /// 保存する必要がある。付与は歩数の処理時に起きるが、開封はプレイヤーの操作なので、
+    /// アプリを閉じてから開くまでの間を跨いで持ち越さなければならない。
+    var pendingMilestones: Int = 0
 }
 
 // MARK: - プレイヤー
