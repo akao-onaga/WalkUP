@@ -222,7 +222,7 @@ CHARACTER: A creature made of several loosely connected floating lumps that
 drift apart from one another, held together only by thin sagging strands.
 The largest lump carries a single half-closed eye. The lumps hover at
 different heights, as if the creature cannot be bothered to hold itself
-together. Accent color: pale seafoam where the strands meet the lumps.
+together. Accent color: dull amber on the connecting strands and where they meet each lump.
 ```
 
 #### ⑦ ネバリ / Nebari — 硬い
@@ -242,7 +242,8 @@ CHARACTER: A lanky creature leaning heavily to one side as if propped against
 an invisible wall, one shoulder far lower than the other. Its head lolls onto
 the raised shoulder. Two unequal arms hang slack, the longer one nearly
 touching the ground. Its lower body tapers into a soft rounded base.
-Accent color: faded rust at the tip of the lolling head.
+Accent color: faded rust covering the entire underside of the lolling head and the
+lower half of the longer arm.
 ```
 
 ---
@@ -256,7 +257,7 @@ CHARACTER: A heavy hunched creature that appears to be sinking into the ground,
 its lower half already swallowed and blurred away. Broad rounded shoulders
 carry a low-hanging head with two deep-set eyes. Its arms are folded across
 itself, pressing downward as if helping itself sink.
-Accent color: cold tarnished bronze around the sunken rim.
+Accent color: warm tarnished bronze around the sunken rim where it meets the ground.
 ```
 
 #### ⑩ カスミ / Kasumi — 手数
@@ -266,7 +267,7 @@ CHARACTER: A frayed, half-dissolved creature whose outline breaks apart into
 drifting wisps at its edges. A vague humanoid core with one faint eye remains
 recognizable at the center. Its lower body trails off into ragged floating
 tatters instead of legs.
-Accent color: dim lilac at the dissolving edges.
+Accent color: dull ochre through the drifting wisps at the dissolving edges.
 ```
 
 #### ⑪ オモリ / Omori — 硬い
@@ -286,7 +287,7 @@ CHARACTER: A hollow, empty-shelled creature standing upright but clearly
 vacant, with a large ragged opening through its torso that you can see
 through. Its posture is stiff and lifeless, arms hanging straight. The head
 tilts back slightly, empty eye sockets facing upward.
-Accent color: pale bone white around the rim of the hollow opening.
+Accent color: dull terracotta around the rim of the hollow opening.
 ```
 
 ---
