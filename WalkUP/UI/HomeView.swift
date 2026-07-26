@@ -23,6 +23,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    heroStrip
                     levelCard
                     resourceRow
                     if game.state.pendingMilestones > 0 { milestoneCard }
@@ -32,7 +33,7 @@ struct HomeView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .background(homeBackdrop.ignoresSafeArea())
             .navigationTitle("Walk UP!")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -59,6 +60,62 @@ struct HomeView: View {
                 MilestoneResultView(finds: milestoneFinds) { milestoneFinds = [] }
             }
         }
+    }
+
+    // MARK: - 世界を敷く
+
+    /// ホームの背景。**今いる地域を薄く敷く。**
+    ///
+    /// 無地の背景だと、毎日最初に開く画面がゲームの外側に見える。
+    /// ただし主役は数値なので、**読めなくなる手前まで沈める**。
+    private var homeBackdrop: some View {
+        ZStack {
+            Theme.background
+
+            if UIImage(named: "bg\(game.unlockedChapter)") != nil {
+                Image("bg\(game.unlockedChapter)")
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.55)
+                    .blur(radius: 1)
+                    // カードが乗る中央〜下は濃く覆い、上だけ街を見せる。
+                    // 全面を均一に沈めると、ぼやけた汚れにしか見えない。
+                    .overlay(
+                        LinearGradient(
+                            colors: [
+                                Theme.background.opacity(0.15),
+                                Theme.background.opacity(0.85),
+                                Theme.background
+                            ],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+            }
+        }
+    }
+
+    /// 主人公。**この世界で唯一動いている存在**（§1）なので、待機でも止めない。
+    private var heroStrip: some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            HeroPortrait()
+                .frame(width: 96, height: 96)
+                .modifier(IdleBob(active: true))
+                .shadow(color: Theme.ink.opacity(0.35), radius: 0, y: 3)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(game.todaySteps > 0 ? "今日も歩いた" : "まだ歩いていない")
+                    .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                Text(game.todaySteps > 0
+                     ? "その分だけ、世界が目を覚ます。"
+                     : "一歩ごとに、止まった街が動き出す。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - レベル

@@ -321,7 +321,8 @@ struct HeroPortrait: View {
 
 /// 待機モーション。ゆっくりした上下動で「気だるさ」を出す。
 /// ART_PROMPTS.md の sluggish / drowsy / inert という設定に合わせ、あえて遅くしている。
-private struct IdleBob: ViewModifier {
+/// ゆっくり上下に揺れる待機モーション。戦闘のダルモンとホームの主人公で共用する。
+struct IdleBob: ViewModifier {
     var active: Bool
     @State private var up = false
 
