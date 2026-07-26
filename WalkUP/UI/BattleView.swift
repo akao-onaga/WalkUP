@@ -46,7 +46,7 @@ struct BattleView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            RegionBackdrop(chapter: session.chapter)
 
             VStack(spacing: 20) {
                 enemyPane
@@ -75,12 +75,17 @@ struct BattleView: View {
         VStack(spacing: 12) {
             Text(session.enemy.name)
                 .font(session.enemy.isBoss ? .title3.bold() : .headline)
+                // 背景を暗く固定しているので、文字色も固定する。
+                // .primary のままだとライトモードで黒字になり、暗い背景に埋もれる。
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
 
             HStack(spacing: 8) {
                 MeterBar(value: Double(enemyHP) / Double(max(1, session.enemy.hp)), tint: Theme.danger)
                 Text("\(max(0, enemyHP))")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.5), radius: 2)
                     .frame(width: 44, alignment: .trailing)
             }
             .frame(maxWidth: 280)
@@ -131,7 +136,8 @@ struct BattleView: View {
                 MeterBar(value: Double(playerHP) / Double(max(1, session.player.maxHP)), tint: Theme.accent)
                 Text("\(max(0, playerHP))")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.5), radius: 2)
                     .frame(width: 44, alignment: .trailing)
             }
             .frame(maxWidth: 280)
@@ -225,6 +231,37 @@ struct DarumonPortrait: View {
                 .font(.system(size: enemy.isBoss ? 112 : 86))
                 .foregroundStyle(Theme.accent)
         }
+    }
+}
+
+/// 戦闘の背景。章ごとに地域が変わる。
+///
+/// 背景は後処理で暗く沈めてある（`artpipeline --background`）。同じ明るさだと
+/// 立ち絵の輪郭が背景に溶けるため。**上下を暗く落として**さらに立ち絵を浮かせ、
+/// HPバーと数値の可読性も確保している。
+struct RegionBackdrop: View {
+    let chapter: Int
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                Theme.background
+
+                if UIImage(named: "bg\(chapter)") != nil {
+                    Image("bg\(chapter)")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+
+                    LinearGradient(
+                        colors: [.black.opacity(0.45), .black.opacity(0.05), .black.opacity(0.55)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+            }
+        }
+        .ignoresSafeArea()
     }
 }
 
