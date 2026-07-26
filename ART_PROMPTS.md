@@ -20,7 +20,30 @@ Walk UP! のモンスター「ダルモン」を生成 AI（Codex の ImageGen�
 
 ---
 
-## 1. Codex への投げ方
+## 1. 生成の回し方
+
+### 自動（推奨）
+
+```bash
+./tools/generate-art.sh nemuke gorone      # 個体を指定
+./tools/generate-art.sh --chapter 2        # 章ごと4体
+./tools/generate-art.sh --chapter boss     # ボス3体
+```
+
+**生成 → 背景処理 → 正規化 → 減色 → 実測** まで1コマンドで通る。
+プロンプトはこのファイルから直接読むので、**文面の原本は常にここ**。
+スクリプト側に複製しないこと。必ず食い違う。
+
+生成は codex CLI の `image_gen` を使う。**ChatGPT の月額プランで認証されており、
+API キーは不要**（`codex login status` が "Logged in using ChatGPT" を返す）。
+
+スクリプトは既に合格している個体を参照画像として自動で添付する。
+**文章だけで「他と同じ明るさ」を指示しても揃わない。** 実物を見せるのが確実で、
+実際にネムケの明度は 127.3 → 102.6 に改善した。
+
+### 手動（ChatGPT の画像生成を使う場合）
+
+## 1.1 Codex への投げ方
 
 以下をそのまま貼り付ける。3体まとめて依頼することで、モデル内で相互に基準が揃いやすくなる。
 
@@ -93,12 +116,14 @@ Accent color: sallow yellow-ochre at the tips of the tendrils.
 
 ```
 CHARACTER: A heavy four-legged creature lying flat on its side, too massive
-and unmotivated to stand. Seen from the side, the body is HORIZONTAL and level,
-with the head at the LEFT resting directly on the ground, slack jaw touching
-the floor. The spine runs left to right across the image; do not tilt or rotate
-the body. Thick stubby legs folded uselessly, one paw limply raised straight up.
-Loose folds of skin pooling on the ground around its body.
-Accent color: faded brick red on the pads of its paws.
+and unmotivated to stand. Seen from the side, the body is HORIZONTAL, with the
+head at the LEFT resting on the ground and the slack jaw touching the floor.
+All FOUR thick stubby legs must be clearly visible along the body, folded
+uselessly against it, with visible paw pads. ONE foreleg is raised high into
+the air above the body line, bent at the wrist so the paw flops over — this
+raised leg is the silhouette's key feature and must read clearly. Deep loose
+folds of skin bunch along the back and pool on the ground around the body.
+Accent color: faded brick red on the pads of all visible paws.
 ```
 
 ---
@@ -142,12 +167,14 @@ Accent color: sallow yellow-ochre at the tips of the tendrils.
 
 ```
 CHARACTER: A heavy four-legged creature lying flat on its side, too massive
-and unmotivated to stand. Seen from the side, the body is HORIZONTAL and level,
-with the head at the LEFT resting directly on the ground, slack jaw touching
-the floor. The spine runs left to right across the image; do not tilt or rotate
-the body. Thick stubby legs folded uselessly, one paw limply raised straight up.
-Loose folds of skin pooling on the ground around its body.
-Accent color: faded brick red on the pads of its paws.
+and unmotivated to stand. Seen from the side, the body is HORIZONTAL, with the
+head at the LEFT resting on the ground and the slack jaw touching the floor.
+All FOUR thick stubby legs must be clearly visible along the body, folded
+uselessly against it, with visible paw pads. ONE foreleg is raised high into
+the air above the body line, bent at the wrist so the paw flops over — this
+raised leg is the silhouette's key feature and must read clearly. Deep loose
+folds of skin bunch along the back and pool on the ground around the body.
+Accent color: faded brick red on the pads of all visible paws.
 ```
 
 #### ④ アクビ / Akubi — 標準
