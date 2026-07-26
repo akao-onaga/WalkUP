@@ -1,0 +1,117 @@
+# 引き継ぎメモ（2026-07-26）
+
+新しいセッションはこのファイルから読み始めること。詳細は `DESIGN.md` と `ART_PROMPTS.md` にある。
+**このファイルは現在地と落とし穴だけを書く。仕様は書かない**（二重管理になるため）。
+
+## この作品は何か
+
+RevenueCat Shipaton 2026 提出作品の万歩計RPG「Walk UP! 万歩計RPG」。
+歩数だけが怠惰（ダルモン）を打ち破る資源、という一文が設計原理（`DESIGN.md` §1）。
+**提出期限は 2026/9/30、App Store 公開は 8/1 以降でないと失格**（§0）。
+
+## 現在地
+
+| 領域 | 状態 |
+|---|---|
+| コアループ（歩数→EXP/AP→戦闘→報酬→強化） | ✅ 動作。実機確認済み |
+| 画面 | ✅ ホーム / ノード選択 / 戦闘 / 装備・強化 / 結果 / 設定 / ペイウォール |
+| ユニットテスト | ✅ 35件（`WalkUPTests/`） |
+| マスターデータ | ✅ 確定（§17）。20,000回シミュレーションで検証済み |
+| アート | ✅ 雑魚12体・主人公・地域背景3枚。**ボス3体が未生成** |
+| 課金（RevenueCat） | ✅ 実装完了。**購入の実地検証のみ未了**（§7.4） |
+| TestFlight | ✅ 0.1.0 / build 1 アップロード済み |
+| プライバシーポリシー | ✅ 公開済み（GitHub Pages） |
+
+## 次にやること（優先順）
+
+### 1. ボス3体のアート（唯一の必須アセット欠け）
+
+```bash
+./tools/generate-art.sh --chapter boss    # マドロミ / ムキリョク / ダルモン
+```
+
+プロンプトは `ART_PROMPTS.md` §3.6 に用意済み。
+生成後は `WalkUP/Assets.xcassets/Darumon/` に imageset を追加すれば
+`DarumonPortrait` が自動で拾う（`MasterData.boss()` の `assetName` を埋めること。今は `nil`）。
+
+### 2. ユーザー作業（私からはできない）
+
+- **App Store Connect にプライバシーポリシー URL を登録**
+  `https://akao-onaga.github.io/WalkUP/privacy-policy.html`
+  アプリ内リンクと同一でないと審査で指摘される
+- **課金の再確認** — §7.4 の商品取得エラーが解消したか
+
+### 3. 未決事項（`DESIGN.md` §18.6）
+
+- 「世界の記述」の総数（現在22本。1日最大12個引かれるので不足しうる）
+- 携行品の効果量（回復量・一時強化の倍率・所持上限）
+- 活力パスを道標にも効かせるか（**効かせない方が良い**と考えている）
+
+### 4. 未着手の画面（§9 の #7 #8）
+
+図鑑・地域（復興）画面。**データは既に溜まっている**（`GameState.bestiary` / `regions`）ので表示するだけ。
+
+## 踏んだ落とし穴（同じ轍を踏まないこと）
+
+### 背景色を固定したら文字色も固定する
+
+**2回やらかしている。** ペイウォール（ダークモードで白背景に白文字）と戦闘画面（暗い背景に黒文字）。
+`.primary` / `.secondary` は OS のモードに追従するので、背景を固定した画面では意味を成さない。
+`DESIGN.md` §15-9 に教訓を書いた直後に、別画面で再発させた。
+
+### 画像生成は毎回すべての属性を引き直す
+
+ダラリの頭を直そうとして6回作り直し、毎回別の要素が壊れた（痩せる→紫になる→頭が戻る）。
+**造形はプロンプト、明度と彩度は後処理**、と役割を分けて解決した（`tools/artpipeline`）。
+`ART_PROMPTS.md` の「この文面は触らないこと」という注記は本気で書いてある。
+
+### 期待値だけで戦闘を設計してはいけない
+
+紙の上では「辛勝」のはずが、実測すると勝率100%だった。
+±10% の乱数は10ターンかけると平均に収束し、勝敗が決定論になる。
+`WalkUPTests/BalanceSimulationTests.swift` が回帰テストとして常時走る。数値を変えたら落ちる。
+
+### 実機で数日使わないと出ない不具合がある
+
+「第1章を全クリアすると第2章の解放まで討伐ボタンが押せない」は、
+ビルドもテストも通る状態で存在していた。シミュレータでは歩数を注入して一気に進めるため再現しない。
+**ユーザーの実機報告が唯一の検出手段だった。**
+
+### `.buttonStyle(.plain)` は中身のある場所しか反応しない
+
+ノード行の余白を押しても無反応になっていた。`.contentShape(Rectangle())` が要る。
+
+## ツール
+
+| コマンド | 用途 |
+|---|---|
+| `./tools/generate-art.sh --chapter <1\|2\|3\|boss\|bg>` | 生成→後処理→実測を一括 |
+| `./tools/generate-art.sh <名前>...` | 個体指定。`hero` も可 |
+| `swiftc -O -o /tmp/artstats tools/artstats/main.swift` | 明度・彩度・アクセント面積の実測 |
+
+**画像生成は codex CLI の `image_gen` を使う。ChatGPT の月額プランで認証済みで API キーは不要**
+（`codex login status` が "Logged in using ChatGPT" を返す）。
+
+合格条件: 明度の差 15 以内 / 彩度 0.20〜0.27 / アクセント面積 3〜6%。
+
+## 検証コマンド
+
+```bash
+# テスト（シミュレータの UDID は環境で変わる。xcrun simctl list devices で確認）
+xcodebuild test -project WalkUP.xcodeproj -scheme WalkUP -destination 'id=<SIM_UDID>'
+
+# 実機へインストール
+xcodebuild build -project WalkUP.xcodeproj -scheme WalkUP \
+  -destination 'id=<DEVICE_UDID>' -configuration Debug -allowProvisioningUpdates
+xcrun devicectl device install app --device <DEVICE_ID> \
+  ~/Library/Developer/Xcode/DerivedData/WalkUP-*/Build/Products/Debug-iphoneos/WalkUP.app
+```
+
+シミュレータで名前指定（`name=iPhone 17 Pro`）は使わないこと。同名デバイスがあると曖昧エラーになる。
+
+## 進め方について
+
+- **コミットと push はこちらで行う**（ユーザーからの指示）。作業ツリーを溜めない
+- ユーザーは実機で触って不具合を報告する。**「詰まった」報告は仕様かバグかを切り分けて答える**
+- 同じリポジトリで複数の Claude セッションを走らせない。過去に別セッションが
+  `git add -A` で未検証コードを巻き込んで push した事故があった
