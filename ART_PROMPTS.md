@@ -44,8 +44,9 @@ STYLE SPEC (identical for every image in this set):
   no texture, no highlights, no glow, no rendering.
 - Limited, desaturated, muted palette. Base hues in the grey-violet and dusty
   blue range. Exactly ONE warmer accent color per creature, used sparingly.
-- Solid flat background, uniform color #E8E4DC. No shadow on the ground,
-  no ground plane, no props, no environment.
+- Fully transparent background (alpha channel). No background color, no shadow
+  on the ground, no ground plane, no props, no environment. The creature must be
+  fully isolated with clean edges suitable for compositing.
 - The creature occupies about 70% of the canvas height, centered,
   with even margins on all sides.
 - No text, no logo, no signature, no watermark, no border, no frame.
@@ -98,9 +99,24 @@ Accent color: faded brick red on the pads of its paws.
 生成のばらつきはここで吸収する。**最も費用対効果が高い工程なので省略しない。**
 
 1. **キャンバスを 1024×1024 に統一**し、中央配置・余白比率を揃える
-2. **背景色を #E8E4DC に塗り直して完全一致させる**（生成物は微妙にずれる）
+2. **背景を完全に透過させる**（PNG のアルファチャンネル）。生成物には背景が
+   残ることがあるため、必ず除去して縁のにじみも整える
 3. **ポスタリゼーション（減色 8〜12 色）を全アセットに同一設定で適用**
 4. 必要なら軽いドット化を全アセットに同一設定で適用
+
+### 背景を透過にする理由（2026-07-26 確定）
+
+当初は背景色 `#E8E4DC` を焼き込む仕様だったが、**透過に変更した**。
+
+焼き込むと、ダークモードで暗い画面の中にモンスターの明るい四角が浮く。
+本作は「夜に1セッション3分」（DESIGN.md §2）が前提なので、
+ライトモード固定にすると夜のプレイで目が疲れる。
+
+透過にすれば背景はアプリ側で敷けるため、**ライト/ダークの両方に対応でき、
+さらに地域背景をモンスターの後ろに敷ける**。ゲームとしての見栄えも上がる。
+
+代償は後処理に背景除去の工程が増えること。**量産を始める前に決めておく必要があった。**
+12〜15体を焼き込みで作った後にこの判断をすると、全部作り直しになる。
 
 ---
 
@@ -114,7 +130,7 @@ Accent color: faded brick red on the pads of its paws.
 | 明度 | 3体の明るさが揃っている（1体だけ浮かない） |
 | 輪郭線 | 線の太さが3体で同じに見える |
 | アクセント色 | 各体に1色だけ、面積も同程度 |
-| 背景 | 完全に同一色（後処理前でも近い） |
+| 背景 | 完全に透過している（縁にゴミが残っていない） |
 
 **2つ以上落ちる場合はスタイルブロックの記述を修正する。**
 個体ブロックをいじって直そうとしないこと。原因は固定側にある。

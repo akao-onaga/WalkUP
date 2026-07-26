@@ -1,26 +1,35 @@
 import SwiftUI
+import UIKit
 
 /// 戦闘（画面 #3）。§4.1 のとおり **3〜8秒のログ再生演出**。
 ///
 /// 勝敗は `GameModel.startBattle` で既に確定している。ここは受け取ったログを
-/// 順に再生するだけで、演出の速度を変えても結果は変わらない。
+/// 順に再生するだけで、演出をどう変えても結果は変わらない。
 ///
-/// アニメーションは SwiftUI の変形のみで作っている（§15-2 / §10.1.1）。
-/// ダルモンは sluggish / drowsy / inert な存在なので、重く鈍い動きの方が設定に合う。
+/// アニメーションは SwiftUI の変形のみ（§15-2 / §10.1.1）。アートは1枚も使っていない。
+/// **手応えは「動かす量」ではなく「止める瞬間」で作る。**
+/// 攻撃 → 命中で一瞬止める（ヒットストップ）→ 揺らす、の順番が効く。
 struct BattleView: View {
     let session: GameModel.BattleSession
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var turnIndex = 0
     @State private var playerHP: Int
     @State private var enemyHP: Int
-    @State private var shake: Side?
+    @State private var lunge: Side?
+    @State private var recoil: Side?
     @State private var flash: Side?
-    @State private var floatingDamage: (side: Side, amount: Int)?
+    @State private var screenFlash = 0.0
+    @State private var cameraShake = 0.0
+    @State private var floatingDamage: (side: Side, amount: Int, id: Int)?
+    @State private var enemyDefeated = false
     @State private var isFinished = false
 
     enum Side { case player, enemy }
+
+    private let impactLight = UIImpactFeedbackGenerator(style: .light)
+    private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
+    private let notify = UINotificationFeedbackGenerator()
 
     init(session: GameModel.BattleSession) {
         self.session = session
@@ -28,23 +37,30 @@ struct BattleView: View {
         _enemyHP = State(initialValue: session.enemy.hp)
     }
 
-    /// 1手あたりの再生間隔。§4.1 の「3〜8秒」に収まるよう、手数から逆算する。
-    private var stepInterval: Double {
-        let total = Double(session.log.turns.count)
-        return min(0.45, max(0.12, 5.0 / max(1, total)))
+    /// 1手あたりの再生間隔。§4.1 の「3〜8秒」に収まるよう手数から逆算する。
+    /// 手数が多い戦闘ほど1手を短くし、総時間を一定に保つ。
+    private var beat: Double {
+        min(0.40, max(0.13, 4.5 / Double(max(1, session.log.turns.count))))
     }
 
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 enemyPane
                 Spacer(minLength: 0)
                 playerPane
-                if isFinished { resultButton }
             }
             .padding(20)
+            // 画面全体を揺らす。個々の要素ではなく画面が動くと衝撃が伝わる。
+            .offset(x: cameraShake)
+
+            // 被弾の瞬間だけ画面に色を乗せる。ダメージの重さを一瞬で伝える。
+            Theme.danger
+                .opacity(screenFlash)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
         }
         .task { await playback() }
         .fullScreenCover(isPresented: $isFinished) {
@@ -57,25 +73,38 @@ struct BattleView: View {
     private var enemyPane: some View {
         VStack(spacing: 12) {
             Text(session.enemy.name)
-                .font(.headline)
+                .font(session.enemy.isBoss ? .title3.bold() : .headline)
 
-            MeterBar(value: Double(enemyHP) / Double(max(1, session.enemy.hp)), tint: Theme.danger)
-                .frame(maxWidth: 260)
+            HStack(spacing: 8) {
+                MeterBar(value: Double(enemyHP) / Double(max(1, session.enemy.hp)), tint: Theme.danger)
+                Text("\(max(0, enemyHP))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .frame(maxWidth: 280)
 
             ZStack {
                 Image(systemName: session.enemy.isBoss ? "cloud.moon.fill" : "cloud.fill")
-                    .font(.system(size: session.enemy.isBoss ? 110 : 84))
+                    .font(.system(size: session.enemy.isBoss ? 112 : 86))
                     .foregroundStyle(Theme.accent)
-                    .opacity(flash == .enemy ? 0.35 : 1)
-                    .offset(x: shake == .enemy ? -10 : 0)
-                    // 待機はゆっくりした上下動。気だるさを出す。
-                    .modifier(IdleBob(active: !isFinished))
+                    .brightness(flash == .enemy ? 0.5 : 0)
+                    .modifier(IdleBob(active: !enemyDefeated))
+                    // 攻撃時は前へ、被弾時は後ろへ。
+                    .offset(
+                        y: (lunge == .enemy ? 22 : 0) + (recoil == .enemy ? -14 : 0)
+                    )
+                    // 撃破は「崩れ落ちる」。倒れて縮んで消える。
+                    .rotationEffect(.degrees(enemyDefeated ? 78 : 0), anchor: .bottom)
+                    .scaleEffect(enemyDefeated ? 0.72 : 1, anchor: .bottom)
+                    .opacity(enemyDefeated ? 0 : 1)
 
                 if let damage = floatingDamage, damage.side == .enemy {
                     DamageNumber(amount: damage.amount, tint: Theme.danger)
+                        .id(damage.id)
                 }
             }
-            .frame(height: 150)
+            .frame(height: 160)
         }
     }
 
@@ -85,67 +114,105 @@ struct BattleView: View {
         VStack(spacing: 12) {
             ZStack {
                 Image(systemName: "figure.walk.motion")
-                    .font(.system(size: 72))
+                    .font(.system(size: 74))
                     .foregroundStyle(Theme.accentFill)
-                    .opacity(flash == .player ? 0.35 : 1)
-                    .offset(x: shake == .player ? 10 : 0)
+                    .brightness(flash == .player ? 0.5 : 0)
+                    .offset(
+                        y: (lunge == .player ? -22 : 0) + (recoil == .player ? 14 : 0)
+                    )
 
                 if let damage = floatingDamage, damage.side == .player {
                     DamageNumber(amount: damage.amount, tint: Theme.danger)
+                        .id(damage.id)
                 }
             }
             .frame(height: 110)
 
-            MeterBar(value: Double(playerHP) / Double(max(1, session.player.maxHP)), tint: Theme.accent)
-                .frame(maxWidth: 260)
-
-            Text("\(max(0, playerHP)) / \(session.player.maxHP)")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                MeterBar(value: Double(playerHP) / Double(max(1, session.player.maxHP)), tint: Theme.accent)
+                Text("\(max(0, playerHP))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .frame(maxWidth: 280)
         }
-    }
-
-    private var resultButton: some View {
-        Button("結果を見る") { isFinished = true }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accentFill)
     }
 
     // MARK: - 再生
 
     private func playback() async {
-        for turn in session.log.turns {
-            let target: Side = turn.attacker == .player ? .enemy : .player
+        impactLight.prepare()
+        impactHeavy.prepare()
 
-            withAnimation(.easeOut(duration: 0.12)) {
-                shake = target
-                flash = target
-            }
-            floatingDamage = (target, turn.damage)
+        for (index, turn) in session.log.turns.enumerated() {
+            let attacker: Side = turn.attacker == .player ? .player : .enemy
+            let target: Side = attacker == .player ? .enemy : .player
 
-            withAnimation(.easeOut(duration: 0.2)) {
+            // 1. 踏み込み。攻撃側が相手に向かって動く。
+            withAnimation(.easeOut(duration: beat * 0.35)) { lunge = attacker }
+            try? await Task.sleep(for: .seconds(beat * 0.35))
+
+            // 2. 命中。ここで一瞬止めるのが手応えの本体。
+            //    HP の減少・数値・フラッシュ・振動を同じ瞬間に集中させる。
+            lunge = nil
+            flash = target
+            floatingDamage = (target, turn.damage, index)
+
+            let isPlayerHurt = target == .player
+            // 自分が受ける時だけ強く振動させる。すべて強くすると意味が薄れる。
+            (isPlayerHurt ? impactHeavy : impactLight).impactOccurred()
+
+            withAnimation(.easeOut(duration: beat * 0.2)) {
+                recoil = target
                 if target == .enemy { enemyHP = turn.defenderRemainingHP }
                 else { playerHP = turn.defenderRemainingHP }
+                if isPlayerHurt { screenFlash = 0.22 }
             }
+            shakeCamera(strong: isPlayerHurt)
 
-            try? await Task.sleep(for: .seconds(stepInterval * 0.5))
-            withAnimation(.easeIn(duration: 0.12)) {
-                shake = nil
+            try? await Task.sleep(for: .seconds(beat * 0.28))
+
+            // 3. 戻す。
+            withAnimation(.easeInOut(duration: beat * 0.3)) {
+                recoil = nil
                 flash = nil
+                screenFlash = 0
             }
-            try? await Task.sleep(for: .seconds(stepInterval * 0.5))
+            try? await Task.sleep(for: .seconds(beat * 0.37))
             floatingDamage = nil
-            turnIndex += 1
         }
 
-        try? await Task.sleep(for: .seconds(0.4))
+        // 決着の演出。
+        if session.log.result == .victory {
+            withAnimation(.easeIn(duration: 0.55)) { enemyDefeated = true }
+            notify.notificationOccurred(.success)
+            try? await Task.sleep(for: .seconds(0.7))
+        } else {
+            notify.notificationOccurred(.error)
+            withAnimation(.easeOut(duration: 0.4)) { screenFlash = 0.35 }
+            try? await Task.sleep(for: .seconds(0.5))
+        }
+
         isFinished = true
+    }
+
+    /// 左右に数回振る。1回の大きな移動より、細かく往復させる方が衝撃に見える。
+    private func shakeCamera(strong: Bool) {
+        let amplitude: Double = strong ? 9 : 4
+        let steps: [Double] = [amplitude, -amplitude * 0.7, amplitude * 0.4, 0]
+        for (index, offset) in steps.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.045) {
+                withAnimation(.linear(duration: 0.045)) { cameraShake = offset }
+            }
+        }
     }
 }
 
 // MARK: - 演出の部品
 
 /// 待機モーション。ゆっくりした上下動で「気だるさ」を出す。
+/// ART_PROMPTS.md の sluggish / drowsy / inert という設定に合わせ、あえて遅くしている。
 private struct IdleBob: ViewModifier {
     var active: Bool
     @State private var up = false
@@ -161,16 +228,20 @@ private struct IdleBob: ViewModifier {
 private struct DamageNumber: View {
     var amount: Int
     var tint: Color
-    @State private var rise = false
+    @State private var appeared = false
 
     var body: some View {
         Text("\(amount)")
-            .font(.system(size: 30, weight: .heavy, design: .rounded))
+            .font(.system(size: 34, weight: .heavy, design: .rounded))
             .foregroundStyle(tint)
-            .offset(y: rise ? -40 : 0)
-            .opacity(rise ? 0 : 1)
+            // 出た瞬間に大きく、すぐ縮む。数字が「弾ける」と当たった感じになる。
+            .scaleEffect(appeared ? 1.0 : 1.6)
+            .offset(y: appeared ? -46 : 0)
+            .opacity(appeared ? 0 : 1)
+            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
             .onAppear {
-                withAnimation(.easeOut(duration: 0.5)) { rise = true }
+                withAnimation(.easeOut(duration: 0.12)) { appeared = false }
+                withAnimation(.easeOut(duration: 0.55).delay(0.05)) { appeared = true }
             }
     }
 }
