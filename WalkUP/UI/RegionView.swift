@@ -12,7 +12,9 @@ struct RegionView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            GameHeader(title: "地域", onClose: { dismiss() })
+
             ScrollView {
                 VStack(spacing: 20) {
                     ForEach(1...3, id: \.self) { chapter in
@@ -21,15 +23,8 @@ struct RegionView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("地域")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
         }
+        .background(Theme.background.ignoresSafeArea())
     }
 
     private func regionCard(_ chapter: Int) -> some View {

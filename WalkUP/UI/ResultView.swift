@@ -41,7 +41,23 @@ struct ResultView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            // 結果は「閉じる」しかない画面なので、見出しは置かず右上に戻り口だけ出す。
+            HStack {
+                Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.headline)
+                        .foregroundStyle(Theme.ink)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Theme.card))
+                        .overlay(Circle().strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
             ScrollView {
                 VStack(spacing: 20) {
                     banner
@@ -50,16 +66,10 @@ struct ResultView: View {
                 }
                 .padding(20)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("閉じる", action: onClose)
-                }
-            }
-            .sheet(isPresented: $isShowingEquipment) { EquipmentView() }
-            .task { await playIntro() }
         }
+        .background(Theme.background.ignoresSafeArea())
+        .sheet(isPresented: $isShowingEquipment) { EquipmentView() }
+        .task { await playIntro() }
     }
 
     /// 見出し。**判子を押すように出す。**
@@ -171,7 +181,6 @@ struct ResultView: View {
             .buttonStyle(InkButtonStyle())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.danger.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+        .panel(fill: Theme.danger.opacity(0.16))
     }
 }

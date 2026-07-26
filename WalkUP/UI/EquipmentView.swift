@@ -8,7 +8,12 @@ struct EquipmentView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            GameHeader(title: "装備・強化", onClose: { dismiss() }) {
+                // 強化に足りるか判断できないと意味がないので常に出す。
+                HeaderCounter(systemImage: "cube", value: game.dregs)
+            }
+
             ScrollView {
                 VStack(spacing: 16) {
                     statusCard
@@ -22,23 +27,8 @@ struct EquipmentView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("装備・強化")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-                ToolbarItem(placement: .principal) {
-                    // ツールバーの Label は既定でアイコンのみに畳まれる。
-                    // 強化に足りるか判断できないと意味がないので明示する。
-                    Label("\(game.dregs)", systemImage: "cube")
-                        .labelStyle(.titleAndIcon)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(Theme.accent)
-                }
-            }
         }
+        .background(Theme.background.ignoresSafeArea())
     }
 
     /// 装備を変えた効果がその場で数字に出るようにする。
@@ -238,5 +228,7 @@ struct SettingsView: View {
                 }
             }
         }
+        // 設定だけは標準の Form を残す。**ここは OS の作法に従う方が迷わない。**
+        // 権限やデータ元の切り替えは、ゲームの意匠より分かりやすさが優先される。
     }
 }

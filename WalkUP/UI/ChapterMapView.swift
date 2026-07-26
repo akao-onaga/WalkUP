@@ -15,7 +15,12 @@ struct ChapterMapView: View {
     @State private var curtain = 0.0
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            GameHeader(title: "討伐", onClose: { dismiss() }) {
+                // 残量が読めないと AP の消費判断ができないので常に出す。
+                HeaderCounter(systemImage: "bolt.fill", value: game.player.ap, tint: Theme.vigor)
+            }
+
             ScrollView {
                 VStack(spacing: 20) {
                     ForEach(1...3, id: \.self) { chapter in
@@ -24,30 +29,15 @@ struct ChapterMapView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("討伐")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-                ToolbarItem(placement: .principal) {
-                    // ツールバーの Label は既定でアイコンのみに畳まれる。
-                    // 残量が読めないと AP の消費判断ができないので明示する。
-                    Label("\(game.player.ap)", systemImage: "bolt.fill")
-                        .labelStyle(.titleAndIcon)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(Theme.vigor)
-                }
-            }
-            .fullScreenCover(item: $session) { session in
-                BattleView(session: session)
-            }
-            .alert("挑めません", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
-            }
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .fullScreenCover(item: $session) { session in
+            BattleView(session: session)
+        }
+        .alert("挑めません", isPresented: .constant(errorMessage != nil)) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
         }
         .overlay {
             Color.black

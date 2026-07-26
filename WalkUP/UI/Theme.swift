@@ -192,6 +192,71 @@ struct SectionTitle: View {
     }
 }
 
+// MARK: - 画面の枠組み
+
+/// シートの見出し。**標準のナビゲーションバーは使わない。**
+///
+/// タイトルと「閉じる」が iOS の顔で出ると、開いた瞬間に設定画面のように見える。
+/// 中身をどれだけ作り込んでも、最初に目に入るのがここなので効き目が大きい。
+///
+/// 右側には持ち物などを置ける（`trailing`）。無ければ左右の重みを揃えるため空ける。
+struct GameHeader<Trailing: View>: View {
+    let title: String
+    var onClose: () -> Void
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onClose) {
+                Image(systemName: "chevron.left")
+                    .font(.headline)
+                    .foregroundStyle(Theme.ink)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth))
+            }
+            .buttonStyle(.plain)
+
+            Text(title)
+                .font(.system(.title3, design: .rounded).weight(.heavy))
+
+            Spacer(minLength: 8)
+
+            trailing
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+    }
+}
+
+extension GameHeader where Trailing == EmptyView {
+    init(title: String, onClose: @escaping () -> Void) {
+        self.init(title: title, onClose: onClose, trailing: { EmptyView() })
+    }
+}
+
+/// ヘッダーに置く持ち物の表示（活力・澱など）。
+struct HeaderCounter: View {
+    let systemImage: String
+    let value: Int
+    var tint: Color = Theme.accent
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+            Text("\(value)")
+                .font(.system(.subheadline, design: .rounded).weight(.heavy).monospacedDigit())
+                .contentTransition(.numericText())
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Capsule().fill(Theme.card))
+        .overlay(Capsule().strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth))
+    }
+}
+
 // MARK: - 数の演出（§15-11）
 
 /// 数を回して見せる。

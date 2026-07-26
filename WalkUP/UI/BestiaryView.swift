@@ -14,7 +14,9 @@ struct BestiaryView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            GameHeader(title: "図鑑", onClose: { dismiss() })
+
             ScrollView {
                 VStack(spacing: 20) {
                     summaryCard
@@ -24,15 +26,8 @@ struct BestiaryView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("図鑑")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
         }
+        .background(Theme.background.ignoresSafeArea())
     }
 
     // MARK: - 集計

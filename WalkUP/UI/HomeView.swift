@@ -272,7 +272,9 @@ struct MilestoneResultView: View {
     let onClose: () -> Void
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            GameHeader(title: "道標", onClose: onClose)
+
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(Array(finds.enumerated()), id: \.offset) { _, find in
@@ -297,14 +299,7 @@ struct MilestoneResultView: View {
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("道標")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("閉じる", action: onClose)
-                }
-            }
         }
+        .background(Theme.background.ignoresSafeArea())
     }
 }
