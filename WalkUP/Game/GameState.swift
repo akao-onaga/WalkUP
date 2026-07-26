@@ -112,6 +112,56 @@ struct RegionState: Codable, Equatable {
     var isUnlocked: Bool = false
 }
 
+// MARK: - 旧データの移行
+
+extension GameState {
+    /// 図鑑の ID を役割ベース（`zako_ch1_standard`）から種別ベース（`darari`）へ寄せる。
+    ///
+    /// **12体を実装する前のビルドは役割ごとに1件しか記録していなかった**（`zako()` の
+    /// 個体指定が無かった頃の `id`）。そのまま読むと、討伐済みのダルモンが図鑑で
+    /// 「未発見」に戻る。TestFlight 0.1.0 を入れている人に実際に起きる。
+    ///
+    /// 付け替え先は `zako()` の既定と同じ規則——その章で同じ役割を持つ最初の個体——にする。
+    /// 当時その役割で戦った相手は必ずその個体だったため、これが唯一の正しい対応付け。
+    ///
+    /// **`schemaVersion` は上げない。** 移行後も形式は変わらず、古いビルドで読んでも
+    /// 壊れない（見覚えのない ID として無視されるだけ）。上げると読み込み自体を
+    /// 拒否させることになり、失うものの方が大きい。
+    func migratingLegacyBestiaryIDs() -> GameState {
+        var migrated = self
+        var merged: [BestiaryEntry] = []
+
+        for entry in bestiary {
+            let id = Self.modernBestiaryID(entry.darumonId)
+            if let index = merged.firstIndex(where: { $0.darumonId == id }) {
+                merged[index].defeatedCount += entry.defeatedCount
+                merged[index].isSighted = merged[index].isSighted || entry.isSighted
+                merged[index].firstSeenAt = [merged[index].firstSeenAt, entry.firstSeenAt]
+                    .compactMap { $0 }.min()
+            } else {
+                var moved = entry
+                moved.darumonId = id
+                merged.append(moved)
+            }
+        }
+
+        migrated.bestiary = merged
+        return migrated
+    }
+
+    /// `zako_ch{章}_{役割}` を、その章で同じ役割を持つ最初の個体の ID に読み替える。
+    /// 形式が合わなければそのまま返す（既に種別ベース、またはボス）。
+    private static func modernBestiaryID(_ id: String) -> String {
+        let parts = id.split(separator: "_")
+        guard parts.count == 3, parts[0] == "zako",
+              let chapter = Int(parts[1].dropFirst(2)),
+              let role = MasterData.Role(rawValue: String(parts[2])),
+              let species = MasterData.species(chapter: chapter).first(where: { $0.role == role })
+        else { return id }
+        return species.id
+    }
+}
+
 /// 図鑑の1件。
 ///
 /// §18.4 の「目撃情報」に対応するため、**目撃済みだが未討伐**の状態を表現できる必要がある。

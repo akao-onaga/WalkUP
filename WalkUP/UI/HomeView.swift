@@ -12,6 +12,8 @@ struct HomeView: View {
     @State private var isShowingEquipment = false
     @State private var isShowingPaywall = false
     @State private var isShowingSettings = false
+    @State private var isShowingRegions = false
+    @State private var isShowingBestiary = false
     @State private var milestoneFinds: [MilestoneOpener.Find] = []
 
     var body: some View {
@@ -48,6 +50,8 @@ struct HomeView: View {
             .sheet(isPresented: $isShowingEquipment) { EquipmentView() }
             .sheet(isPresented: $isShowingPaywall) { PaywallView() }
             .sheet(isPresented: $isShowingSettings) { SettingsView() }
+            .sheet(isPresented: $isShowingRegions) { RegionView() }
+            .sheet(isPresented: $isShowingBestiary) { BestiaryView() }
             .sheet(isPresented: .constant(!milestoneFinds.isEmpty)) {
                 MilestoneResultView(finds: milestoneFinds) { milestoneFinds = [] }
             }
@@ -216,6 +220,27 @@ struct HomeView: View {
                     isShowingPaywall = true
                 } label: {
                     Label(purchases.hasPass ? "パス有効" : "活力パス", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.accent)
+            }
+
+            // 収集の導線。討伐に出られない日でも開く場所として置いている。
+            HStack(spacing: 10) {
+                Button {
+                    isShowingRegions = true
+                } label: {
+                    Label("地域", systemImage: "map.circle")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.accent)
+
+                Button {
+                    isShowingBestiary = true
+                } label: {
+                    Label("図鑑", systemImage: "book.closed")
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)

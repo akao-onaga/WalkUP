@@ -432,8 +432,8 @@ BestiaryEntry
 | 4 | 装備・強化 | `UI/EquipmentView.swift` | ✅ |
 | 5 | 結果／報酬 | `UI/ResultView.swift` | ✅ |
 | 6 | ペイウォール | `Purchases/PaywallView.swift` | ✅ |
-| 7 | 地域／復興 | — | 未着手（活気ゲージの加算のみ実装済み） |
-| 8 | 図鑑 | — | 未着手（目撃・討伐の記録は実装済み） |
+| 7 | 地域／復興 | `UI/RegionView.swift` | ✅ |
+| 8 | 図鑑 | `UI/BestiaryView.swift` | ✅ |
 | 9 | 設定 | `UI/EquipmentView.swift` 内 | ✅ |
 
 戦闘演出は SwiftUI の変形のみで作っている（§15-2 / §10.1.1）。

@@ -76,6 +76,30 @@ final class GameModel {
         state.chapters.first { $0.chapterId == chapter } ?? ChapterProgress(chapterId: chapter)
     }
 
+    // MARK: - 地域と図鑑（画面 #7 / #8）
+
+    /// 地域の状態。まだ一度も活気を得ていない章でも、0 の状態を返す。
+    func regionState(chapter: Int) -> RegionState {
+        let id = MasterData.regionId(chapter)
+        return state.regions.first { $0.regionId == id } ?? RegionState(regionId: id)
+    }
+
+    /// 図鑑の1件。未発見なら nil。
+    func bestiaryEntry(id: String) -> BestiaryEntry? {
+        state.bestiary.first { $0.darumonId == id }
+    }
+
+    /// 章に属する「世界の記述」を、原文の順に解放状況付きで返す。
+    ///
+    /// **解放順ではなく原文の順で並べる。** 引いた順に並べると、
+    /// 読み返すたびに順序が変わって「世界の描写」として読めなくなる。
+    func lore(chapter: Int) -> [(entry: LoreCatalog.Entry, isUnlocked: Bool)] {
+        let unlocked = Set(state.unlockedLore)
+        return LoreCatalog.all
+            .filter { $0.chapter == chapter }
+            .map { ($0, unlocked.contains($0.id)) }
+    }
+
     /// 討伐に出られるか。第1章のゲートに届いていれば、以後は常に出られる。
     ///
     /// **未挑戦のノードが無くても討伐は続けられる。** §17.1 のとおり AP は必ず余る設計で、
@@ -332,7 +356,7 @@ final class GameModel {
 
     private func addVitality(_ amount: Int, chapter: Int) {
         guard amount > 0 else { return }
-        let regionId = "region_ch\(chapter)"
+        let regionId = MasterData.regionId(chapter)
         if let index = state.regions.firstIndex(where: { $0.regionId == regionId }) {
             state.regions[index].vitality = min(
                 BalanceRules.vitalityMax,

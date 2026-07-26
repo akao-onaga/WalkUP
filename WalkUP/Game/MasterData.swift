@@ -155,6 +155,33 @@ enum MasterData {
         }
     }
 
+    // MARK: - 地域（§17.9）
+
+    /// 章に対応する地域。活気ゲージと「世界の記述」の入れ物。
+    ///
+    /// **`id` の文字列は保存データに入っている。** 変えると既存プレイヤーの活気が
+    /// 別地域として作り直され、ゲージが 0 に戻る。名前は自由に変えてよい。
+    struct Region: Equatable {
+        var id: String
+        var name: String
+        var chapter: Int
+        /// 背景アセット名。戦闘の背景と共用する。
+        var assetName: String
+    }
+
+    static func region(chapter: Int) -> Region {
+        switch chapter {
+        case 1: return Region(id: regionId(1), name: "止まった住宅街", chapter: 1, assetName: "bg1")
+        case 2: return Region(id: regionId(2), name: "灯りの落ちた商店街", chapter: 2, assetName: "bg2")
+        case 3: return Region(id: regionId(3), name: "灰の窪地", chapter: 3, assetName: "bg3")
+        default:
+            assertionFailure("未定義の章 \(chapter)")
+            return region(chapter: 3)
+        }
+    }
+
+    static func regionId(_ chapter: Int) -> String { "region_ch\(chapter)" }
+
     // MARK: - 章とノード
 
     /// 章の解放に必要な累計歩数（§5.1）。1日あたりの歩数が変わっても到達Lvは変わらない。

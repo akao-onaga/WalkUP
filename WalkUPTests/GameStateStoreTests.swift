@@ -81,4 +81,59 @@ struct GameStateStoreTests {
             try store.load()
         }
     }
+
+    // MARK: - 旧データの移行
+
+    @Test("役割ベースの図鑑IDが、種別ベースのIDに読み替えられる")
+    func migratesLegacyBestiaryIDs() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        // 12体を実装する前のビルドが書いたファイル。
+        var state = GameState()
+        state.bestiary = [
+            BestiaryEntry(darumonId: "zako_ch1_standard", defeatedCount: 3, isSighted: true),
+            BestiaryEntry(darumonId: "zako_ch1_swift", defeatedCount: 0, isSighted: true),
+            BestiaryEntry(darumonId: "boss_ch1", defeatedCount: 1, isSighted: true),
+        ]
+        try store.save(state)
+
+        let loaded = try store.load()
+        let ids = Set(loaded.bestiary.map(\.darumonId))
+        // その章で同じ役割を持つ最初の個体（= 当時戦った相手）に寄る。
+        #expect(ids == ["darari", "nemuke", "boss_ch1"])
+        #expect(loaded.bestiary.first { $0.darumonId == "darari" }?.defeatedCount == 3)
+        // 目撃のみの状態は保たれる。
+        #expect(loaded.bestiary.first { $0.darumonId == "nemuke" }?.isShadowOnly == true)
+    }
+
+    @Test("移行先に既に記録があれば、討伐数を合算し初出日は古い方を残す")
+    func migrationMergesIntoExistingEntry() throws {
+        let old = Date(timeIntervalSince1970: 1_000_000)
+        let recent = Date(timeIntervalSince1970: 2_000_000)
+
+        var state = GameState()
+        state.bestiary = [
+            BestiaryEntry(darumonId: "zako_ch1_standard", defeatedCount: 2, isSighted: true, firstSeenAt: old),
+            BestiaryEntry(darumonId: "darari", defeatedCount: 5, isSighted: true, firstSeenAt: recent),
+        ]
+
+        let migrated = state.migratingLegacyBestiaryIDs()
+        #expect(migrated.bestiary.count == 1)
+        #expect(migrated.bestiary[0].darumonId == "darari")
+        #expect(migrated.bestiary[0].defeatedCount == 7)
+        #expect(migrated.bestiary[0].firstSeenAt == old)
+    }
+
+    @Test("移行は繰り返し通しても結果が変わらない")
+    func migrationIsIdempotent() throws {
+        var state = GameState()
+        state.bestiary = [
+            BestiaryEntry(darumonId: "zako_ch2_tough", defeatedCount: 1, isSighted: true),
+            BestiaryEntry(darumonId: "akubi", defeatedCount: 4, isSighted: true),
+        ]
+
+        let once = state.migratingLegacyBestiaryIDs()
+        #expect(once.bestiary == once.migratingLegacyBestiaryIDs().bestiary)
+    }
 }
