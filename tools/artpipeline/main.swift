@@ -117,6 +117,30 @@ struct Bitmap {
 func removeBackground(_ bitmap: inout Bitmap) -> Int {
     let w = bitmap.width, h = bitmap.height
 
+    // 既に透過で生成されている場合は、除去処理を丸ごと飛ばす。
+    //
+    // **これを飛ばさないと明るい部位に穴が開く。** 透過画像では四隅から背景色を
+    // 推定できず既定値 #E8E4DC が使われるため、1b の閉じた領域の判定が
+    // 「背景色に近い明るい部分」＝白目などを誤って消してしまう。
+    // 新しいアートは STYLE SPEC どおり透過で来るので、通常はこちらの経路を通る。
+    var transparentBorder = 0
+    var borderCount = 0
+    for x in 0..<w {
+        for y in [0, h - 1] {
+            borderCount += 1
+            if bitmap[x, y].a == 0 { transparentBorder += 1 }
+        }
+    }
+    for y in 0..<h {
+        for x in [0, w - 1] {
+            borderCount += 1
+            if bitmap[x, y].a == 0 { transparentBorder += 1 }
+        }
+    }
+    if Double(transparentBorder) / Double(borderCount) > 0.9 {
+        return 0
+    }
+
     // 四隅の色から実際の背景色を推定する。生成物は指定色から微妙にずれるため、
     // 固定値ではなく現物に合わせる。
     var samples: [(Double, Double, Double)] = []

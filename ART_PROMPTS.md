@@ -43,7 +43,14 @@ STYLE SPEC (identical for every image in this set):
 - Exactly one flat shadow tone per color area. No gradients, no soft shading,
   no texture, no highlights, no glow, no rendering.
 - Limited, desaturated, muted palette. Base hues in the grey-violet and dusty
-  blue range. Exactly ONE warmer accent color per creature, used sparingly.
+  blue range.
+- IMPORTANT — every creature in the set must share the same overall brightness.
+  The body must read as a MID-DARK tone: clearly darker than a light background,
+  never pale or washed out. Do not make any single creature lighter or airier
+  than the others, even if its concept suggests weightlessness.
+- Exactly ONE warm accent color per creature (amber, ochre, rust, brick, or
+  apricot — never a cool color), covering roughly 3-6% of the creature's area.
+  Used on one small body part only.
 - Fully transparent background (alpha channel). No background color, no shadow
   on the ground, no ground plane, no props, no environment. The creature must be
   fully isolated with clean edges suitable for compositing.
@@ -79,7 +86,7 @@ CHARACTER: A drifting jellyfish-like creature made of soft sagging folds,
 floating just above the ground and tilted as if falling asleep in mid-air.
 One enormous eye almost entirely covered by a heavy lid, with long drooping
 lashes. Beneath it hang several limp ribbon-like tendrils of uneven length.
-Accent color: pale sickly green at the tips of the tendrils.
+Accent color: sallow yellow-ochre at the tips of the tendrils.
 ```
 
 ### ③ ゴロネ / Gorone — 重量級
@@ -126,7 +133,7 @@ CHARACTER: A drifting jellyfish-like creature made of soft sagging folds,
 floating just above the ground and tilted as if falling asleep in mid-air.
 One enormous eye almost entirely covered by a heavy lid, with long drooping
 lashes. Beneath it hang several limp ribbon-like tendrils of uneven length.
-Accent color: pale sickly green at the tips of the tendrils.
+Accent color: sallow yellow-ochre at the tips of the tendrils.
 ```
 
 #### ③ ゴロネ / Gorone — 硬い（既存・要再生成）
@@ -383,6 +390,23 @@ Accent color: warm amber on the inner lining of the hood.
 
 **2つ以上落ちる場合はスタイルブロックの記述を修正する。**
 個体ブロックをいじって直そうとしないこと。原因は固定側にある。
+
+### 明度とアクセント面積は目視で判断しないこと
+
+「1体だけ浮いている」は目で見ても分からない。実測する。
+
+```bash
+swiftc -O -o /tmp/artstats tools/artstats/main.swift
+/tmp/artstats assets/processed/*.png
+```
+
+**合格条件: 平均明度の差が 15 以内、アクセント面積が 3〜6%。**
+
+第1章の4体を実測したところ、ネムケだけ明度 127.3（他3体は 102〜109）で
+1体だけ明るく、アクセント面積も 0.1% しかなかった。
+後者は STYLE SPEC が「ONE warm accent color」と指定しているのに、
+個体ブロックが `pale sickly green`（寒色）を指定していたという**仕様の矛盾**が原因。
+どちらも目視では見落としていた。
 
 ---
 
