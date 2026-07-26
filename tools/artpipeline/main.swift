@@ -58,6 +58,17 @@ enum Config {
     /// シルエットは生成でしか作れないが、色は機械的に揃えられる。ここで吸収する。
     static let targetLuminance = 107.0
     static let targetSaturation = 0.23
+
+    /// 彩度が目標に届かない素材へ加算する色差の向き（灰紫）と最大量。
+    /// 掛け算ではなく加算にすることで、色ムラを増幅せずに色味を寄せられる。
+    static let tintDirection: (r: Double, g: Double, b: Double) = (6, -8, 14)
+    static let tintStrength = 3.0
+
+    /// 減色の前に色差を平滑化する半径。
+    ///
+    /// 生成物のテクスチャは、そのまま減色すると斑（まだら）として固まる。
+    /// **輝度は触らず色差だけを平滑化する**ので、輪郭線の鋭さは保たれる。
+    static let chromaBlurRadius = 3
 }
 
 // MARK: - 画像の読み書き
@@ -347,7 +358,15 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
     let meanLum = lumSum / Double(count)
     let meanSat = satSum / Double(count)
     let lumScale = meanLum > 0 ? Config.targetLuminance / meanLum : 1
-    let satScale = meanSat > 0 ? Config.targetSaturation / meanSat : 1
+    // **彩度は下げる方向にしか掛け算しない。**
+    // 引き上げると、元がほぼ無彩色の絵では微妙な色ムラまで増幅され、
+    // 紫のまだらが浮き出る（初期版ダラリで実際に起きた）。
+    let satScale = min(1.0, meanSat > 0 ? Config.targetSaturation / meanSat : 1)
+
+    // 目標を下回る場合は、掛け算ではなく**色差を一律に足して**色味を寄せる。
+    // 加算は局所的な差を増幅しないので、ノイズが浮き出ない。
+    let deficit = max(0, Config.targetSaturation - meanSat * satScale)
+    let tint = min(1.0, deficit / Config.targetSaturation)
 
     for y in 0..<bitmap.height {
         for x in 0..<bitmap.width {
@@ -355,11 +374,19 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
             guard p.a > 0 else { continue }
             var r = Double(p.r), g = Double(p.g), b = Double(p.b)
 
-            // 彩度: 各画素の最大値からの差を伸縮させる。色相は保つ。
+            // 彩度: 各画素の最大値からの差を縮める。色相は保つ。
             let mx = max(r, g, b)
             r = mx - (mx - r) * satScale
             g = mx - (mx - g) * satScale
             b = mx - (mx - b) * satScale
+
+            // 足りない分は、灰紫の色差を一律に加算して寄せる。
+            if tint > 0 {
+                let amount = Config.tintStrength * tint
+                r += Config.tintDirection.r * amount
+                g += Config.tintDirection.g * amount
+                b += Config.tintDirection.b * amount
+            }
 
             // 明度: 全体を一律に伸縮させる。
             r *= lumScale; g *= lumScale; b *= lumScale
@@ -371,6 +398,56 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
         }
     }
     return (meanLum, meanSat)
+}
+
+// MARK: - 3c. 色差の平滑化
+
+/// 輝度を保ったまま色差だけをぼかす。
+///
+/// 生成物の微細なテクスチャは、減色すると斑になって固まる。色差だけを均せば
+/// 斑が消え、輝度は触らないので輪郭線と陰影の境界は鋭いまま残る。
+func smoothChroma(_ bitmap: inout Bitmap) {
+    let radius = Config.chromaBlurRadius
+    guard radius > 0 else { return }
+    let w = bitmap.width, h = bitmap.height
+    let source = bitmap
+
+    for y in 0..<h {
+        for x in 0..<w {
+            let p = source[x, y]
+            guard p.a > 0 else { continue }
+
+            var sumCb = 0.0, sumCr = 0.0, count = 0.0
+            for dy in -radius...radius {
+                for dx in -radius...radius {
+                    let nx = x + dx, ny = y + dy
+                    guard nx >= 0, nx < w, ny >= 0, ny < h else { continue }
+                    let q = source[nx, ny]
+                    guard q.a > 0 else { continue }
+                    let r = Double(q.r), g = Double(q.g), b = Double(q.b)
+                    let yy = 0.299 * r + 0.587 * g + 0.114 * b
+                    sumCb += b - yy
+                    sumCr += r - yy
+                    count += 1
+                }
+            }
+            guard count > 0 else { continue }
+
+            let r = Double(p.r), g = Double(p.g), b = Double(p.b)
+            let luma = 0.299 * r + 0.587 * g + 0.114 * b
+            let cb = sumCb / count, cr = sumCr / count
+            // Cb/Cr から RGB へ戻す（G は輝度の定義から逆算）
+            let nb = luma + cb
+            let nr = luma + cr
+            let ng = (luma - 0.299 * nr - 0.114 * nb) / 0.587
+
+            var out = p
+            out.r = UInt8(max(0, min(255, nr)))
+            out.g = UInt8(max(0, min(255, ng)))
+            out.b = UInt8(max(0, min(255, nb)))
+            bitmap[x, y] = out
+        }
+    }
 }
 
 // MARK: - 4. ポスタリゼーション
@@ -409,6 +486,7 @@ guard var normalized = normalize(bitmap) else {
     print("本体が見つかりません（背景の除去が効きすぎている可能性）: \(arguments[1])")
     exit(1)
 }
+smoothChroma(&normalized)
 let before = normalizeColor(&normalized)
 posterize(&normalized)
 

@@ -89,6 +89,10 @@ STYLE SPEC (identical for every image in this set):
   and quietly unsettling.
 ```
 
+**明度と彩度の指示は STYLE SPEC に入れていない。** 後処理（`tools/artpipeline`）が
+機械的に揃えるため不要であり、かつ**指示を増やすほど造形が犠牲になる**ことが
+実測で分かっている（ダラリの頭が4回中2回失われた）。記述量は造形に回す。
+
 ---
 
 ## 3. 個体ブロック（3体）
@@ -100,11 +104,7 @@ STYLE SPEC (identical for every image in this set):
 
 ```
 CHARACTER: A slouching blob creature that has half-melted downward and pooled
-into a puddle at its own base. The body is BULKY, HEAVY and WIDE — a thick
-sagging mass, never thin or spindly. Above it sits a CLEARLY DEFINED ROUNDED
-HEAD: a smooth dome that is somewhat narrower than the bulky body, separated
-from it by sloping drooping shoulders. The head must read as a head, but the
-body below must stay visibly heavier and wider than the head.
+into a puddle at its own base. Rounded, drooping shoulders it cannot hold up.
 Two heavy-lidded eyes with pupils drifting in different directions. A small
 mouth left hanging open. Two thin arms hanging straight down, dragging on the
 floor. Accent color: dull mustard yellow on the underside of the puddle.
@@ -151,15 +151,17 @@ Accent color: faded brick red on the pads of all visible paws.
 
 ### 第1章 — 日常に忍び込む怠惰
 
-#### ① ダラリ / Darari — 標準（既存・要再生成）
+#### ① ダラリ / Darari — 標準
+
+**この文面は触らないこと。** 採用アセットはこの記述で生成されたもの。
+「頭が胴と一体化して見える」という指摘を受けて6回書き直したが、毎回別の要素が壊れた
+（頭を分離させると痩せる、質量を足すと紫になる、色を直すと頭が戻る、
+頭からの垂れ布として書くと幽霊になる）。**最終的に元の文面の出力が最良だった。**
+色の不一致は後処理で解消済み。
 
 ```
 CHARACTER: A slouching blob creature that has half-melted downward and pooled
-into a puddle at its own base. The body is BULKY, HEAVY and WIDE — a thick
-sagging mass, never thin or spindly. Above it sits a CLEARLY DEFINED ROUNDED
-HEAD: a smooth dome that is somewhat narrower than the bulky body, separated
-from it by sloping drooping shoulders. The head must read as a head, but the
-body below must stay visibly heavier and wider than the head.
+into a puddle at its own base. Rounded, drooping shoulders it cannot hold up.
 Two heavy-lidded eyes with pupils drifting in different directions. A small
 mouth left hanging open. Two thin arms hanging straight down, dragging on the
 floor. Accent color: dull mustard yellow on the underside of the puddle.
