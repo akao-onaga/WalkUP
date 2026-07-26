@@ -13,6 +13,15 @@ struct BestiaryView: View {
     @Environment(GameModel.self) private var game
     @Environment(\.dismiss) private var dismiss
 
+    /// 開いている詳細。未発見の個体は開けないので、ここには入らない。
+    @State private var detail: Detail?
+
+    struct Detail: Identifiable {
+        let chapter: Int
+        let enemy: MasterData.Enemy
+        var id: String { enemy.id }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             GameHeader(title: "図鑑", onClose: { dismiss() })
@@ -28,6 +37,13 @@ struct BestiaryView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
+        .sheet(item: $detail) { item in
+            BestiaryDetailView(
+                chapter: item.chapter,
+                enemy: item.enemy,
+                entry: game.bestiaryEntry(id: item.enemy.id)
+            )
+        }
     }
 
     // MARK: - 集計
@@ -78,10 +94,20 @@ struct BestiaryView: View {
             }
 
             ForEach(roster.filter { $0.chapter == chapter }, id: \.enemy.id) { item in
-                row(item.enemy)
+                let known = game.bestiaryEntry(id: item.enemy.id)?.isSighted ?? false
+                Button {
+                    detail = Detail(chapter: item.chapter, enemy: item.enemy)
+                } label: {
+                    row(item.enemy)
+                        // 行の余白も押せるようにする（§15 の落とし穴）。
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                // 未発見は開いても何も無いので閉じる。
+                .disabled(!known)
             }
         }
-                .panel()
+        .panel()
     }
 
     private func row(_ enemy: MasterData.Enemy) -> some View {

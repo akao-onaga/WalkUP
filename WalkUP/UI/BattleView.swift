@@ -25,6 +25,10 @@ struct BattleView: View {
     @State private var floatingDamage: (side: Side, amount: Int, id: Int)?
     @State private var enemyDefeated = false
     @State private var isFinished = false
+    /// 衝撃の跡。誰が殴られたか＋何手目か（同じ手で再生し直さないための id）。
+    @State private var strike: (side: Side, id: Int)?
+    /// 溶けた跡を残すか。撃破の直後だけ出す。
+    @State private var puddle = false
 
     enum Side { case player, enemy }
 
@@ -113,9 +117,13 @@ struct BattleView: View {
                 .offset(
                     x: (lunge == .enemy ? -26 : 0) + (recoil == .enemy ? 16 : 0)
                 )
-                // 撃破は「崩れ落ちる」。主人公とは反対側へ倒す。
-                .rotationEffect(.degrees(enemyDefeated ? 78 : 0), anchor: .bottom)
-                .scaleEffect(enemyDefeated ? 0.72 : 1, anchor: .bottom)
+                // 撃破は「溶け落ちる」。ダルモンは半分溶けた造形（ART_PROMPTS.md §2）
+                // なので、倒れるより**縦に潰れて横へ広がる**方が絵と一致する。
+                .scaleEffect(
+                    x: enemyDefeated ? 1.25 : 1,
+                    y: enemyDefeated ? 0.12 : 1,
+                    anchor: .bottom
+                )
                 .opacity(enemyDefeated ? 0 : 1)
 
             if let damage = floatingDamage, damage.side == .enemy {
@@ -125,6 +133,21 @@ struct BattleView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
+        // 土煙は**足元**に出す。立ち絵の中央だと踏み抜いた感じにならない。
+        .overlay(alignment: .bottom) {
+            ZStack {
+                // 溶けた跡。消えた場所に何か残らないと、ただ消えたように見える。
+                Ellipse()
+                    .fill(Theme.accent.opacity(puddle ? 0 : 0.55))
+                    .frame(width: puddle ? 150 : 40, height: puddle ? 22 : 8)
+                    .opacity(enemyDefeated ? 1 : 0)
+
+                if let strike, strike.side == .enemy {
+                    DustPuff().id(strike.id)
+                }
+            }
+            .offset(y: -8)
+        }
     }
 
     // MARK: - 主人公
@@ -152,6 +175,11 @@ struct BattleView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
+        .overlay(alignment: .bottom) {
+            if let strike, strike.side == .player {
+                DustPuff().id(strike.id).offset(y: -8)
+            }
+        }
     }
 
     private var playerFooter: some View {
@@ -197,6 +225,7 @@ struct BattleView: View {
             lunge = nil
             flash = target
             floatingDamage = (target, turn.damage, index)
+            strike = (target, index)
 
             let isPlayerHurt = target == .player
             // 自分が受ける時だけ強く振動させる。すべて強くすると意味が薄れる。
@@ -220,11 +249,13 @@ struct BattleView: View {
             }
             try? await Task.sleep(for: .seconds(beat * 0.37))
             floatingDamage = nil
+            strike = nil
         }
 
         // 決着の演出。
         if session.log.result == .victory {
             withAnimation(.easeIn(duration: 0.55)) { enemyDefeated = true }
+            withAnimation(.easeOut(duration: 0.9)) { puddle = true }
             notify.notificationOccurred(.success)
             try? await Task.sleep(for: .seconds(0.7))
         } else {
@@ -244,6 +275,65 @@ struct BattleView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.045) {
                 withAnimation(.linear(duration: 0.045)) { cameraShake = offset }
             }
+        }
+    }
+}
+
+/// 命中の瞬間に、相手の足元へ散る土煙。
+///
+/// **斬撃にはしない。** 主人公の武器は靴（§1.1）で、振るうのは足。
+/// 弧を描く跡は刃の演出であり、この作品の設定と噛み合わない。
+/// 踏み抜いた土煙と、地面に一瞬残る靴底の跡で見せる。
+///
+/// 色は白い閃光ではなく**道路に馴染む灰**にする。暗い背景に白を置くと、
+/// そこだけ別のゲームの光り物に見える（§15-9 と同じ理由で、世界の色から離さない）。
+struct DustPuff: View {
+    @State private var spread = false
+
+    private let puffs = 7
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<puffs, id: \.self) { index in
+                let angle = Double(index) / Double(puffs) * .pi   // 上半分へは飛ばさない
+                let distance: Double = spread ? 46 : 0
+                Circle()
+                    .fill(Color(white: 0.72).opacity(0.55))
+                    .frame(width: 16 + Double(index % 3) * 6)
+                    .offset(
+                        x: cos(.pi + angle) * distance,
+                        y: -sin(angle) * distance * 0.45
+                    )
+                    .scaleEffect(spread ? 1.5 : 0.4)
+                    .opacity(spread ? 0 : 1)
+            }
+
+            // 靴底の跡。土煙だけだと「何かが当たった」で止まる。
+            Footprint()
+                .fill(Color(white: 0.55).opacity(spread ? 0 : 0.75))
+                .frame(width: 34, height: 46)
+                .rotationEffect(.degrees(-12))
+                .scaleEffect(spread ? 1.1 : 0.9)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.32)) { spread = true }
+        }
+    }
+
+    /// 厚底の靴底。溝を2本入れるだけで足跡として読める。
+    private struct Footprint: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path(roundedRect: rect, cornerRadius: rect.width * 0.42)
+            let grooveHeight = rect.height * 0.07
+            for ratio in [0.34, 0.58] {
+                path.addRect(CGRect(
+                    x: rect.minX + rect.width * 0.16,
+                    y: rect.minY + rect.height * ratio,
+                    width: rect.width * 0.68,
+                    height: grooveHeight
+                ))
+            }
+            return path
         }
     }
 }
