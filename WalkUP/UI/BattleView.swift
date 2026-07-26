@@ -6,7 +6,8 @@ import UIKit
 /// 勝敗は `GameModel.startBattle` で既に確定している。ここは受け取ったログを
 /// 順に再生するだけで、演出をどう変えても結果は変わらない。
 ///
-/// アニメーションは SwiftUI の変形のみ（§15-2 / §10.1.1）。アートは1枚も使っていない。
+/// ダルモンの立ち絵は1体1枚の静止画で、**動きは SwiftUI の変形だけで作っている**
+/// （§15-2 / §10.1.1）。コマ送りのアートは1枚も使っていない。
 /// **手応えは「動かす量」ではなく「止める瞬間」で作る。**
 /// 攻撃 → 命中で一瞬止める（ヒットストップ）→ 揺らす、の順番が効く。
 struct BattleView: View {
@@ -85,9 +86,8 @@ struct BattleView: View {
             .frame(maxWidth: 280)
 
             ZStack {
-                Image(systemName: session.enemy.isBoss ? "cloud.moon.fill" : "cloud.fill")
-                    .font(.system(size: session.enemy.isBoss ? 112 : 86))
-                    .foregroundStyle(Theme.accent)
+                DarumonPortrait(enemy: session.enemy)
+                    .frame(height: session.enemy.isBoss ? 210 : 170)
                     .brightness(flash == .enemy ? 0.5 : 0)
                     .modifier(IdleBob(active: !enemyDefeated))
                     // 攻撃時は前へ、被弾時は後ろへ。
@@ -104,7 +104,7 @@ struct BattleView: View {
                         .id(damage.id)
                 }
             }
-            .frame(height: 160)
+            .frame(height: 220)
         }
     }
 
@@ -205,6 +205,26 @@ struct BattleView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.045) {
                 withAnimation(.linear(duration: 0.045)) { cameraShake = offset }
             }
+        }
+    }
+}
+
+/// ダルモンの立ち絵。
+///
+/// アセットが未生成の個体（ボスなど）は記号で代替する。
+/// **アートが届いた順に絵が差し替わる**ので、量産の途中でも常にビルドが通る。
+struct DarumonPortrait: View {
+    let enemy: MasterData.Enemy
+
+    var body: some View {
+        if let name = enemy.assetName, UIImage(named: name) != nil {
+            Image(name)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: enemy.isBoss ? "cloud.moon.fill" : "cloud.fill")
+                .font(.system(size: enemy.isBoss ? 112 : 86))
+                .foregroundStyle(Theme.accent)
         }
     }
 }

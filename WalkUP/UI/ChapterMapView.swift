@@ -94,16 +94,29 @@ struct ChapterMapView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(cleared ? Theme.accent : (unlocked ? Theme.accent.opacity(0.2) : Color.gray.opacity(0.15)))
-                        .frame(width: 32, height: 32)
-                    if cleared {
-                        Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white)
-                    } else if unlocked {
-                        Text("\(index)").font(.caption.bold())
+                        .fill(cleared ? Theme.accent.opacity(0.25) : (unlocked ? Theme.accent.opacity(0.12) : Color.gray.opacity(0.12)))
+                        .frame(width: 44, height: 44)
+
+                    if unlocked {
+                        // 討伐対象が誰か、一覧の時点で分かるようにする。
+                        DarumonPortrait(enemy: node.enemy)
+                            .frame(width: 38, height: 38)
+                            // 未討伐は影として見せる（図鑑の「目撃」と同じ扱い）。
+                            .opacity(cleared ? 1 : 0.55)
+                            .saturation(cleared ? 1 : 0)
                     } else {
                         Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
                     }
+
+                    if cleared {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(Theme.accent)
+                            .background(Circle().fill(Theme.card))
+                            .offset(x: 16, y: 14)
+                    }
                 }
+                .frame(width: 44, height: 44)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(node.enemy.isBoss ? "ボス：\(node.enemy.name)" : node.enemy.name)
@@ -121,7 +134,11 @@ struct ChapterMapView: View {
                     .font(.caption.bold())
                     .foregroundStyle(affordable ? Theme.vigor : .secondary)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
+            // **これが無いと行の余白がタップに反応しない。**
+            // .plain スタイルではラベルの中身がある場所だけが判定領域になるため、
+            // サムネイルと文字の間や右側の余白を押しても何も起きない。
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!unlocked)

@@ -25,7 +25,49 @@ enum MasterData {
         var def: Int
         var isBoss: Bool = false
 
+        /// アセットカタログ上の画像名。未実装のボスなどでは `nil`。
+        var assetName: String?
+
         var apCost: Int { isBoss ? BalanceRules.apCostBoss : BalanceRules.apCostNormal }
+    }
+
+    /// 個体の identity。ステータスは `Role` から、見た目と名前はここから決まる。
+    ///
+    /// **ステータスと identity を分けている理由**: §17.2 の設計式は役割ごとに1組しかないが、
+    /// 図鑑としては12体を別個体として見せたい。同じ役割の個体が複数いても、
+    /// 数値は式のまま、名前と絵だけが変わる。
+    struct Species: Equatable {
+        /// アセットカタログの画像名と一致させる。
+        var id: String
+        var name: String
+        var role: Role
+    }
+
+    /// 各章に登場する4体（ART_PROMPTS.md §3.5）。
+    static func species(chapter: Int) -> [Species] {
+        switch chapter {
+        case 1: return [
+            Species(id: "darari", name: "ダラリ", role: .standard),
+            Species(id: "nemuke", name: "ネムケ", role: .swift),
+            Species(id: "gorone", name: "ゴロネ", role: .tough),
+            Species(id: "akubi", name: "アクビ", role: .standard),
+        ]
+        case 2: return [
+            Species(id: "uzukumari", name: "ウズクマリ", role: .standard),
+            Species(id: "tadayoi", name: "タダヨイ", role: .swift),
+            Species(id: "nebari", name: "ネバリ", role: .tough),
+            Species(id: "motare", name: "モタレ", role: .standard),
+        ]
+        case 3: return [
+            Species(id: "shizumi", name: "シズミ", role: .standard),
+            Species(id: "kasumi", name: "カスミ", role: .swift),
+            Species(id: "omori", name: "オモリ", role: .tough),
+            Species(id: "nukegara", name: "ヌケガラ", role: .standard),
+        ]
+        default:
+            assertionFailure("未定義の章 \(chapter)")
+            return species(chapter: 3)
+        }
     }
 
     /// 雑魚のステータス（§17.2）。
@@ -37,7 +79,7 @@ enum MasterData {
     /// 雑魚HP  = 4 × (プレイヤーATK − 雑魚DEF / 2)
     /// 雑魚ATK = プレイヤーHP × 0.0625 + プレイヤーDEF / 2
     /// ```
-    static func zako(chapter: Int, role: Role) -> Enemy {
+    static func zako(chapter: Int, role: Role, species override: Species? = nil) -> Enemy {
         let stats: (hp: Int, atk: Int, def: Int)
         switch (chapter, role) {
         case (1, .standard): stats = (80, 12, 4)
@@ -54,19 +96,14 @@ enum MasterData {
             assertionFailure("未定義の章 \(chapter) / 役割 \(role)")
             stats = (168, 25, 8)
         }
+        // 指定が無ければ、その章で同じ役割を持つ最初の個体を使う。
+        let entry = override ?? species(chapter: chapter).first { $0.role == role }
         return Enemy(
-            id: "zako_ch\(chapter)_\(role.rawValue)",
-            name: roleName(role),
-            hp: stats.hp, atk: stats.atk, def: stats.def
+            id: entry?.id ?? "zako_ch\(chapter)_\(role.rawValue)",
+            name: entry?.name ?? role.rawValue,
+            hp: stats.hp, atk: stats.atk, def: stats.def,
+            assetName: entry?.id
         )
-    }
-
-    private static func roleName(_ role: Role) -> String {
-        switch role {
-        case .standard: return "ダラリ"
-        case .tough:    return "ゴロネ"
-        case .swift:    return "ネムケ"
-        }
     }
 
     /// ボスのステータス（§17.3）。
@@ -91,10 +128,21 @@ enum MasterData {
         }
         return Enemy(
             id: "boss_ch\(chapter)",
-            name: "第\(chapter)章ボス",
+            name: bossName(chapter),
             hp: stats.hp, atk: stats.atk, def: stats.def,
-            isBoss: true
+            isBoss: true,
+            // ボスのアートは未生成。実装側は nil を受けて記号で代替する。
+            assetName: nil
         )
+    }
+
+    private static func bossName(_ chapter: Int) -> String {
+        switch chapter {
+        case 1: return "マドロミ"
+        case 2: return "ムキリョク"
+        case 3: return "ダルモン"
+        default: return "ダルモン"
+        }
     }
 
     // MARK: - 章とノード
@@ -116,17 +164,29 @@ enum MasterData {
     /// ノード2/4/6 では装備を確定ドロップさせる。素材から作らせると、
     /// 運の悪いプレイヤーが §4.4 の「装備ありで辛勝」に到達できない。
     static func node(chapter: Int, index: Int) -> (enemy: Enemy, equipmentReward: Equipment?) {
+        let roster = species(chapter: chapter)
+        // 同じ章の4体を satisfying に配る。ノード5と7で後半の2体を出すことで、
+        // 章の途中で「新しいダルモンが出た」という変化を作る。
+        func enemy(_ position: Int) -> Enemy {
+            let entry = roster[min(position, roster.count - 1)]
+            return zako(chapter: chapter, role: entry.role, species: entry)
+        }
+
         switch index {
-        case 1, 5:
-            return (zako(chapter: chapter, role: .standard), nil)
-        case 3, 7:
-            return (zako(chapter: chapter, role: .swift), nil)
+        case 1:
+            return (enemy(0), nil)
+        case 3:
+            return (enemy(1), nil)
+        case 5:
+            return (enemy(3), nil)
+        case 7:
+            return (enemy(1), nil)
         case 2:
-            return (zako(chapter: chapter, role: .tough), equipment(chapter: chapter, slot: .weapon))
+            return (enemy(2), equipment(chapter: chapter, slot: .weapon))
         case 4:
-            return (zako(chapter: chapter, role: .tough), equipment(chapter: chapter, slot: .armor))
+            return (enemy(2), equipment(chapter: chapter, slot: .armor))
         case 6:
-            return (zako(chapter: chapter, role: .tough), equipment(chapter: chapter, slot: .accessory))
+            return (enemy(2), equipment(chapter: chapter, slot: .accessory))
         case 8:
             return (boss(chapter: chapter), nil)
         default:
