@@ -150,6 +150,14 @@ struct HomeView: View {
                     Text("第\(gate.chapter)章の解放まで あと \(gate.remaining.formatted()) 歩")
                         .font(.headline)
                     MeterBar(value: gate.progress, tint: Theme.accent)
+
+                    if game.canBattle {
+                        // ここを書かないと「詰んだ」ように見える。周回できることを明示する。
+                        Text("解放を待つ間も、討伐済みのダルモンに再挑戦して素材を集められます。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             } else {
                 Text("本編は完結しました。地域の復興を進められます。")
@@ -184,12 +192,15 @@ struct HomeView: View {
             Button {
                 isShowingMap = true
             } label: {
-                Label("討伐に出る", systemImage: "map")
+                Label(game.nextNode == nil ? "周回して素材を集める" : "討伐に出る",
+                      systemImage: "map")
                     .frame(maxWidth: .infinity, minHeight: 50)
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.accentFill)
-            .disabled(game.nextNode == nil)
+            // 未挑戦のノードが無くても討伐は続けられる（周回で素材が集まる）。
+            // 第1章のゲートに届いていない間だけ閉じる。
+            .disabled(!game.canBattle)
 
             HStack(spacing: 10) {
                 Button {

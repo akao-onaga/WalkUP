@@ -76,7 +76,16 @@ final class GameModel {
         state.chapters.first { $0.chapterId == chapter } ?? ChapterProgress(chapterId: chapter)
     }
 
-    /// 次に挑むノード。全クリア済みなら nil。
+    /// 討伐に出られるか。第1章のゲートに届いていれば、以後は常に出られる。
+    ///
+    /// **未挑戦のノードが無くても討伐は続けられる。** §17.1 のとおり AP は必ず余る設計で、
+    /// 余剰は討伐済みノードの周回（＝素材集め）が受け止める。ここを塞ぐと、
+    /// 次の章のゲートに届くまで何日も「やることが無い」状態になる。
+    var canBattle: Bool {
+        player.cumulativeSteps >= MasterData.chapterGate(1)
+    }
+
+    /// 次に挑む未クリアのノード。全て討伐済みなら nil。
     var nextNode: (chapter: Int, index: Int)? {
         for chapter in 1...3 {
             guard player.cumulativeSteps >= MasterData.chapterGate(chapter) else { continue }
