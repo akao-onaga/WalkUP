@@ -98,12 +98,16 @@ struct BattleView: View {
     }
 
     private var enemyPane: some View {
-        ZStack {
+        // ダメージ数値は立ち絵の**上端**に出す。中央に置くと顔の上に重なり、
+        // 被弾フラッシュで絵が明るく飛んでいる瞬間と重なって、
+        // **頭が欠けたように見える**（実機で指摘を受けた）。
+        ZStack(alignment: .top) {
             DarumonPortrait(enemy: session.enemy)
                 // **左右に並べると使える幅が半分になる。** 高さだけを決めると
                 // マドロミのような横長の個体が主人公側にはみ出すので、幅も縛る。
                 .frame(maxWidth: portraitWidth, maxHeight: session.enemy.isBoss ? 250 : 175)
-                .brightness(flash == .enemy ? 0.5 : 0)
+                .brightness(flash == .enemy ? 0.3 : 0)
+                .shadow(color: .black.opacity(0.45), radius: 3)
                 .modifier(IdleBob(active: !enemyDefeated))
                 // 攻撃時は相手（左）へ、被弾時は後ろ（右）へ。
                 .offset(
@@ -117,6 +121,7 @@ struct BattleView: View {
             if let damage = floatingDamage, damage.side == .enemy {
                 DamageNumber(amount: damage.amount, tint: Theme.danger)
                     .id(damage.id)
+                    .offset(y: -18)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
@@ -125,10 +130,13 @@ struct BattleView: View {
     // MARK: - 主人公
 
     private var playerPane: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             HeroPortrait()
                 .frame(maxWidth: portraitWidth, maxHeight: 175)
-                .brightness(flash == .player ? 0.5 : 0)
+                // **フラッシュは 0.5 だと輪郭まで飛ぶ。** 髪の先の細い線が背景に溶け、
+                // 頭が平らに欠けて見えた。当たった感じは残しつつ、形が壊れない量にする。
+                .brightness(flash == .player ? 0.3 : 0)
+                .shadow(color: .black.opacity(0.45), radius: 3)
                 // 攻撃時は相手（右）へ、被弾時は後ろ（左）へ。
                 .offset(
                     x: (lunge == .player ? 26 : 0) + (recoil == .player ? -16 : 0)
@@ -137,6 +145,7 @@ struct BattleView: View {
             if let damage = floatingDamage, damage.side == .player {
                 DamageNumber(amount: damage.amount, tint: Theme.danger)
                     .id(damage.id)
+                    .offset(y: -18)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
@@ -334,7 +343,10 @@ private struct DamageNumber: View {
             .scaleEffect(appeared ? 1.0 : 1.6)
             .offset(y: appeared ? -46 : 0)
             .opacity(appeared ? 0 : 1)
-            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+            // 立ち絵の上に重なるので、影を濃くして数字と絵を分離する。
+            // 薄いと絵の一部（頭の欠けなど）に見える。
+            .shadow(color: .black.opacity(0.7), radius: 3, y: 1)
+            .shadow(color: .black.opacity(0.5), radius: 1)
             .onAppear {
                 withAnimation(.easeOut(duration: 0.12)) { appeared = false }
                 withAnimation(.easeOut(duration: 0.55).delay(0.05)) { appeared = true }

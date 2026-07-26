@@ -64,10 +64,22 @@ enum Config {
     static let backgroundTargetLuminance = 78.0
     static let backgroundTargetSaturation = 0.16
 
+    /// 主人公の目標値。**ここだけ他と揃えてはいけない。**
+    ///
+    /// ダルモンと同じ明度・彩度に寄せると、主人公まで世界の側に見える。
+    /// §1 では主人公は「唯一堕落していない存在」なので、明るく・鮮やかに・暖かく置く。
+    /// 揃えるのは描線と塗りの作法だけで、色は逆に離す。
+    static let protagonistTargetLuminance = 126.0
+    static let protagonistTargetSaturation = 0.42
+
     /// 彩度が目標に届かない素材へ加算する色差の向き（灰紫）と最大量。
     /// 掛け算ではなく加算にすることで、色ムラを増幅せずに色味を寄せられる。
     static let tintDirection: (r: Double, g: Double, b: Double) = (6, -8, 14)
     static let tintStrength = 3.0
+
+    /// 主人公へ加算する色差の向き（暖色）。世界が寒色に沈んでいる中で逆を向かせる。
+    static let protagonistTintDirection: (r: Double, g: Double, b: Double) = (16, 2, -14)
+    static let protagonistTintStrength = 3.0
 
     /// 減色の前に色差を平滑化する半径。
     ///
@@ -362,8 +374,18 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
 
     let meanLum = lumSum / Double(count)
     let meanSat = satSum / Double(count)
-    let targetLum = isBackground ? Config.backgroundTargetLuminance : Config.targetLuminance
-    let targetSat = isBackground ? Config.backgroundTargetSaturation : Config.targetSaturation
+    let targetLum: Double
+    let targetSat: Double
+    if isBackground {
+        targetLum = Config.backgroundTargetLuminance
+        targetSat = Config.backgroundTargetSaturation
+    } else if isProtagonist {
+        targetLum = Config.protagonistTargetLuminance
+        targetSat = Config.protagonistTargetSaturation
+    } else {
+        targetLum = Config.targetLuminance
+        targetSat = Config.targetSaturation
+    }
     let lumScale = meanLum > 0 ? targetLum / meanLum : 1
     // **彩度は下げる方向にしか掛け算しない。**
     // 引き上げると、元がほぼ無彩色の絵では微妙な色ムラまで増幅され、
@@ -387,12 +409,14 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
             g = mx - (mx - g) * satScale
             b = mx - (mx - b) * satScale
 
-            // 足りない分は、灰紫の色差を一律に加算して寄せる。
+            // 足りない分は、色差を一律に加算して寄せる。
+            // **主人公だけ暖色へ寄せる。** 他は灰紫で世界の側に沈める。
             if tint > 0 {
-                let amount = Config.tintStrength * tint
-                r += Config.tintDirection.r * amount
-                g += Config.tintDirection.g * amount
-                b += Config.tintDirection.b * amount
+                let direction = isProtagonist ? Config.protagonistTintDirection : Config.tintDirection
+                let amount = (isProtagonist ? Config.protagonistTintStrength : Config.tintStrength) * tint
+                r += direction.r * amount
+                g += direction.g * amount
+                b += direction.b * amount
             }
 
             // 明度: 全体を一律に伸縮させる。
@@ -479,13 +503,16 @@ func posterize(_ bitmap: inout Bitmap) {
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("使い方: artpipeline <入力.png> <出力.png> [--background]")
+    print("使い方: artpipeline <入力.png> <出力.png> [--background | --protagonist]")
     exit(2)
 }
 
 /// 背景画像は扱いが違う。透過させず、切り出して中央へ寄せることもしない。
 /// **キャラクターより暗く沈ませる**ことで、上に乗る立ち絵が埋もれないようにする。
 let isBackground = arguments.contains("--background")
+
+/// 主人公は色を揃えない。明るく・鮮やかに・暖かく寄せて、世界から浮かせる。
+let isProtagonist = arguments.contains("--protagonist")
 
 guard var bitmap = Bitmap.load(arguments[1]) else {
     print("読み込めません: \(arguments[1])")
@@ -519,6 +546,8 @@ print(String(format: "%@ → %@  背景除去 %.1f%%  色補正 明度%.0f→%.0
              (arguments[1] as NSString).lastPathComponent,
              (arguments[2] as NSString).lastPathComponent,
              percent, before.luminance,
-             isBackground ? Config.backgroundTargetLuminance : Config.targetLuminance,
+             isBackground ? Config.backgroundTargetLuminance
+                          : (isProtagonist ? Config.protagonistTargetLuminance : Config.targetLuminance),
              before.saturation,
-             isBackground ? Config.backgroundTargetSaturation : Config.targetSaturation))
+             isBackground ? Config.backgroundTargetSaturation
+                          : (isProtagonist ? Config.protagonistTargetSaturation : Config.targetSaturation)))

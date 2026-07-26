@@ -410,39 +410,81 @@ STYLE SPEC (protagonist):
 - Flat vector illustration. Bold, uniform dark outline of consistent weight.
 - Exactly one flat shadow tone per color area. No gradients, no soft shading,
   no texture, no highlights, no glow, no rendering.
-- Limited, desaturated, muted palette in the same grey-violet and dusty blue
-  range as a companion set of creature illustrations.
+- CLEAR, SATURATED palette built on GREEN — vivid fresh greens carry the
+  figure, with warm amber and cream as the supporting accents. Bright enough
+  to read at a glance against a drained grey-violet world. This character must
+  NOT share the muted grey-violet range of the creature illustrations: he is
+  the ONE thing in this world that has not gone grey.
 - Fully transparent background (alpha channel). No background color, no shadow
   on the ground, no ground plane, no props, no environment. Clean edges
   suitable for compositing.
 - The character occupies about 70% of the canvas height, centered,
   with even margins on all sides.
 - No text, no logo, no signature, no watermark, no border, no frame.
-- Mood: quietly determined and still in motion. Not heroic or triumphant,
-  not cute. Small against the world, but unmistakably walking forward.
+- Mood: energetic and eager to move. Bright, spirited, ready to take on
+  whatever is in front of him — not gloomy, not tired, not solemn.
 ```
 
 ```
-CHARACTER: A small determined traveler seen from behind at a three-quarter
-angle, mid-stride, one foot lifted high in a clear walking pose so the thick
-SOLE of the lifted boot is turned toward the viewer. Simple hooded travel
-cloak and a satchel at the hip. BOTH HANDS ARE EMPTY — no staff, no stick,
-no weapon of any kind. The heavy walking boots are the most detailed part of
-the figure: thick treaded soles, visible laces, reinforced toes, worn from
-use. The cloak is cut short enough that both boots read clearly. The posture
-is upright and forward-leaning — the only figure in this world that is still
-moving. Face is not visible.
-Accent color: warm amber on the inner lining of the hood.
+CHARACTER: A spirited BOY of about twelve, drawn in STRICT SIDE VIEW (full
+profile), the whole body turned toward the RIGHT edge of the canvas and
+striding to the right with obvious energy. He is a child, not an adult: a
+slightly large head on a small light frame, about five heads tall.
+Mid-stride at full speed — legs thrown wide apart in a big step, the rear
+shoe pushing off hard so its thick treaded SOLE is visible, both arms swung
+strongly, the front arm driving forward.
+The face IS visible in profile and faces right: simple flat features in the
+same bold outline as the rest — one wide open eye fixed straight ahead, a
+strong angled eyebrow, mouth set in a determined line. He looks fired up and
+ready for a fight. No blush, no sparkle, no rendering.
+He wears GREEN adventuring gear designed for a video game hero: a fitted
+short green jacket with a raised collar, a buckled belt at the waist, and
+snug green trousers tucked in at the ankle. Trim and buckles in warm amber.
+NO ROBE, NO CLOAK, NO HOOD, NO CAPE, NO POINTED HAT, NO BACKPACK, NO BAG —
+nothing on his back at all. Short messy hair, bare head.
+BOTH HANDS ARE EMPTY — no staff, no stick, no weapon of any kind.
+The BOOTS are the hero's signature equipment and the most detailed part of
+the figure — chunky game-style adventure boots with thick deeply treaded
+soles, layered plates, a strap and buckle across each instep, and reinforced
+toe caps. They read as powerful gear, not ordinary footwear. Nothing covers
+the legs, so both boots and the full stride read clearly. He leans into the
+step — the only figure in this world that is still moving.
+Accent color: he is the bright one. Nothing about him is grey.
 ```
 
-**主人公だけは暖色のアクセントを使う。** ダルモンが全て寒色に沈んでいる中で、
-唯一動いている存在であることを色で示す。
+**主人公だけは色を揃えない（2026-07-27 変更）。** 当初は「暖色のアクセントを1点」
+だったが、それでは足りなかった。**全体がダルモンと同じ灰紫だと、主人公まで
+堕落した側に見える。** §1 で主人公は世界で唯一堕落していない存在なので、
+明度・彩度・色相のすべてで世界から離す。
+
+この変更は3か所に入っている。**1か所でも戻すと灰色に戻る。**
+
+| 場所 | 内容 |
+|---|---|
+| STYLE SPEC（上） | 暖色で鮮やかに、と明示。灰紫のレンジを禁止 |
+| `tools/generate-art.sh` | 参照画像に「描線だけ合わせ、パレットは合わせるな」と指示 |
+| `tools/artpipeline --protagonist` | 明度 126 / 彩度 0.42 / 暖色へ加算（他は 107 / 0.23 / 灰紫） |
+
+**後処理が最後に効く。** プロンプトだけ直しても `artpipeline` が全アセットを
+彩度 0.23 に落とすので、灰色に戻る。実際に一度これで戻した。
 
 **武器は靴（2026-07-26 変更）。** 当初は「短い杖」を持たせていたが、
 歩くことが冒険になる（§1）という設計原理に対して、手に持つ武器は嘘になる。
 装備の武器スロットも「杖」から「靴」に変えてある。
 **靴が絵の中で最も描き込まれた部分になるよう指示している。** ここを普通の靴として
-描かれると、ただのフードの旅人に戻ってしまう。
+描かれると、ただ歩いている人に戻ってしまう。
+
+**ローブとフードは廃止（2026-07-26 再変更）。** 杖を外した後も、フード付きの
+外套のままだったので魔法使いに見えていた。**背景は現代の住宅街と商店街**（§3.7）で、
+そこを歩くのがファンタジーの旅人では世界と噛み合わない。
+現代の服装（ウィンドブレーカー・デイパック）に変えている。
+**「ローブでない」ことは否定形で明示しないと戻る。** 生成は繰り返すと元の型に寄る。
+
+**横向き・顔ありに変更（2026-07-27）。** 背面の絵は「歩き去る人」にしか見えず、
+戦闘画面で敵と並べても**対面しているように読めなかった**（ダルモン側は正面向き）。
+真横（プロファイル）で右を向かせ、顔も出している。
+`BattleView` は主人公を左・ダルモンを右に置くので、**右向きであることが要件**。
+向きを変えるなら配置も一緒に変えること。
 
 ---
 

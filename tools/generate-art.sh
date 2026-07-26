@@ -85,6 +85,16 @@ else:
 if is_background:
     intro = ("This is a background plate. Character art will be composited on top of it, "
              "so the center of the image must stay visually quiet.")
+elif is_hero:
+    # **主人公にだけはパレットを合わせさせない。** 参照と同じ色に寄せると、
+    # 主人公まで「怠惰に堕ちた側」に見える（§1 では唯一堕落していない存在）。
+    # 揃えるのは描線と塗りの作法だけ。
+    intro = ("This is the protagonist of a series whose other members are attached. "
+             "MATCH the attached images ONLY in drawing technique — the same bold uniform "
+             "outline weight and the same flat one-tone shading. "
+             "DO NOT match their palette: the attached creatures are deliberately drained, "
+             "grey and cold, and this character must be the opposite — noticeably brighter, "
+             "warmer and more saturated than everything else in the world.")
 else:
     intro = ("This is an addition to an existing series. Any attached images are approved "
              "members of that series. The new image MUST match their overall brightness, "
@@ -101,9 +111,11 @@ io.open(out, "w", encoding="utf-8").write(f"""Generate ONE image using your imag
 Save the result as {name}.png. Do nothing else.""")
 PYEOF
 
-  # 背景はキャラクターと処理が違う（透過させない・中央寄せしない）
+  # 背景はキャラクターと処理が違う（透過させない・中央寄せしない）。
+  # 主人公は色の目標値が違う（明るく・鮮やかに・暖色へ）。§1 で唯一堕落していない存在。
   case "$NAME" in
     bg[0-9]*) PIPELINE_FLAGS="--background" ;;
+    hero)     PIPELINE_FLAGS="--protagonist" ;;
     *)        PIPELINE_FLAGS="" ;;
   esac
 
