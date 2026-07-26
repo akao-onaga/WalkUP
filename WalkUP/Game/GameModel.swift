@@ -420,6 +420,13 @@ final class GameModel {
     }
 
     #if DEBUG
+    /// 動作確認用。歩数や経験値には影響させず、活力だけを直接足す。
+    func debugAddAP(_ amount: Int) {
+        guard amount > 0 else { return }
+        state.player.ap += amount
+        save()
+    }
+
     /// プレビューと動作確認用。歩数を直接足す。
     func debugAddSteps(_ steps: Int) {
         let outcome = StepConverter.apply(

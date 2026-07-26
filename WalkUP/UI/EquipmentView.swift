@@ -224,6 +224,7 @@ struct SettingsView: View {
 
                 #if DEBUG
                 Section("開発用") {
+                    Button("活力を +10 する") { game.debugAddAP(10) }
                     Button("歩数を +4,000 する") { game.debugAddSteps(4_000) }
                     Button("歩数を +20,000 する") { game.debugAddSteps(20_000) }
                 }
