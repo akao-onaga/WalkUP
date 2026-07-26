@@ -380,6 +380,28 @@ oppressive sky.
 
 ## 3.8 主人公
 
+**ダルモン用の STYLE SPEC は使えない。** mood が正反対（あちらは inert、こちらは
+「唯一動いている存在」）なので、専用の固定ブロックを使う。描画スタイルだけは揃える。
+
+```
+STYLE SPEC (protagonist):
+
+- One single character, centered in a 1:1 square canvas, full body visible.
+- Flat vector illustration. Bold, uniform dark outline of consistent weight.
+- Exactly one flat shadow tone per color area. No gradients, no soft shading,
+  no texture, no highlights, no glow, no rendering.
+- Limited, desaturated, muted palette in the same grey-violet and dusty blue
+  range as a companion set of creature illustrations.
+- Fully transparent background (alpha channel). No background color, no shadow
+  on the ground, no ground plane, no props, no environment. Clean edges
+  suitable for compositing.
+- The character occupies about 70% of the canvas height, centered,
+  with even margins on all sides.
+- No text, no logo, no signature, no watermark, no border, no frame.
+- Mood: quietly determined and still in motion. Not heroic or triumphant,
+  not cute. Small against the world, but unmistakably walking forward.
+```
+
 ```
 CHARACTER: A small determined traveler seen from behind at a three-quarter
 angle, mid-stride, one foot lifted in a clear walking pose. Simple hooded

@@ -59,6 +59,11 @@ enum Config {
     static let targetLuminance = 107.0
     static let targetSaturation = 0.23
 
+    /// 背景の目標値。キャラクターより暗く、彩度も低く沈ませる。
+    /// 立ち絵と同じ明るさだと、上に乗せたときに輪郭が埋もれる。
+    static let backgroundTargetLuminance = 78.0
+    static let backgroundTargetSaturation = 0.16
+
     /// 彩度が目標に届かない素材へ加算する色差の向き（灰紫）と最大量。
     /// 掛け算ではなく加算にすることで、色ムラを増幅せずに色味を寄せられる。
     static let tintDirection: (r: Double, g: Double, b: Double) = (6, -8, 14)
@@ -357,16 +362,18 @@ func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: D
 
     let meanLum = lumSum / Double(count)
     let meanSat = satSum / Double(count)
-    let lumScale = meanLum > 0 ? Config.targetLuminance / meanLum : 1
+    let targetLum = isBackground ? Config.backgroundTargetLuminance : Config.targetLuminance
+    let targetSat = isBackground ? Config.backgroundTargetSaturation : Config.targetSaturation
+    let lumScale = meanLum > 0 ? targetLum / meanLum : 1
     // **彩度は下げる方向にしか掛け算しない。**
     // 引き上げると、元がほぼ無彩色の絵では微妙な色ムラまで増幅され、
     // 紫のまだらが浮き出る（初期版ダラリで実際に起きた）。
-    let satScale = min(1.0, meanSat > 0 ? Config.targetSaturation / meanSat : 1)
+    let satScale = min(1.0, meanSat > 0 ? targetSat / meanSat : 1)
 
     // 目標を下回る場合は、掛け算ではなく**色差を一律に足して**色味を寄せる。
     // 加算は局所的な差を増幅しないので、ノイズが浮き出ない。
-    let deficit = max(0, Config.targetSaturation - meanSat * satScale)
-    let tint = min(1.0, deficit / Config.targetSaturation)
+    let deficit = max(0, targetSat - meanSat * satScale)
+    let tint = min(1.0, deficit / targetSat)
 
     for y in 0..<bitmap.height {
         for x in 0..<bitmap.width {
@@ -472,19 +479,30 @@ func posterize(_ bitmap: inout Bitmap) {
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("使い方: artpipeline <入力.png> <出力.png>")
+    print("使い方: artpipeline <入力.png> <出力.png> [--background]")
     exit(2)
 }
+
+/// 背景画像は扱いが違う。透過させず、切り出して中央へ寄せることもしない。
+/// **キャラクターより暗く沈ませる**ことで、上に乗る立ち絵が埋もれないようにする。
+let isBackground = arguments.contains("--background")
 
 guard var bitmap = Bitmap.load(arguments[1]) else {
     print("読み込めません: \(arguments[1])")
     exit(1)
 }
 
-let removed = removeBackground(&bitmap)
-guard var normalized = normalize(bitmap) else {
-    print("本体が見つかりません（背景の除去が効きすぎている可能性）: \(arguments[1])")
-    exit(1)
+var removed = 0
+var normalized: Bitmap
+if isBackground {
+    normalized = bitmap
+} else {
+    removed = removeBackground(&bitmap)
+    guard let recentred = normalize(bitmap) else {
+        print("本体が見つかりません（背景の除去が効きすぎている可能性）: \(arguments[1])")
+        exit(1)
+    }
+    normalized = recentred
 }
 smoothChroma(&normalized)
 let before = normalizeColor(&normalized)
@@ -500,5 +518,7 @@ let percent = Double(removed) / Double(total) * 100
 print(String(format: "%@ → %@  背景除去 %.1f%%  色補正 明度%.0f→%.0f 彩度%.2f→%.2f",
              (arguments[1] as NSString).lastPathComponent,
              (arguments[2] as NSString).lastPathComponent,
-             percent, before.luminance, Config.targetLuminance,
-             before.saturation, Config.targetSaturation))
+             percent, before.luminance,
+             isBackground ? Config.backgroundTargetLuminance : Config.targetLuminance,
+             before.saturation,
+             isBackground ? Config.backgroundTargetSaturation : Config.targetSaturation))

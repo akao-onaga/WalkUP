@@ -113,9 +113,8 @@ struct BattleView: View {
     private var playerPane: some View {
         VStack(spacing: 12) {
             ZStack {
-                Image(systemName: "figure.walk.motion")
-                    .font(.system(size: 74))
-                    .foregroundStyle(Theme.accentFill)
+                HeroPortrait()
+                    .frame(height: 150)
                     .brightness(flash == .player ? 0.5 : 0)
                     .offset(
                         y: (lunge == .player ? -22 : 0) + (recoil == .player ? 14 : 0)
@@ -126,7 +125,7 @@ struct BattleView: View {
                         .id(damage.id)
                 }
             }
-            .frame(height: 110)
+            .frame(height: 170)
 
             HStack(spacing: 8) {
                 MeterBar(value: Double(playerHP) / Double(max(1, session.player.maxHP)), tint: Theme.accent)
@@ -225,6 +224,24 @@ struct DarumonPortrait: View {
             Image(systemName: enemy.isBoss ? "cloud.moon.fill" : "cloud.fill")
                 .font(.system(size: enemy.isBoss ? 112 : 86))
                 .foregroundStyle(Theme.accent)
+        }
+    }
+}
+
+/// 主人公の立ち絵。
+///
+/// **主人公だけが暖色のアクセントを持つ**（ART_PROMPTS.md §3.8）。
+/// 寒色に沈んだ世界で唯一動いている存在であることを、色で示している。
+struct HeroPortrait: View {
+    var body: some View {
+        if UIImage(named: "hero") != nil {
+            Image("hero")
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: "figure.walk.motion")
+                .font(.system(size: 74))
+                .foregroundStyle(Theme.accentFill)
         }
     }
 }

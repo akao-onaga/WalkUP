@@ -30,7 +30,8 @@ if [ "${1:-}" = "--chapter" ]; then
     2) set -- uzukumari tadayoi nebari motare ;;
     3) set -- shizumi kasumi omori nukegara ;;
     boss) set -- madoromi mukiryoku darumon ;;
-    *) echo "章は 1 / 2 / 3 / boss のいずれか" >&2; exit 2 ;;
+    bg) set -- bg1 bg2 bg3 ;;
+    *) echo "章は 1 / 2 / 3 / boss / bg のいずれか" >&2; exit 2 ;;
   esac
 fi
 
@@ -46,41 +47,69 @@ done
 for NAME in "$@"; do
   echo "=== $NAME ==="
 
-  python3 - "$NAME" "$WORK/prompt.txt" <<'PY'
+  python3 - "$NAME" "$WORK/prompt.txt" <<'PYEOF'
 import io, re, sys
 name, out = sys.argv[1], sys.argv[2]
 doc = io.open("ART_PROMPTS.md", encoding="utf-8").read()
 
-# ボスは STYLE SPEC の高さ指定だけ 85% に差し替える（§3.6）
+def spec_after(marker):
+    """指定の見出し以降にある最初の STYLE SPEC ブロックを取り出す。"""
+    body = doc[doc.index(marker):]
+    return body.split("```")[1].strip()
+
 is_boss = name in {"madoromi", "mukiryoku", "darumon"}
+is_background = name.startswith("bg")
+is_hero = name == "hero"
 
-spec = doc.split("STYLE SPEC (identical for every image in this set):")[1].split("```")[0]
-spec = "STYLE SPEC (identical for every image in this set):" + spec.rstrip()
-if is_boss:
-    spec = spec.replace("about 70% of the canvas height", "about 85% of the canvas height")
+if is_background:
+    index = int(name[2:])
+    spec = spec_after("## 3.7 地域背景")
+    block = doc.split(f"BACKGROUND {index}:")[1].split("```")[0].strip()
+    subject = f"BACKGROUND {index}: {block}"
+elif is_hero:
+    spec = spec_after("## 3.8 主人公")
+    block = doc.split("## 3.8 主人公")[1].split("```")[3].strip()
+    subject = block
+else:
+    spec = spec_after("## 2. 固定スタイルブロック")
+    if is_boss:
+        # ボスは高さ指定の1行だけを差し替える（§3.6）
+        spec = spec.replace("about 70% of the canvas height", "about 85% of the canvas height")
+    pattern = re.compile(r"^####[^\n]*/\s*" + re.escape(name.capitalize()) + r"\b[^\n]*$", re.M | re.I)
+    match = pattern.search(doc)
+    if not match:
+        sys.exit(f"ART_PROMPTS.md に '{name}' の個体ブロックが見つかりません")
+    body = doc[match.end():].split("```")[1].strip()
+    subject = re.sub(r"^CHARACTER[^:]*:\s*", "CHARACTER: ", body)
 
-# 見出しから該当個体の CHARACTER ブロックを取り出す
-pattern = re.compile(r"^####[^\n]*/\s*" + re.escape(name.capitalize()) + r"\b[^\n]*$", re.M | re.I)
-match = pattern.search(doc)
-if not match:
-    sys.exit(f"ART_PROMPTS.md に '{name}' の個体ブロックが見つかりません")
-block = doc[match.end():].split("```")[1].strip()
-block = re.sub(r"^CHARACTER[^:]*:\s*", "", block)
+if is_background:
+    intro = ("This is a background plate. Character art will be composited on top of it, "
+             "so the center of the image must stay visually quiet.")
+else:
+    intro = ("This is an addition to an existing series. Any attached images are approved "
+             "members of that series. The new image MUST match their overall brightness, "
+             "line weight and palette so they look like they came from the same art book.")
 
 io.open(out, "w", encoding="utf-8").write(f"""Generate ONE image using your image generation tool and save it as {name}.png in the current directory.
 
-This is an addition to an existing series. Any attached images are approved members of that series. The new image MUST match their overall brightness, line weight and palette so they look like they came from the same art book. Do not make it lighter than the attached images.
+{intro}
 
 {spec}
 
-CHARACTER: {block}
+{subject}
 
 Save the result as {name}.png. Do nothing else.""")
-PY
+PYEOF
+
+  # 背景はキャラクターと処理が違う（透過させない・中央寄せしない）
+  case "$NAME" in
+    bg[0-9]*) PIPELINE_FLAGS="--background" ;;
+    *)        PIPELINE_FLAGS="" ;;
+  esac
 
   ( cd "$WORK" && rm -f "$NAME.png" \
     && cat prompt.txt | codex exec --sandbox workspace-write --skip-git-repo-check \
-         ${REFERENCES:+--image "$REFERENCES"} >/dev/null 2>&1 )
+         ${PIPELINE_FLAGS:+} ${REFERENCES:+--image "$REFERENCES"} >/dev/null 2>&1 )
 
   if [ ! -f "$WORK/$NAME.png" ]; then
     echo "  生成に失敗しました（$NAME）" >&2
@@ -88,7 +117,7 @@ PY
   fi
 
   cp -f "$WORK/$NAME.png" "assets/generated/$NAME.png"
-  "$BIN/artpipeline" "assets/generated/$NAME.png" "assets/processed/$NAME.png"
+  "$BIN/artpipeline" "assets/generated/$NAME.png" "assets/processed/$NAME.png" $PIPELINE_FLAGS
 done
 
 echo
