@@ -1,0 +1,342 @@
+import CoreGraphics
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+
+// ART_PROMPTS.md §4 の後処理を自動化するツール。
+//
+// 「生成のばらつきはここで吸収する。最も費用対効果が高い工程なので省略しない」と
+// 書いてあるとおり、統一感はこの工程で決まる。手作業でやると必ずブレるので機械化する。
+//
+//   swiftc -O -o artpipeline tools/artpipeline/main.swift
+//   ./artpipeline <入力.png> <出力.png>
+//
+// 処理:
+//   1. 背景を透過にする（四辺から塗りつぶし範囲を広げる方式）
+//   2. 縁のにじみを削る
+//   3. 中身の外接矩形で切り出し、1024×1024 の中央へ既定の比率で再配置
+//   4. ポスタリゼーション（減色）
+
+// MARK: - 設定
+
+enum Config {
+    static let canvasSize = 1024
+
+    /// 生成時の背景色 #E8E4DC。焼き込みで出てきた場合にこれを除去する。
+    static let backgroundHint: (r: Double, g: Double, b: Double) = (0xE8, 0xE4, 0xDC)
+
+    /// 背景とみなす色距離のしきい値（0〜441）。大きすぎると本体を削る。
+    static let tolerance = 62.0
+
+    /// 閉じた領域に残った背景を消すための、より厳しいしきい値。
+    ///
+    /// 外周から繋がっていない背景（触手の隙間、腕と胴の間）は最初の塗りつぶしでは届かない。
+    /// かといって同じしきい値で全画素を消すと、**ネムケの白目のような明るい部位まで抜ける**。
+    /// 背景 #E8E4DC と純白の距離は約50なので、その半分程度に絞って区別する。
+    static let enclosedTolerance = 26.0
+
+    /// 閉じた領域として消す最小面積。
+    ///
+    /// **ダラリの白目は背景色とほぼ同一で、色では区別できなかった。**
+    /// しきい値を 12 まで絞っても目が抜ける。一方で目は小さく、腕と胴の隙間や
+    /// 触手の間は大きいため、面積で分けている。実測して 4000 に決めた。
+    ///
+    /// これは**背景を焼き込んで生成された旧仕様の画像のための救済措置**。
+    /// 新しいアートは STYLE SPEC どおり透過で生成されるので、この工程は素通りする。
+    static let minimumEnclosedArea = 4000
+
+    /// キャンバス高さに対する本体の高さの比率。ART_PROMPTS.md は 70%（ボスは 85%）。
+    static let contentHeightRatio = 0.70
+
+    /// ポスタリゼーションの階調数。8〜12色相当。
+    static let posterizeLevels = 10
+}
+
+// MARK: - 画像の読み書き
+
+struct Bitmap {
+    var width: Int
+    var height: Int
+    /// RGBA、1ピクセル4バイト。
+    var pixels: [UInt8]
+
+    subscript(x: Int, y: Int) -> (r: UInt8, g: UInt8, b: UInt8, a: UInt8) {
+        get {
+            let i = (y * width + x) * 4
+            return (pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3])
+        }
+        set {
+            let i = (y * width + x) * 4
+            pixels[i] = newValue.r
+            pixels[i + 1] = newValue.g
+            pixels[i + 2] = newValue.b
+            pixels[i + 3] = newValue.a
+        }
+    }
+
+    static func load(_ path: String) -> Bitmap? {
+        let url = URL(fileURLWithPath: path) as CFURL
+        guard let source = CGImageSourceCreateWithURL(url, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+
+        let width = image.width, height = image.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let ctx = CGContext(
+            data: &pixels, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return Bitmap(width: width, height: height, pixels: pixels)
+    }
+
+    func write(to path: String) -> Bool {
+        var data = pixels
+        guard let ctx = CGContext(
+            data: &data, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ), let image = ctx.makeImage() else { return false }
+
+        let url = URL(fileURLWithPath: path) as CFURL
+        guard let dest = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil)
+        else { return false }
+        CGImageDestinationAddImage(dest, image, nil)
+        return CGImageDestinationFinalize(dest)
+    }
+}
+
+// MARK: - 1. 背景の除去
+
+/// 四辺から連結している「背景色に近い領域」だけを透過にする。
+///
+/// 単純に「背景色に近い画素を全部消す」とやると、**本体の内側にある明るい部分まで穴が開く**。
+/// 外周から繋がっている領域に限定することでそれを防ぐ。
+func removeBackground(_ bitmap: inout Bitmap) -> Int {
+    let w = bitmap.width, h = bitmap.height
+
+    // 四隅の色から実際の背景色を推定する。生成物は指定色から微妙にずれるため、
+    // 固定値ではなく現物に合わせる。
+    var samples: [(Double, Double, Double)] = []
+    for (x, y) in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)] {
+        let p = bitmap[x, y]
+        if p.a > 0 { samples.append((Double(p.r), Double(p.g), Double(p.b))) }
+    }
+    let bg: (r: Double, g: Double, b: Double)
+    if samples.isEmpty {
+        bg = Config.backgroundHint
+    } else {
+        bg = (
+            samples.map(\.0).reduce(0, +) / Double(samples.count),
+            samples.map(\.1).reduce(0, +) / Double(samples.count),
+            samples.map(\.2).reduce(0, +) / Double(samples.count)
+        )
+    }
+
+    func distance(_ p: (r: UInt8, g: UInt8, b: UInt8, a: UInt8)) -> Double {
+        let dr = Double(p.r) - bg.r, dg = Double(p.g) - bg.g, db = Double(p.b) - bg.b
+        return (dr * dr + dg * dg + db * db).squareRoot()
+    }
+
+    var visited = [Bool](repeating: false, count: w * h)
+    var queue: [Int] = []
+
+    for x in 0..<w {
+        queue.append(x)                    // 上辺
+        queue.append((h - 1) * w + x)      // 下辺
+    }
+    for y in 0..<h {
+        queue.append(y * w)                // 左辺
+        queue.append(y * w + w - 1)        // 右辺
+    }
+
+    var removed = 0
+    var head = 0
+    while head < queue.count {
+        let index = queue[head]; head += 1
+        if visited[index] { continue }
+        visited[index] = true
+
+        let x = index % w, y = index / w
+        guard distance(bitmap[x, y]) <= Config.tolerance else { continue }
+
+        bitmap[x, y] = (0, 0, 0, 0)
+        removed += 1
+
+        if x > 0 { queue.append(index - 1) }
+        if x < w - 1 { queue.append(index + 1) }
+        if y > 0 { queue.append(index - w) }
+        if y < h - 1 { queue.append(index + w) }
+    }
+
+    // 1b. 閉じた領域に残った背景を消す。
+    //
+    // 外周から繋がっていない背景（触手の隙間、腕と胴の間）はここまでで残っている。
+    // 連結成分ごとに判定し、背景色に十分近く、かつある程度の面積があるものだけを消す。
+    // 全画素を一律に消すと明るい部位まで抜けるため、連結性と面積で守る。
+    var checked = [Bool](repeating: false, count: w * h)
+    for startY in 0..<h {
+        for startX in 0..<w {
+            let start = startY * w + startX
+            if checked[start] || bitmap[startX, startY].a == 0 { continue }
+            guard distance(bitmap[startX, startY]) <= Config.enclosedTolerance else {
+                checked[start] = true
+                continue
+            }
+
+            var component: [Int] = []
+            var stack = [start]
+            checked[start] = true
+            while let index = stack.popLast() {
+                component.append(index)
+                let x = index % w, y = index / w
+                for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                    let nx = x + dx, ny = y + dy
+                    guard nx >= 0, nx < w, ny >= 0, ny < h else { continue }
+                    let next = ny * w + nx
+                    guard !checked[next], bitmap[nx, ny].a > 0,
+                          distance(bitmap[nx, ny]) <= Config.enclosedTolerance else { continue }
+                    checked[next] = true
+                    stack.append(next)
+                }
+            }
+
+            guard component.count >= Config.minimumEnclosedArea else { continue }
+            for index in component {
+                bitmap[index % w, index / w] = (0, 0, 0, 0)
+                removed += 1
+            }
+        }
+    }
+
+    // 2. 縁のにじみを削る。
+    // 透過画素に隣接する画素は背景色が混ざっているため、そのままだと白い縁が残る。
+    var softened = bitmap
+    for y in 0..<h {
+        for x in 0..<w where bitmap[x, y].a > 0 {
+            var touchesTransparent = false
+            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let nx = x + dx, ny = y + dy
+                guard nx >= 0, nx < w, ny >= 0, ny < h else { continue }
+                if bitmap[nx, ny].a == 0 { touchesTransparent = true; break }
+            }
+            guard touchesTransparent else { continue }
+            let ratio = min(1.0, distance(bitmap[x, y]) / Config.tolerance)
+            var p = bitmap[x, y]
+            p.a = UInt8(Double(p.a) * ratio)
+            softened[x, y] = p
+        }
+    }
+    bitmap = softened
+    return removed
+}
+
+// MARK: - 3. 切り出しと再配置
+
+/// 不透明な範囲の外接矩形を求め、規定の比率で 1024×1024 の中央に置き直す。
+///
+/// **生成物はキャンバス内での大きさも位置もばらつく。** ここで揃えないと、
+/// 図鑑に並べた時に1体だけ大きい・寄っている、という形で統一感が壊れる。
+func normalize(_ bitmap: Bitmap) -> Bitmap? {
+    var minX = bitmap.width, minY = bitmap.height, maxX = -1, maxY = -1
+    for y in 0..<bitmap.height {
+        for x in 0..<bitmap.width where bitmap[x, y].a > 8 {
+            minX = min(minX, x); maxX = max(maxX, x)
+            minY = min(minY, y); maxY = max(maxY, y)
+        }
+    }
+    guard maxX >= minX, maxY >= minY else { return nil }
+
+    let cropWidth = maxX - minX + 1
+    let cropHeight = maxY - minY + 1
+    let side = Config.canvasSize
+    let targetHeight = Double(side) * Config.contentHeightRatio
+    let scale = targetHeight / Double(cropHeight)
+    let drawWidth = Double(cropWidth) * scale
+
+    // 横に広い個体（ゴロネ）は幅で頭打ちにする。はみ出させない。
+    let maxWidth = Double(side) * 0.86
+    let finalScale = drawWidth > maxWidth ? maxWidth / Double(cropWidth) : scale
+
+    var output = [UInt8](repeating: 0, count: side * side * 4)
+    guard let ctx = CGContext(
+        data: &output, width: side, height: side,
+        bitsPerComponent: 8, bytesPerRow: side * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return nil }
+    ctx.interpolationQuality = .high
+
+    var sourcePixels = bitmap.pixels
+    guard let sourceCtx = CGContext(
+        data: &sourcePixels, width: bitmap.width, height: bitmap.height,
+        bitsPerComponent: 8, bytesPerRow: bitmap.width * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ), let sourceImage = sourceCtx.makeImage(),
+       let cropped = sourceImage.cropping(to: CGRect(
+           x: minX, y: bitmap.height - maxY - 1, width: cropWidth, height: cropHeight))
+    else { return nil }
+
+    let w = Double(cropWidth) * finalScale
+    let hgt = Double(cropHeight) * finalScale
+    ctx.draw(cropped, in: CGRect(
+        x: (Double(side) - w) / 2,
+        y: (Double(side) - hgt) / 2,
+        width: w, height: hgt
+    ))
+
+    return Bitmap(width: side, height: side, pixels: output)
+}
+
+// MARK: - 4. ポスタリゼーション
+
+/// 全アセットに同一設定で適用する。生成ごとの微妙な色の揺れを吸収する。
+func posterize(_ bitmap: inout Bitmap) {
+    let levels = Double(Config.posterizeLevels - 1)
+    for y in 0..<bitmap.height {
+        for x in 0..<bitmap.width {
+            var p = bitmap[x, y]
+            guard p.a > 0 else { continue }
+            func quantize(_ v: UInt8) -> UInt8 {
+                UInt8((( Double(v) / 255 * levels).rounded() / levels * 255).rounded())
+            }
+            p.r = quantize(p.r); p.g = quantize(p.g); p.b = quantize(p.b)
+            bitmap[x, y] = p
+        }
+    }
+}
+
+// MARK: - 実行
+
+let arguments = CommandLine.arguments
+guard arguments.count >= 3 else {
+    print("使い方: artpipeline <入力.png> <出力.png>")
+    exit(2)
+}
+
+guard var bitmap = Bitmap.load(arguments[1]) else {
+    print("読み込めません: \(arguments[1])")
+    exit(1)
+}
+
+let removed = removeBackground(&bitmap)
+guard var normalized = normalize(bitmap) else {
+    print("本体が見つかりません（背景の除去が効きすぎている可能性）: \(arguments[1])")
+    exit(1)
+}
+posterize(&normalized)
+
+guard normalized.write(to: arguments[2]) else {
+    print("書き出せません: \(arguments[2])")
+    exit(1)
+}
+
+let total = bitmap.width * bitmap.height
+let percent = Double(removed) / Double(total) * 100
+print(String(format: "%@ → %@  背景除去 %.1f%%  %dx%d",
+             (arguments[1] as NSString).lastPathComponent,
+             (arguments[2] as NSString).lastPathComponent,
+             percent, Config.canvasSize, Config.canvasSize))
