@@ -109,7 +109,7 @@ struct HomeView: View {
                      ? "その分だけ、世界が目を覚ます。"
                      : "一歩ごとに、止まった街が動き出す。")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -159,7 +159,7 @@ struct HomeView: View {
 
             Text("累計 \(game.player.cumulativeSteps.formatted()) 歩")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
         }
         .panel()
         .task {
@@ -197,7 +197,7 @@ struct HomeView: View {
                         .font(.headline)
                     Text("歩いた道のりに、何かが残されている")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 }
                 Spacer()
                 Image(systemName: "chevron.right").foregroundStyle(Theme.ink.opacity(0.6))
@@ -222,12 +222,12 @@ struct HomeView: View {
                         Text("第\(next.chapter)章 ノード \(next.index)").font(.headline)
                         Text(node.enemy.isBoss ? "ボス：\(node.enemy.name)" : node.enemy.name)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSoft)
                     }
                     Spacer()
                     Label("\(node.enemy.apCost)", systemImage: "bolt.fill")
                         .font(.subheadline.bold())
-                        .foregroundStyle(game.player.ap >= node.enemy.apCost ? Theme.vigor : .secondary)
+                        .foregroundStyle(game.player.ap >= node.enemy.apCost ? Theme.vigor : Theme.textSoft)
                 }
             } else if let gate = nextGate {
                 // 歩数ゲートに届いていない状態。ここで「歩けば開く」ことを明示する。
@@ -240,7 +240,7 @@ struct HomeView: View {
                         // ここを書かないと「詰んだ」ように見える。周回できることを明示する。
                         Text("解放を待つ間も、討伐済みのダルモンに再挑戦して素材を集められます。")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSoft)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -344,7 +344,7 @@ struct MilestoneResultView: View {
                                 if case .lore(_, let text) = find {
                                     Text(text)
                                         .font(.callout)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Theme.textSoft)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }

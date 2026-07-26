@@ -59,13 +59,13 @@ struct BestiaryDetailView: View {
                  ? MasterData.flavor(for: enemy.id)
                  : "影だけが記録されている。討伐すれば、正体と記録が明らかになる。")
                 .font(.callout)
-                .foregroundStyle(defeated ? .primary : .secondary)
+                .foregroundStyle(defeated ? Theme.text : Theme.textSoft)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let date = entry?.firstSeenAt {
                 Text("初めて見た日　\(date.formatted(date: .long, time: .omitted))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,11 +90,11 @@ struct BestiaryDetailView: View {
             HStack {
                 Text(MasterData.region(chapter: chapter).name)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
                 Spacer()
                 Text("第\(chapter)章")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

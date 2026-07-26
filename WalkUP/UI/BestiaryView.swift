@@ -70,13 +70,13 @@ struct BestiaryView: View {
                     .contentTransition(.numericText())
                 Text("/ \(roster.count) 体")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
                 Spacer()
             }
             MeterBar(value: Double(defeatedCount) / Double(roster.count), tint: Theme.accent)
             Text("討伐すると図鑑に載る。道標で目撃したダルモンは影だけが残る。")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,7 +90,7 @@ struct BestiaryView: View {
             HStack {
                 Text(MasterData.region(chapter: chapter).name).font(.headline)
                 Spacer()
-                Text("第\(chapter)章").font(.caption).foregroundStyle(.secondary)
+                Text("第\(chapter)章").font(.caption).foregroundStyle(Theme.textSoft)
             }
 
             ForEach(roster.filter { $0.chapter == chapter }, id: \.enemy.id) { item in
@@ -132,7 +132,7 @@ struct BestiaryView: View {
                 } else {
                     Image(systemName: "questionmark")
                         .font(.headline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 }
             }
             .frame(width: 52, height: 52)
@@ -140,16 +140,16 @@ struct BestiaryView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title(for: enemy, defeated: defeated, sighted: sighted))
                     .font(.subheadline.weight(enemy.isBoss ? .bold : .regular))
-                    .foregroundStyle(defeated || sighted ? .primary : .secondary)
+                    .foregroundStyle(defeated || sighted ? Theme.text : Theme.textSoft)
 
                 if defeated {
                     Text(detail(enemy: enemy, entry: entry))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 } else if sighted {
                     Text("目撃の記録のみ。討伐すると正体が分かる")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 }
             }
 

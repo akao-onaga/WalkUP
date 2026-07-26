@@ -3,39 +3,47 @@ import UIKit
 
 /// アプリ共通の配色。ART_PROMPTS.md の STYLE SPEC と揃えている。
 ///
-/// **背景色を固定するなら、文字色も必ずセットで面倒を見ること。**
-/// 背景だけ固定して文字を `.primary` / `.secondary` のまま放置すると、
-/// ダークモードで「明るい背景に白文字」になり読めなくなる（実際に起きた。§15-9）。
-/// ここでは背景側をモード追従にすることで、`.primary` / `.secondary` を
-/// そのまま正しく機能させている。
+/// **OS のライト／ダークには追従しない（2026-07-27 確定）。**
+/// 追従させると、同じ画面が端末の設定で二つの顔を持つ。作品としての色が決まらず、
+/// どちらでも破綻しないことを毎回確かめる必要が出て、そのぶん詰めが甘くなる。
+/// ここは紙の色（`background`）に固定し、**アートが前提としている背景**に揃えた。
+/// ダルモンの立ち絵はこの色（#E8E4DC）の上で描かれている（ART_PROMPTS.md §2）。
+///
+/// **色を固定した以上、文字色も自前で持つ。** `.primary` / `.secondary` は
+/// OS のモードで反転するので、ここでは使わない（`text` / `textSoft` を使う）。
+/// 背景だけ固定して文字を放置し、ダークモードで読めなくした事故を2度起こしている。
 enum Theme {
-    static let background = adaptive(light: 0xE8E4DC, dark: 0x1B1922)
-    static let card       = adaptive(light: 0xF6F4EF, dark: 0x26232F)
+    static let background = fixed(0xE8E4DC)
+    static let card       = fixed(0xF6F4EF)
 
-    /// アイコンと強調テキスト。背景の明暗が反転するので明度を入れ替える。
-    static let accent     = adaptive(light: 0x5F5B76, dark: 0xADA5C9)
+    /// アイコンと強調テキスト。
+    static let accent     = fixed(0x5F5B76)
 
-    /// 主ボタンの塗り。上に白文字を載せるため両モードとも十分に暗い色で固定する。
-    static let accentFill = adaptive(light: 0x6B6782, dark: 0x6B6782)
+    /// 主ボタンの塗り。上に白文字を載せるので十分に暗くする。
+    static let accentFill = fixed(0x6B6782)
 
     /// 活力（AP）。歩数に由来する資源なので、他と区別できる暖色にする。
-    static let vigor      = adaptive(light: 0x9A6F4A, dark: 0xD6A97C)
+    static let vigor      = fixed(0x9A6F4A)
 
     /// 危険・敗北。
-    static let danger     = adaptive(light: 0x9B4A4A, dark: 0xD68A8A)
+    static let danger     = fixed(0x9B4A4A)
 
     /// 輪郭線。**アートと同じ「太く均一な暗い線」を UI 側にも引く**（§15-10）。
     /// 標準の SwiftUI 部品は線を持たないため、並べるとアートだけが浮いて
     /// 「絵は描き込んであるのに画面はただのアプリ」に見える。
-    static let ink        = adaptive(light: 0x2E2A38, dark: 0x0B0910)
+    static let ink        = fixed(0x2E2A38)
+
+    /// 本文。`.primary` の代わりに使う。
+    static let text       = fixed(0x2E2A38)
+
+    /// 補足。`.secondary` の代わりに使う。**紙の上で薄すぎない濃さ**にしている。
+    static let textSoft   = fixed(0x6B6675)
 
     /// 線の太さ。アートの輪郭線と釣り合う値を実測で決めた。細いと弱く、太いと重い。
     static let strokeWidth: CGFloat = 2
 
-    private static func adaptive(light: Int, dark: Int) -> Color {
-        Color(uiColor: UIColor { traits in
-            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
-        })
+    private static func fixed(_ rgb: Int) -> Color {
+        Color(uiColor: UIColor(rgb: rgb))
     }
 }
 

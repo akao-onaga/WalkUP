@@ -269,6 +269,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "歩いた歩数をゲームの活力と経験値に変換するために、ヘルスケアの歩数データを読み取ります。データが端末の外に送信されることはありません。";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "本アプリはヘルスケアにデータを書き込みません。HealthKit を使うアプリには Apple がこの説明文を必須としているため記載しています。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -302,6 +303,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "歩いた歩数をゲームの活力と経験値に変換するために、ヘルスケアの歩数データを読み取ります。データが端末の外に送信されることはありません。";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "本アプリはヘルスケアにデータを書き込みません。HealthKit を使うアプリには Apple がこの説明文を必須としているため記載しています。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

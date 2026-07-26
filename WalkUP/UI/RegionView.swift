@@ -42,7 +42,7 @@ struct RegionView: View {
                 } else {
                     Label("\(MasterData.chapterGate(chapter).formatted()) 歩で解放", systemImage: "lock.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 }
             }
             .padding(16)
@@ -115,7 +115,7 @@ struct RegionView: View {
                  ? "この地域は活気を取り戻した。"
                  : "ダルモンを討伐するほど、街に人の気配が戻る。")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -133,25 +133,25 @@ struct RegionView: View {
                 Spacer()
                 Text("\(unlocked) / \(entries.count)")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
             }
 
             if entries.isEmpty {
                 Text("この地域の記述はまだ用意されていない。")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
             } else {
                 ForEach(entries, id: \.entry.id) { item in
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: item.isUnlocked ? "book.closed.fill" : "book.closed")
                             .font(.caption)
-                            .foregroundStyle(item.isUnlocked ? Theme.accent : .secondary)
+                            .foregroundStyle(item.isUnlocked ? Theme.accent : Theme.textSoft)
                             .frame(width: 16)
 
                         // 未解放は本文を出さない。歩いて引き当てる動機がなくなる。
                         Text(item.isUnlocked ? item.entry.text : "まだ読めない")
                             .font(.callout)
-                            .foregroundStyle(item.isUnlocked ? .primary : .secondary)
+                            .foregroundStyle(item.isUnlocked ? Theme.text : Theme.textSoft)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Spacer(minLength: 0)

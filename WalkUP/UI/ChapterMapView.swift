@@ -75,7 +75,7 @@ struct ChapterMapView: View {
                 if !isOpen {
                     Label("\(gate.formatted()) 歩で解放", systemImage: "lock.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 } else if game.progress(for: chapter).isCleared {
                     Label("クリア", systemImage: "checkmark.seal.fill")
                         .font(.caption)
@@ -116,7 +116,7 @@ struct ChapterMapView: View {
                             .opacity(cleared ? 1 : 0.55)
                             .saturation(cleared ? 1 : 0)
                     } else {
-                        Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+                        Image(systemName: "lock.fill").font(.caption2).foregroundStyle(Theme.textSoft)
                     }
 
                     if cleared {
@@ -143,7 +143,7 @@ struct ChapterMapView: View {
 
                 Label("\(node.enemy.apCost)", systemImage: "bolt.fill")
                     .font(.caption.bold())
-                    .foregroundStyle(affordable ? Theme.vigor : .secondary)
+                    .foregroundStyle(affordable ? Theme.vigor : Theme.textSoft)
             }
             .padding(.vertical, 6)
             // **これが無いと行の余白がタップに反応しない。**

@@ -99,7 +99,7 @@ struct ResultView: View {
 
             Text("\(session.enemy.name) ・ \(session.log.turnCount / 2 + session.log.turnCount % 2) ターン")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .opacity(stamped ? 1 : 0)
         }
         .padding(.top, 12)
@@ -112,7 +112,7 @@ struct ResultView: View {
             if rewards.isEmpty {
                 Text("何も持ち帰れなかった")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
             }
 
             ForEach(Array(rewards.enumerated()), id: \.offset) { index, row in
@@ -170,7 +170,7 @@ struct ResultView: View {
                 .font(.headline)
             Text("消費した活力は戻りません。ですが素材は残りました。装備を強化してから、もう一度挑んでください。")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {

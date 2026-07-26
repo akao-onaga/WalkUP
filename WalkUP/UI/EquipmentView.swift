@@ -46,12 +46,12 @@ struct EquipmentView: View {
         VStack(spacing: 8) {
             Image(systemName: "shippingbox")
                 .font(.largeTitle)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
             Text("まだ装備がありません")
                 .font(.headline)
             Text("各章のノード 2・4・6 を討伐すると手に入ります。")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -66,12 +66,12 @@ struct EquipmentView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(slotName(slot))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
 
                     if let note = slotNote(slot) {
                         Text(note)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSoft)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -103,7 +103,7 @@ struct EquipmentView: View {
                     }
                     Text(statLine(effective))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 }
                 Spacer()
                 Button(item.isEquipped ? "装備中" : "装備") {
@@ -123,7 +123,7 @@ struct EquipmentView: View {
                 if isMaxed {
                     Text("最大")
                         .font(.caption2.bold())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSoft)
                 } else {
                     Button {
                         game.enhance(item)
@@ -197,7 +197,7 @@ struct SettingsView: View {
                             Spacer()
                             Text(day.steps, format: .number)
                                 .monospacedDigit()
-                                .foregroundStyle(day.steps == 0 ? .secondary : .primary)
+                                .foregroundStyle(day.steps == 0 ? Theme.textSoft : Theme.text)
                         }
                     }
                 }
@@ -220,6 +220,10 @@ struct SettingsView: View {
                 }
                 #endif
             }
+            // Form の地の色は iOS 標準の灰。**紙の色に置き換える。**
+            // 部品は標準のまま残すが、色だけは作品側に揃える。
+            .scrollContentBackground(.hidden)
+            .background(Theme.background.ignoresSafeArea())
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

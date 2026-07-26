@@ -64,7 +64,7 @@ struct PaywallView: View {
 
             Text("活力パスは、討伐で得られる報酬を増やし、地域の復興を早く進めます。")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .multilineTextAlignment(.center)
         }
     }
@@ -88,7 +88,7 @@ struct PaywallView: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.subheadline.bold())
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(detail).font(.caption).foregroundStyle(Theme.textSoft)
             }
         }
     }
@@ -109,7 +109,7 @@ struct PaywallView: View {
             } else {
                 Text(purchases.errorMessage ?? "販売情報を取得できませんでした。")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSoft)
                     .multilineTextAlignment(.center)
             }
         }
@@ -142,7 +142,7 @@ struct PaywallView: View {
 
             Text("自動更新サブスクリプションです。解約するまで毎月 \(package.storeProduct.localizedPriceString) が請求されます。解約は App Store の設定からいつでも行えます。")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .multilineTextAlignment(.center)
         }
     }
@@ -161,7 +161,7 @@ struct PaywallView: View {
                 .font(.subheadline.bold())
             Text("RevenueCat の API キーが設定されていないビルドです。ゲーム本編は通常どおり遊べます。")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSoft)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -177,7 +177,7 @@ struct PaywallView: View {
             Link("プライバシーポリシー", destination: LegalURL.privacyPolicy)
         }
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Theme.textSoft)
     }
 
     /// 開発ビルド専用の診断表示。
@@ -198,7 +198,7 @@ struct PaywallView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
                         .panel(radius: 12, inset: 12)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.textSoft)
         }
         #endif
     }
@@ -243,5 +243,5 @@ enum LegalURL {
 #Preview("ダーク") {
     PaywallView()
         .environment(PurchaseManager())
-        .preferredColorScheme(.dark)
+
 }
