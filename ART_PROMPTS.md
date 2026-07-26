@@ -94,6 +94,255 @@ Accent color: faded brick red on the pads of its paws.
 
 ---
 
+## 3.5 量産用の全個体ブロック（2026-07-26）
+
+§2 の STYLE SPEC は**1文字も変えずに**全ブロックへ適用する。差し替えるのは CHARACTER のみ。
+
+### 投げ方
+
+**章ごとに4体まとめて依頼する。** 1体ずつだと基準が揃わず、逆に12体まとめると
+モデルが破綻する。同じ章の個体を並べて評価したいので、この単位が扱いやすい。
+
+命名は既存3体に合わせ、**怠惰・眠気を表す日本語**から採っている。
+
+---
+
+### 第1章 — 日常に忍び込む怠惰
+
+#### ① ダラリ / Darari — 標準（既存・要再生成）
+
+```
+CHARACTER: A slouching blob creature that has half-melted downward and pooled
+into a puddle at its own base. Rounded, drooping shoulders it cannot hold up.
+Two heavy-lidded eyes with pupils drifting in different directions. A small
+mouth left hanging open. Two thin arms hanging straight down, dragging on the
+floor. Accent color: dull mustard yellow on the underside of the puddle.
+```
+
+#### ② ネムケ / Nemuke — 手数（既存・要再生成）
+
+```
+CHARACTER: A drifting jellyfish-like creature made of soft sagging folds,
+floating just above the ground and tilted as if falling asleep in mid-air.
+One enormous eye almost entirely covered by a heavy lid, with long drooping
+lashes. Beneath it hang several limp ribbon-like tendrils of uneven length.
+Accent color: pale sickly green at the tips of the tendrils.
+```
+
+#### ③ ゴロネ / Gorone — 硬い（既存・要再生成）
+
+```
+CHARACTER: A heavy four-legged creature lying flat on its side, too massive
+and unmotivated to stand. A broad blunt head resting on the ground with a
+slack jaw. Thick stubby legs folded uselessly, one paw limply raised in the
+air. Loose folds of skin pooling on the ground around its body.
+Accent color: faded brick red on the pads of its paws.
+```
+
+#### ④ アクビ / Akubi — 標準
+
+```
+CHARACTER: A tall thin creature bent forward at the waist, unable to hold its
+spine straight, so its long neck droops down past its own knees. The head is
+mostly one enormous open mouth caught mid-yawn, eyes squeezed shut by the
+yawn. Two spindly arms dangle loosely, fingertips brushing the floor.
+Accent color: dusty apricot inside the open mouth.
+```
+
+---
+
+### 第2章 — 街に広がる停滞
+
+#### ⑤ ウズクマリ / Uzukumari — 標準
+
+```
+CHARACTER: A rounded creature crouched into a tight ball with its knees pulled
+up and its arms wrapped around them, refusing to unfold. Only the top half of
+a face is visible above its own arms: two dull eyes staring at nothing. A
+short blunt tail rests limply on the ground behind it.
+Accent color: muted ochre on the soles of its bare feet.
+```
+
+#### ⑥ タダヨイ / Tadayoi — 手数
+
+```
+CHARACTER: A creature made of several loosely connected floating lumps that
+drift apart from one another, held together only by thin sagging strands.
+The largest lump carries a single half-closed eye. The lumps hover at
+different heights, as if the creature cannot be bothered to hold itself
+together. Accent color: pale seafoam where the strands meet the lumps.
+```
+
+#### ⑦ ネバリ / Nebari — 硬い
+
+```
+CHARACTER: A wide squat creature that has spread outward across the ground
+like thick cooling wax, far broader than it is tall. Its surface sags in heavy
+folds. A row of three small dull eyes sits low on the front of the mass. No
+visible limbs; it simply oozes.
+Accent color: dull amber along the leading edge where it has spread.
+```
+
+#### ⑧ モタレ / Motare — 手数
+
+```
+CHARACTER: A lanky creature leaning heavily to one side as if propped against
+an invisible wall, one shoulder far lower than the other. Its head lolls onto
+the raised shoulder. Two unequal arms hang slack, the longer one nearly
+touching the ground. Its lower body tapers into a soft rounded base.
+Accent color: faded rust at the tip of the lolling head.
+```
+
+---
+
+### 第3章 — 世界の中心の澱み
+
+#### ⑨ シズミ / Shizumi — 標準
+
+```
+CHARACTER: A heavy hunched creature that appears to be sinking into the ground,
+its lower half already swallowed and blurred away. Broad rounded shoulders
+carry a low-hanging head with two deep-set eyes. Its arms are folded across
+itself, pressing downward as if helping itself sink.
+Accent color: cold tarnished bronze around the sunken rim.
+```
+
+#### ⑩ カスミ / Kasumi — 手数
+
+```
+CHARACTER: A frayed, half-dissolved creature whose outline breaks apart into
+drifting wisps at its edges. A vague humanoid core with one faint eye remains
+recognizable at the center. Its lower body trails off into ragged floating
+tatters instead of legs.
+Accent color: dim lilac at the dissolving edges.
+```
+
+#### ⑪ オモリ / Omori — 硬い
+
+```
+CHARACTER: An enormously dense, compact creature shaped like a rounded weight,
+so heavy it has pressed itself into the ground. Its short thick limbs are
+splayed out under its own mass, unable to lift it. A single wide flat eye
+spans the front of the body, half-lidded.
+Accent color: deep oxidized copper along the pressure ring beneath it.
+```
+
+#### ⑫ ヌケガラ / Nukegara — 標準
+
+```
+CHARACTER: A hollow, empty-shelled creature standing upright but clearly
+vacant, with a large ragged opening through its torso that you can see
+through. Its posture is stiff and lifeless, arms hanging straight. The head
+tilts back slightly, empty eye sockets facing upward.
+Accent color: pale bone white around the rim of the hollow opening.
+```
+
+---
+
+## 3.6 ボス（3体）
+
+**STYLE SPEC のうち1行だけ差し替える。**
+
+```
+- The creature occupies about 85% of the canvas height, centered,
+  with even margins on all sides.
+```
+
+これ以外は変えない。**スタイルを変えて威圧感を出そうとしないこと。** 大きさだけで足りる。
+
+#### ボス① マドロミ / Madoromi — 第1章
+
+```
+CHARACTER: A vast sagging mass resembling a collapsed bed of flesh, wide and
+low, with folds that invite something to lie down and never rise. Two enormous
+half-lidded eyes sit far apart near the top. Along its lower edge, dozens of
+short limp tendrils reach outward across the ground like grasping fingers that
+have given up halfway.
+Accent color: dull mustard yellow deep within the folds.
+```
+
+#### ボス② ムキリョク / Mukiryoku — 第2章
+
+```
+CHARACTER: A towering stooped figure whose head hangs so low it has sunk
+below its own shoulders, leaving only a rounded hump where a head should be.
+Its long arms reach the ground and pool there. The torso is riddled with
+shallow hollow depressions, as if something was scooped out of it repeatedly.
+Accent color: cold grey-green inside the hollows.
+```
+
+#### ボス③ ダルモン / Darumon — 第3章・本体
+
+```
+CHARACTER: An immense creature that is clearly the origin of all the others:
+its body is composed of many smaller drooping shapes fused together, half-
+melted into one another, some still bearing a single dull eye. At the center,
+one very large heavy-lidded eye looks down at the viewer without interest.
+Its lower mass spreads outward and downward without a clear boundary.
+Accent color: a single warm ember orange at the very center of the large eye —
+the only warm point in the entire image.
+```
+
+---
+
+## 3.7 地域背景（3枚）
+
+**創造物ではなく風景なので、STYLE SPEC は使わない。** 専用の仕様を使う。
+
+```
+STYLE SPEC (identical for every background in this set):
+
+- A wide horizontal illustration, 16:9, of an empty outdoor place with no
+  people and no creatures anywhere.
+- Flat vector illustration. Bold uniform dark outline. Exactly one flat shadow
+  tone per color area. No gradients, no soft shading, no texture, no glow.
+- Limited, desaturated, muted palette in the grey-violet and dusty blue range,
+  matching a companion set of creature illustrations.
+- Slightly hazy, still, and abandoned in mood — a place where everyone stopped
+  moving. Melancholy but not frightening.
+- Composition must leave the CENTER of the image visually quiet and uncluttered,
+  because character art will be placed on top of it.
+- No text, no logo, no signature, no watermark, no border, no frame.
+```
+
+```
+BACKGROUND 1: A small residential street at dusk. Shuttered shopfronts, a
+stopped clock on a pole, unopened mail spilling from a postbox. Faint lit
+vending machine on one side.
+```
+
+```
+BACKGROUND 2: A shopping arcade with half its shutters down, a bicycle left
+on its side, weeds pushing up through the pavement, faded banners hanging
+motionless overhead.
+```
+
+```
+BACKGROUND 3: A wide grey basin at the center of the world where the air
+itself looks heavy. Cracked flat ground, distant collapsed structures, a low
+oppressive sky.
+```
+
+---
+
+## 3.8 主人公
+
+```
+CHARACTER: A small determined traveler seen from behind at a three-quarter
+angle, mid-stride, one foot lifted in a clear walking pose. Simple hooded
+travel cloak, a short staff in one hand, a satchel at the hip. The posture is
+upright and forward-leaning — the only figure in this world that is still
+moving. Face is not visible.
+Accent color: warm amber on the inner lining of the hood.
+```
+
+**主人公だけは暖色のアクセントを使う。** ダルモンが全て寒色に沈んでいる中で、
+唯一動いている存在であることを色で示す。
+
+---
+
+---
+
 ## 4. 生成後の後処理（全アセット一律）
 
 生成のばらつきはここで吸収する。**最も費用対効果が高い工程なので省略しない。**
@@ -143,10 +392,10 @@ MVP（3章構成）で必要な枚数は以下。試作が通ったら同じ方�
 
 | 種別 | 枚数 | 状態 |
 |---|---|---|
-| ダルモン（雑魚） | 12〜15 | 試作3体のみ |
-| ボス | 3 | 未着手 |
-| 地域背景 | 3 | 未着手 |
-| 主人公＋装備差分 | 1 + 数枚 | 未着手 |
+| ダルモン（雑魚） | 12 | プロンプト用意済み（§3.5）・既存3体は要再生成 |
+| ボス | 3 | プロンプト用意済み（§3.6） |
+| 地域背景 | 3 | プロンプト用意済み（§3.7） |
+| 主人公＋装備差分 | 1 + 数枚 | プロンプト用意済み（§3.8）・装備差分は未着手 |
 | UIアイコン | 約20 | 未着手 |
 | **アプリアイコン** | **1**（1024px） | **暫定版あり・要差し替え** |
 
