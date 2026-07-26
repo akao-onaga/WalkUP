@@ -1,0 +1,922 @@
+/* Walk UP! ブラウザ版 — 画面の意匠
+ *
+ * このファイルが本体。**ゲームに見えるかどうかは、ほぼここで決まる。**
+ *
+ * ── なぜ「アプリの顔」になるのか（作り直しの理由） ──
+ * 角丸のカードを縦に等間隔で積み、各カードに見出しと数値を1つずつ置く。
+ * これが健康アプリ・習慣化アプリの構造そのもので、中の絵や言葉を
+ * どれだけ作り込んでも、構造が同じなら同じ顔になる。色や書体の問題ではない。
+ *
+ * ── ここで採る構造 ──
+ * 画集の頁として組む。すなわち **図版（絵）と紙面（文字）を分ける。**
+ *   1. 画面上部は「図版」。絵を薄めず、額装して1枚の絵として見せる
+ *   2. 図版の下が「紙面」。数値は札に載せ、見出しは墨の帯で打つ
+ *   3. 面には必ず 2px のインク線。角丸は不均一にして手で引いた線に寄せる
+ *   4. 影はぼかさない。真下に落とす硬い影だけ
+ *   5. OS 標準の部品（ナビバー・リスト行・トグル・システムアイコン）は1つも出さない
+ *   6. 数値は等幅・極太。必ず動かしてから止める
+ *
+ * SwiftUI へ移すときの対応は `README.md` に表で置いてある。
+ */
+
+/* ------------------------------------------------------------------ */
+/* 0. トークン                                                         */
+/* ------------------------------------------------------------------ */
+
+:root {
+  /* 紙の色。**OS のライト／ダークには追従させない。**
+     ダルモンの立ち絵はこの色の上で描かれている（ART_PROMPTS.md §2）。 */
+  --paper: #E8E4DC;
+  --paper-deep: #DCD6CB;  /* 紙面の陰。図版との境や見開きの谷に使う */
+  --card: #F6F4EF;
+
+  --ink: #2E2A38;        /* 輪郭線と本文。アートの線と同じ濃さ */
+  --ink-soft: rgba(46, 42, 56, .32);
+  --accent: #5F5B76;
+  --accent-fill: #6B6782;
+  --vigor: #9A6F4A;      /* 活力（AP）。歩数由来の資源なので暖色で区別する */
+  --danger: #9B4A4A;
+  --text: #2E2A38;
+  --text-soft: #6B6675;
+
+  --stroke: 2px;
+  --depth: 3px;
+
+  /* **角丸を不均一にする。** 四隅が同じ半径だと定規で引いた図形＝UI 部品に見える。
+     縦横で別の値を与えると、手で囲った枠に近づく。 */
+  --round: 16px 13px 17px 12px / 13px 17px 12px 16px;
+  --round-s: 10px 8px 11px 9px / 9px 11px 8px 10px;
+
+  --font: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4",
+          "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+
+  /* 紙目。無地の面は印刷物に見えない。**ごく薄く、しかし必ず敷く。** */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: #CFC9BF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 12px 28px;
+  min-height: 100vh;
+}
+
+button { font-family: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+img { display: block; }
+
+/* ------------------------------------------------------------------ */
+/* 1. 端末の枠                                                         */
+/* ------------------------------------------------------------------ */
+
+#frame {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  max-width: 100%;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 36px;
+  overflow: hidden;
+  box-shadow: 0 10px 0 rgba(46, 42, 56, .35);
+  flex: none;
+}
+
+/* 額装の内枠。**画集の図版は必ず枠の内側にある。**
+   細い線を1本入れるだけで、画面が「頁」として閉じる。 */
+#frame::after {
+  content: ""; position: absolute; inset: 7px;
+  border: 1px solid rgba(46, 42, 56, .28);
+  border-radius: 30px;
+  pointer-events: none;
+  z-index: 80;
+}
+
+@media (max-width: 460px) {
+  body { padding: 0; gap: 0; }
+  #frame { width: 100%; height: 100dvh; border: none; border-radius: 0; box-shadow: none; }
+  #frame::after { border-radius: 0; inset: 5px; }
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  /* **必ず自前の重なり文脈を作る。** これが無いと、画面の中で z-index を持つ部品
+     （看板や図版）が、上に重ねたシートより手前に描かれて突き抜ける。 */
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+/* 紙目を全画面に敷く。乗算で落とすので、下の絵の色は変えない。 */
+.screen::before {
+  content: ""; position: absolute; inset: 0; z-index: 60;
+  background-image: var(--grain);
+  opacity: .16;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* シートは下から上げる。標準のモーダルに見せないため、上端を綴じ目のように作る。 */
+.screen.sheet {
+  top: 24px;
+  border-top: var(--stroke) solid var(--ink);
+  border-radius: 20px 18px 0 0;
+  box-shadow: 0 -6px 0 rgba(46, 42, 56, .18);
+}
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+.screen.sheet { animation: sheet-in .26s cubic-bezier(.2, .8, .3, 1) both; }
+.screen.sheet.leaving { animation: sheet-out .2s ease-in both; }
+/* 中身を作り直しただけのときは滑らせない。開き直して見えると操作が重くなる。 */
+.screen.static { animation: none; }
+
+@keyframes cover-in { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: scale(1); } }
+.screen.cover { animation: cover-in .22s ease-out both; }
+
+.body {
+  /* **`position` を落とさないこと。** 図版が絶対配置なので、
+     中身が静的配置のままだと絵の方が上に描かれ、紙面が絵の下に沈む。 */
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 場面転換の暗転。**ここが無いと戦闘が「次の頁」に見える。** */
+#curtain {
+  position: absolute; inset: 0; background: #000;
+  opacity: 0; pointer-events: none; transition: opacity .22s ease; z-index: 90;
+}
+#curtain.on { opacity: 1; }
+
+/* ------------------------------------------------------------------ */
+/* 2. 紙面の部品                                                       */
+/* ------------------------------------------------------------------ */
+
+/* 面。線と硬い影を持ち、角丸は不均一。 */
+.panel {
+  position: relative;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+  padding: 14px;
+}
+.panel.tight { padding: 12px; }
+.panel.warn { background: rgba(155, 74, 74, .16); }
+.panel.mark { background: rgba(95, 91, 118, .26); }
+
+/* **見出しは「墨で押した帯」にする。**
+   細い文字＋下線だとフォームの節見出しに見え、そこから全体が書類に戻る。 */
+.plate {
+  display: inline-flex; align-items: center; gap: 6px;
+  /* 縦並びの中に置いても幅いっぱいに伸びないようにする。
+     帯が画面幅に伸びると、押した印ではなく見出しバーになる。 */
+  align-self: flex-start;
+  padding: 5px 12px 6px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 4px 11px 4px 11px;
+  font-size: 12px; font-weight: 800; letter-spacing: .12em;
+}
+.plate.open { background: transparent; color: var(--ink); border: var(--stroke) solid var(--ink); }
+
+.caption { font-size: 12px; color: var(--text-soft); line-height: 1.6; }
+.body-text { font-size: 14px; line-height: 1.75; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row.between { justify-content: space-between; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.grow { flex: 1; }
+
+/* ------------------------------------------------------------------ */
+/* 3. ヘッダー                                                         */
+/* ------------------------------------------------------------------ */
+
+/* **標準のナビゲーションバーは使わない。**
+   タイトルと「閉じる」が OS の顔で出ると、開いた瞬間に設定画面に見える。 */
+.game-header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px 10px;
+  flex: none;
+}
+.game-header h1 {
+  font-size: 19px; font-weight: 800; letter-spacing: .08em;
+}
+
+.round-button {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .5);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+}
+.round-button:active { transform: translateY(2px); box-shadow: 0 0 0 rgba(46, 42, 56, 0); }
+
+/* 持ち物。丸めた札に線を引くだけで「持ち物」に見える。 */
+.counter {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 999px;
+  font-size: 13px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.counter.vigor { color: var(--vigor); }
+
+/* ------------------------------------------------------------------ */
+/* 4. ボタン＝札                                                       */
+/* ------------------------------------------------------------------ */
+
+/* 手応えは色ではなく**動き**で作る。押した瞬間に影の分だけ沈める。
+   内側にもう1本線を入れると、板に彫った看板に見える。 */
+.btn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 54px;
+  padding: 0 16px;
+  font-size: 16px; font-weight: 800; letter-spacing: .06em;
+  color: #fff;
+  background: var(--accent-fill);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 var(--ink);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+}
+.btn::after {
+  content: ""; position: absolute; inset: 4px;
+  border: 1px solid rgba(255, 255, 255, .32);
+  border-radius: 12px 10px 13px 9px;
+  pointer-events: none;
+}
+.btn:active { transform: translateY(var(--depth)); box-shadow: 0 0 0 var(--ink); }
+.btn[disabled] { opacity: .5; pointer-events: none; }
+
+.btn.secondary {
+  min-height: 46px; font-size: 14px; letter-spacing: .04em;
+  color: var(--ink); background: var(--card);
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .7);
+}
+.btn.secondary::after { border-color: rgba(46, 42, 56, .18); }
+.btn.secondary:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+
+/* 行内の小さな札（着脱・強化）。 */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 8px 14px;
+  font-size: 12px; font-weight: 800;
+  color: var(--ink); background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round-s);
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .7);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+  white-space: nowrap;
+}
+.chip:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+.chip.on { background: var(--accent-fill); color: #fff; }
+.chip[disabled] { opacity: .45; pointer-events: none; }
+
+.btn-row { display: flex; gap: 10px; }
+.btn-row > * { flex: 1; }
+
+/* ------------------------------------------------------------------ */
+/* 5. 数値とゲージ                                                     */
+/* ------------------------------------------------------------------ */
+
+.num { font-variant-numeric: tabular-nums; font-weight: 800; }
+
+/* 数値は「札に打った数」として置く。
+   **見出しを上、数値を下に積むと帳票になる。**帯を貼って数を主役にする。 */
+.tile {
+  position: relative;
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 6px 10px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round-s);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+}
+.tile .k {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  color: var(--paper); background: var(--ink);
+  padding: 2px 8px 3px; border-radius: 3px 8px 3px 8px;
+  margin-top: -20px;
+}
+.tile .v {
+  font-size: 27px; font-weight: 800; font-variant-numeric: tabular-nums;
+  line-height: 1.05; color: var(--ink);
+}
+.tile.vigor .v { color: var(--vigor); }
+.tile.accent .v { color: var(--accent); }
+.tile-row { display: flex; gap: 10px; margin-top: 12px; }
+
+/* ゲージ。**線の無い細いバーは OS 標準の部品にしか見えない。**
+   輪郭線を引き、内側に目盛りを刻む。 */
+.meter {
+  position: relative;
+  height: 16px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: 999px;
+  background: rgba(95, 91, 118, .16);
+  overflow: hidden;
+}
+.meter > i {
+  display: block; height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .35s cubic-bezier(.2, .8, .3, 1);
+}
+/* 目盛り。10等分の刻みがあるだけで「計器」になる。 */
+.meter::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(to right,
+    rgba(46, 42, 56, .28) 0 1px, transparent 1px 10%);
+  pointer-events: none;
+}
+.meter.vigor { background: rgba(154, 111, 74, .18); }
+.meter.vigor > i { background: var(--vigor); }
+.meter.danger { background: rgba(155, 74, 74, .2); }
+.meter.danger > i { background: var(--danger); }
+.meter.slim { height: 12px; }
+
+/* ------------------------------------------------------------------ */
+/* 6. ホーム — 図版と紙面                                              */
+/* ------------------------------------------------------------------ */
+
+/* 看板。アプリ名は見出しではなく**看板**として出す。 */
+.signboard {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 16px 0;
+  padding: 9px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 6px 14px 6px 14px;
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .35);
+}
+.signboard .title { font-size: 20px; font-weight: 800; letter-spacing: .1em; }
+.signboard .day { margin-left: auto; font-size: 11px; opacity: .75; letter-spacing: .08em; }
+
+/* 図版。**絵を薄めない。** 55% まで沈めた背景は「ぼやけた汚れ」にしかならず、
+   世界がそこにある感じは出ない。額に入れて1枚の絵として見せ、
+   下端だけを紙に溶かして、紙面と地続きにする。 */
+.plate-art {
+  position: relative;
+  margin: 12px 16px 0;
+  height: 206px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center 38%;
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .28);
+  flex: none;
+}
+.plate-art::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(232,228,220,0) 45%, rgba(232,228,220,.55) 78%, var(--paper) 100%);
+}
+.plate-art .hero {
+  position: absolute; left: 18px; bottom: 6px; z-index: 1;
+  width: 132px; height: 132px; object-fit: contain;
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.4));
+}
+/* 接地の影。立ち絵は透過で影を持たないので、UI 側で足さないと浮く。 */
+.plate-art .ground {
+  position: absolute; left: 40px; bottom: 10px; z-index: 0;
+  width: 96px; height: 16px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.45), rgba(0,0,0,0) 70%);
+}
+/* 世界の側の言葉。図版の中に置く。紙面に降ろすと説明文になる。 */
+.plate-art .voice {
+  position: absolute; right: 14px; bottom: 14px; z-index: 2;
+  max-width: 190px; text-align: right;
+}
+.plate-art .voice .l1 {
+  font-size: 14px; font-weight: 800; color: var(--ink);
+  text-shadow: 0 1px 0 var(--paper), 0 0 6px var(--paper);
+}
+.plate-art .voice .l2 {
+  font-size: 11px; color: var(--ink); opacity: .78; line-height: 1.5;
+  text-shadow: 0 1px 0 var(--paper), 0 0 6px var(--paper);
+}
+
+@keyframes bob { from { transform: translateY(5px); } to { transform: translateY(-5px); } }
+.bob { animation: bob 2.2s ease-in-out infinite alternate; }
+
+/* 級位の帯。Lv とゲージを横一列に置いて、カードの積み重ねを1段減らす。 */
+.rank-band {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+}
+.rank-band .lv {
+  font-size: 15px; font-weight: 800; letter-spacing: .08em; line-height: 1;
+  display: flex; align-items: baseline; gap: 4px; flex: none;
+}
+.rank-band .lv b { font-size: 34px; font-variant-numeric: tabular-nums; }
+.rank-band .right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.badge-up {
+  padding: 3px 9px 4px; border-radius: 999px;
+  background: var(--vigor); color: #fff;
+  border: var(--stroke) solid var(--ink);
+  font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  animation: stamp .32s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+@keyframes stamp {
+  from { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* 次の目的地。**行ではなく高札**として出す。 */
+.notice {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+}
+.notice .tag {
+  position: absolute; top: -9px; left: 12px;
+  padding: 2px 9px 3px;
+  background: var(--ink); color: var(--paper);
+  font-size: 10px; font-weight: 800; letter-spacing: .1em;
+  border-radius: 3px 8px 3px 8px;
+}
+.notice .face { flex: none; width: 46px; height: 46px; display: grid; place-items: center; }
+.notice .face img { width: 46px; height: 46px; object-fit: contain; }
+.notice .where { font-size: 11px; color: var(--text-soft); letter-spacing: .06em; }
+.notice .who { font-size: 15px; font-weight: 800; }
+.notice .cost { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 800; color: var(--vigor); }
+.notice .cost.short { color: var(--text-soft); }
+
+/* ------------------------------------------------------------------ */
+/* 7. 討伐 — 道と標                                                    */
+/* ------------------------------------------------------------------ */
+
+/* 章の扉。地域の絵を細く敷き、そこから道が始まる。 */
+.chapter-card { padding: 0; overflow: hidden; }
+.chapter-door {
+  position: relative; height: 72px;
+  background-size: cover; background-position: center 45%;
+  border-bottom: var(--stroke) solid var(--ink);
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+}
+.chapter-door::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(0,0,0,.55), rgba(0,0,0,.2));
+}
+.chapter-door > * { position: relative; z-index: 1; }
+.chapter-door h2 { color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .06em; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.chapter-door .no {
+  color: var(--ink); background: var(--paper);
+  font-size: 11px; font-weight: 800; letter-spacing: .08em;
+  padding: 3px 9px 4px; border-radius: 3px 9px 3px 9px;
+}
+.chapter-door.locked { filter: grayscale(1) brightness(.8); }
+.chapter-body { padding: 12px 14px 14px; }
+.panel.closed { opacity: .6; }
+
+/* **一覧を「行」で組まない。** 上から下へ道を1本引き、ノードを標として置く。
+   同じ情報でも、リスト行にした瞬間に設定画面になる。 */
+.trail { position: relative; }
+.trail::before {
+  content: ""; position: absolute;
+  left: 27px; top: 12px; bottom: 12px;
+  width: 0; border-left: 3px dotted rgba(46, 42, 56, .38);
+}
+
+.node {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 6px 2px;
+  text-align: left;
+}
+.node .medal {
+  position: relative; flex: none;
+  width: 50px; height: 50px;
+  display: grid; place-items: center;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .45);
+}
+.node .medal img { width: 40px; height: 40px; object-fit: contain; }
+.node.locked .medal { background: rgba(46, 42, 56, .08); }
+.node:not(.cleared) .medal img { filter: grayscale(1); opacity: .5; }
+.node.cleared .medal { background: rgba(95, 91, 118, .22); }
+/* ボスは径を変えずに**二重の輪**で示す。径を変えると道の線から中心がずれる。 */
+.node.boss .medal {
+  border-width: 3px;
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .45), 0 0 0 3px var(--card), 0 0 0 5px var(--ink);
+}
+.node .stamp {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--card); border: var(--stroke) solid var(--ink);
+  color: var(--accent);
+}
+.node .name { font-size: 14px; font-weight: 700; letter-spacing: .02em; }
+.node.boss .name { font-size: 15px; font-weight: 800; }
+.node .cost { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--vigor); }
+.node .cost.short { color: var(--text-soft); }
+.node[disabled] { opacity: .5; }
+.node:not([disabled]):active .medal { transform: translateY(2px); box-shadow: 0 0 0; }
+.node .drop { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--accent); font-weight: 700; }
+
+/* ------------------------------------------------------------------ */
+/* 8. 戦闘                                                             */
+/* ------------------------------------------------------------------ */
+
+.battle { background: #1b1922; }
+.battle .bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+/* 上下を暗く落として立ち絵を浮かせる。HP と数値の可読性もここで確保する。 */
+.battle .scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,.05) 42%, rgba(0,0,0,.62) 100%);
+}
+.battle .inner {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: 18px 18px 22px;
+  gap: 10px;
+}
+
+.battle-tag {
+  align-self: center;
+  padding: 3px 12px 4px;
+  border: 1px solid rgba(255,255,255,.45);
+  background: rgba(0,0,0,.4);
+  color: rgba(255,255,255,.88);
+  border-radius: 3px 10px 3px 10px;
+  font-size: 10px; font-weight: 800; letter-spacing: .14em;
+}
+
+.battle .enemy-name {
+  text-align: center; color: #fff;
+  font-size: 17px; font-weight: 800; letter-spacing: .08em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.7);
+}
+.battle .enemy-name.boss { font-size: 22px; letter-spacing: .14em; }
+
+/* HP は木札に載せる。裸のバーだけだと計器が浮いて見える。 */
+.gauge-plate {
+  display: flex; align-items: center; gap: 8px;
+  max-width: 300px; width: 100%; margin: 0 auto;
+  padding: 6px 10px;
+  background: rgba(20, 18, 26, .55);
+  border: var(--stroke) solid rgba(255,255,255,.5);
+  border-radius: var(--round-s);
+}
+.gauge-plate .meter { flex: 1; height: 14px; border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.12); }
+.gauge-plate .meter::after { background: repeating-linear-gradient(to right, rgba(255,255,255,.3) 0 1px, transparent 1px 10%); }
+.gauge-plate .hp { width: 46px; text-align: right; font-size: 12px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.gauge-plate .who { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: rgba(255,255,255,.7); flex: none; }
+
+.field { flex: 1; display: flex; align-items: flex-end; gap: 8px; padding-bottom: 18px; }
+.fighter { position: relative; flex: 1; display: flex; justify-content: center; align-items: flex-end; }
+/* 立ち絵は背景が透過で影を持たない（アートの規約）。**接地の影は UI 側で足す。**
+   これが無いと2体とも道路の上に浮いて、切り抜きを貼っただけに見える。 */
+.fighter::after {
+  content: ""; position: absolute; z-index: 0;
+  bottom: 8px; left: 50%; width: 130px; height: 20px; margin-left: -65px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.55), rgba(0,0,0,0) 70%);
+}
+.fighter img {
+  position: relative; z-index: 1;
+  max-width: 172px; max-height: 210px;
+  width: 100%; object-fit: contain;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.45));
+  transition: transform .12s ease-out, filter .12s ease-out;
+}
+/* ボスは横に広い個体がいる。高さだけ緩めても大きく見えないので幅も広げる。 */
+.fighter.foe.boss img { max-height: 268px; max-width: 205px; }
+
+/* 攻撃は相手へ踏み込む。被弾は後ろへ下がる。左右で向きが逆になる。 */
+.fighter.hero.lunge img { transform: translateX(26px); }
+.fighter.hero.recoil img { transform: translateX(-16px); }
+.fighter.foe.lunge img { transform: translateX(-26px); }
+.fighter.foe.recoil img { transform: translateX(16px); }
+
+/* 被弾。**主人公は明度を上げない。** 細い髪の輪郭が白飛びして頭が欠けて見える。
+   外周の発光だけで受けたことを示す。 */
+.fighter.hero.flash img { filter: drop-shadow(0 0 9px rgba(255,255,255,.85)) drop-shadow(0 3px 3px rgba(0,0,0,.45)); }
+.fighter.foe.flash img { filter: brightness(1.35) drop-shadow(0 3px 3px rgba(0,0,0,.45)); }
+
+/* 撃破は「溶け落ちる」。半分溶けた造形なので、倒れるより縦に潰れる方が絵と合う。 */
+.fighter.melted img { transform: scale(1.25, .12); transform-origin: bottom center; opacity: 0; transition: transform .55s ease-in, opacity .55s ease-in; }
+.fighter.melted::after { opacity: 0; transition: opacity .5s ease-in; }
+
+.puddle {
+  position: absolute; bottom: 12px; left: 50%; z-index: 0;
+  width: 40px; height: 8px; margin-left: -20px;
+  background: rgba(95, 91, 118, .55);
+  border-radius: 50%;
+  opacity: 0;
+  transition: width .9s ease-out, height .9s ease-out, margin .9s ease-out, opacity .9s ease-out;
+}
+.fighter.melted .puddle { opacity: 1; width: 150px; height: 22px; margin-left: -75px; }
+
+/* ダメージ数値は立ち絵の**上端**に出す。中央だと顔に重なり、被弾フラッシュと
+   合わさって頭が欠けたように見える。 */
+.dmg {
+  position: absolute; top: 0; left: 50%; z-index: 3;
+  font-size: 36px; font-weight: 800; color: #E9DCD4;
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 rgba(0,0,0,.5);
+  pointer-events: none;
+  animation: dmg-pop .6s ease-out both;
+}
+.dmg.on-player { color: #F0C2C2; }
+@keyframes dmg-pop {
+  0% { transform: translate(-50%, 0) scale(1.7); opacity: 1; }
+  18% { transform: translate(-50%, -6px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -54px) scale(1); opacity: 0; }
+}
+
+/* 命中の跡は**土煙と靴底**にする。主人公の武器は靴なので、弧を描く斬撃は設定と噛み合わない。
+   色は白い閃光ではなく道路に馴染む灰。暗い背景に白を置くと別のゲームの光り物に見える。 */
+.puff { position: absolute; bottom: 14px; left: 50%; width: 0; height: 0; z-index: 2; pointer-events: none; }
+.puff span {
+  position: absolute; border-radius: 50%;
+  background: rgba(184, 184, 184, .55);
+  animation: puff-out .32s ease-out both;
+}
+@keyframes puff-out {
+  from { transform: translate(0, 0) scale(.4); opacity: 1; }
+  to { transform: translate(var(--dx), var(--dy)) scale(1.5); opacity: 0; }
+}
+.puff .sole {
+  position: absolute; left: -17px; bottom: 0;
+  width: 34px; height: 46px; border-radius: 15px;
+  background: rgba(140, 140, 140, .75);
+  transform: rotate(-12deg);
+  animation: sole-fade .32s ease-out both;
+}
+.puff .sole::before, .puff .sole::after {
+  content: ""; position: absolute; left: 16%; width: 68%; height: 3px;
+  background: rgba(232, 228, 220, .6);
+}
+.puff .sole::before { top: 34%; }
+.puff .sole::after { top: 58%; }
+@keyframes sole-fade { from { opacity: .9; transform: rotate(-12deg) scale(.9); } to { opacity: 0; transform: rotate(-12deg) scale(1.1); } }
+
+.battle .hit-flash { position: absolute; inset: 0; background: var(--danger); opacity: 0; pointer-events: none; transition: opacity .18s ease-out; }
+
+/* 画面ごと揺らす。個々の要素ではなく画面が動くと衝撃に見える。 */
+@keyframes shake-l { 0%{transform:translateX(0)} 25%{transform:translateX(9px)} 50%{transform:translateX(-6px)} 75%{transform:translateX(4px)} 100%{transform:translateX(0)} }
+@keyframes shake-s { 0%{transform:translateX(0)} 25%{transform:translateX(4px)} 50%{transform:translateX(-3px)} 75%{transform:translateX(2px)} 100%{transform:translateX(0)} }
+.shake-strong { animation: shake-l .18s linear; }
+.shake-light { animation: shake-s .18s linear; }
+
+/* ------------------------------------------------------------------ */
+/* 9. 結果                                                             */
+/* ------------------------------------------------------------------ */
+
+/* 結果は「閉じる」しかない画面。中身を上下の中央に置き、判子で締める。 */
+.result .body { justify-content: center; gap: 16px; }
+
+/* 判子。**大きく傾いた状態から一気に縮んで、わずかに傾いたまま止まる。**
+   正位置にきっちり収めると印刷物になる。手で押した跡は少し曲がっている。
+   静止して出すのは論外——討伐のたびに見る画面なのに何も起きていないように見える。 */
+@keyframes stamp-seal {
+  from { transform: scale(1.8) rotate(-20deg); opacity: 0; }
+  to { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+.result-seal {
+  position: relative;
+  margin: 0 auto;
+  width: 104px; height: 104px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 3px solid var(--accent);
+  background: rgba(95, 91, 118, .22);
+  color: var(--accent);
+  animation: stamp-seal .34s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+.result-seal::after {
+  content: ""; position: absolute; inset: 7px;
+  border: 1px solid currentColor; border-radius: 50%; opacity: .5;
+}
+.result-seal.lost { background: rgba(155, 74, 74, .2); color: var(--danger); border-color: var(--danger); }
+.result-title {
+  text-align: center; font-size: 24px; font-weight: 800; letter-spacing: .14em;
+  animation: stamp .32s cubic-bezier(.2,1.6,.4,1) .05s both;
+}
+
+/* 獲得物は**絵札を並べる**。行に「名前 …… ×3」と書くと納品書になる。 */
+/* 列幅を固定して中央に寄せる。1fr で伸ばすと、1個だけの時に
+   画面幅いっぱいの帯になり、絵札に見えなくなる。 */
+.loot-grid { display: grid; grid-template-columns: repeat(3, 102px); justify-content: center; gap: 10px; }
+.loot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 6px 10px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round-s);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+  color: var(--accent);
+}
+.loot .lname { font-size: 10px; color: var(--text-soft); font-weight: 700; text-align: center; line-height: 1.3; }
+.loot .lnum { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+@keyframes reveal { from { opacity: 0; transform: translateY(12px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.loot.hidden, .reward-row.hidden { opacity: 0; }
+.loot.show, .reward-row.show { animation: reveal .3s cubic-bezier(.2, 1.2, .4, 1) both; }
+
+.reward-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.reward-row .amount { margin-left: auto; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ */
+/* 10. 図鑑                                                            */
+/* ------------------------------------------------------------------ */
+
+/* **一覧は必ず格子にする。** 図鑑を縦一列の行で組むと、連絡先アプリになる。 */
+.bestiary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.bestiary-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 2px; padding: 6px;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round-s);
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .3);
+}
+/* 絵は残りの高さいっぱいに置き、名前の分だけを確実に残す。
+   高さを % で決めると、枠からはみ出して名前が切れる。 */
+.bestiary-cell { overflow: hidden; }
+.bestiary-cell img { width: 100%; flex: 1; min-height: 0; object-fit: contain; }
+.bestiary-cell .cname { font-size: 11px; font-weight: 700; flex: none; }
+.bestiary-cell .count { position: absolute; top: 4px; right: 6px; font-size: 10px; color: var(--text-soft); font-variant-numeric: tabular-nums; }
+/* 目撃のみは影で出す。「まだ会っていないダルモンがいる」ことだけを伝える。 */
+.bestiary-cell.shadow img { filter: brightness(0) opacity(.35); }
+.bestiary-cell.unknown { background: rgba(46, 42, 56, .07); box-shadow: none; }
+.bestiary-cell.unknown .qm { font-size: 26px; font-weight: 800; color: rgba(46, 42, 56, .3); flex: 1; display: grid; place-items: center; }
+.bestiary-cell.boss { border-width: 3px; }
+.bestiary-cell:not([disabled]):active { transform: translateY(2px); box-shadow: 0 0 0; }
+
+.detail-art {
+  position: relative;
+  height: 230px; display: grid; place-items: center;
+  border: var(--stroke) solid var(--ink); border-radius: var(--round);
+  background-size: cover; background-position: center;
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+  overflow: hidden;
+}
+.detail-art::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.1) 40%, rgba(0,0,0,.45));
+}
+.detail-art img { position: relative; z-index: 1; max-height: 196px; max-width: 80%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); }
+
+.stat-line { display: flex; gap: 8px; }
+.stat-line > div {
+  flex: 1; text-align: center; padding: 8px 4px;
+  border: var(--stroke) solid var(--ink); border-radius: var(--round-s); background: var(--card);
+}
+.stat-line .k { font-size: 10px; color: var(--text-soft); letter-spacing: .08em; }
+.stat-line .v { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ */
+/* 11. 地域                                                            */
+/* ------------------------------------------------------------------ */
+
+.region-card { padding: 0; overflow: hidden; }
+.region-head {
+  position: relative; height: 118px;
+  background-size: cover; background-position: center;
+  display: flex; align-items: flex-end;
+  border-bottom: var(--stroke) solid var(--ink);
+}
+.region-head::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.1), rgba(0,0,0,.65));
+}
+.region-head .rname {
+  position: relative; z-index: 1;
+  padding: 14px; color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .06em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.7);
+  display: flex; align-items: center; gap: 6px;
+}
+.region-head.locked { filter: grayscale(1); }
+.region-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+/* 未読の記述。文字を伏せた紙面として見せる。 */
+.scripture p.veiled { padding-top: 4px; }
+.scripture p.veiled::before { content: "◇"; color: var(--text-soft); }
+.scripture p.veiled i {
+  display: block; height: 9px; border-radius: 2px; margin: 7px 0;
+  background: repeating-linear-gradient(90deg,
+    rgba(46, 42, 56, .13) 0 16px, transparent 16px 23px);
+}
+.scripture p.veiled i:last-child { width: 62%; }
+
+/* ------------------------------------------------------------------ */
+/* 12. 装備                                                            */
+/* ------------------------------------------------------------------ */
+
+.equip-item { display: flex; flex-direction: column; gap: 10px; padding: 6px 0; }
+.equip-item + .equip-item { border-top: 1px dashed rgba(46, 42, 56, .25); padding-top: 12px; }
+.equip-item .ename { font-size: 14px; font-weight: 800; }
+.equip-item .plus { font-size: 12px; font-weight: 800; color: var(--vigor); }
+
+/* 強化段階は数字ではなく**目盛り**で出す。あと何段階かが一目で分かる。 */
+.pips { display: flex; gap: 4px; }
+.pips i {
+  width: 15px; height: 11px;
+  border: var(--stroke) solid var(--ink); border-radius: 3px;
+  background: transparent;
+}
+.pips i.on { background: var(--vigor); }
+
+/* ------------------------------------------------------------------ */
+/* 13. 道標・パス                                                      */
+/* ------------------------------------------------------------------ */
+
+/* 「世界の記述」は読み物。**部品に載せない。**
+   1件ずつカードに入れると通知の一覧になり、読む物に見えなくなる。
+   紙面に直接組み、印で区切る。 */
+.scripture {
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+  padding: 16px 16px 14px;
+}
+.scripture p {
+  position: relative;
+  font-size: 14px; line-height: 1.95;
+  padding-left: 18px;
+  text-indent: -.4em;
+}
+.scripture p + p { margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(46, 42, 56, .28); }
+.scripture p::before {
+  content: "◆";
+  position: absolute; left: 0; top: .35em;
+  font-size: 9px; color: var(--accent); text-indent: 0;
+}
+.scripture p + p::before { top: calc(14px + .35em); }
+@keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.scripture p.hidden { opacity: 0; }
+.scripture p.show { animation: fade-in .35s ease-out both; }
+
+.pass-hero { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.pass-price { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ */
+/* 14. 開発用トレイ（本編には存在しない）                              */
+/* ------------------------------------------------------------------ */
+
+/* ブラウザにはヘルスケアが無いので歩数を手で入れる。
+   **意図的にゲームの意匠から外してある。** ここを移植対象と勘違いさせないため。 */
+#tray {
+  width: 390px; max-width: 100%;
+  border: 2px dashed rgba(46, 42, 56, .45);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px; color: #4a4652;
+  background: rgba(255, 255, 255, .35);
+}
+#tray .tray-title { font-weight: 700; letter-spacing: .04em; }
+#tray .tray-row { display: flex; gap: 6px; flex-wrap: wrap; }
+#tray button {
+  padding: 6px 10px; font-size: 11px; font-family: inherit;
+  border: 1px solid rgba(46, 42, 56, .5); border-radius: 6px;
+  background: rgba(255, 255, 255, .7);
+}
+#tray button:active { background: rgba(46, 42, 56, .12); }
+#tray.folded #tray-state,
+#tray.folded .tray-row,
+#tray.folded .tray-hint { display: none; }
+@media (max-width: 460px) {
+  #tray { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; border-radius: 0; z-index: 200; background: rgba(240, 238, 233, .96); }
+}

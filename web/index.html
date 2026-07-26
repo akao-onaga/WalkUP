@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walk UP! — ブラウザ版（画面デザインの見本）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 端末の枠。画面はすべてこの中に重ねる。
+     iPhone 相当（390×844）に固定してあるのは、SwiftUI へ移すときに
+     「この幅で成立しているか」をそのまま確かめられるようにするため。 -->
+<div id="frame">
+  <div class="screen" id="home"></div>
+  <div id="curtain"></div>
+</div>
+
+<!-- 開発用トレイ。**本編には存在しない。**
+     ブラウザにはヘルスケアが無いので、歩数だけはここから手で入れる。
+     意匠をわざとゲームから外し、移植対象と取り違えないようにしている。 -->
+<div id="tray">
+  <div class="tray-title">
+    開発用トレイ（アプリには無い画面 / 歩数を手で入れる）
+    <button data-act="fold" style="float:right">折りたたむ</button>
+  </div>
+  <div id="tray-state"></div>
+  <div class="tray-row">
+    <button data-walk="1000">+1,000 歩</button>
+    <button data-walk="5000">+5,000 歩</button>
+    <button data-walk="20000">+20,000 歩</button>
+    <button data-act="next-day">翌日にする</button>
+    <button data-act="reset">最初から</button>
+  </div>
+  <div class="tray-hint">第1章は 20,000 歩、第2章は 60,000 歩、第3章は 120,000 歩で解放。1日の加算上限は 30,000 歩。</div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
