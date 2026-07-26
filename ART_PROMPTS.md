@@ -67,6 +67,10 @@ STYLE SPEC (identical for every image in this set):
   no texture, no highlights, no glow, no rendering.
 - Limited, desaturated, muted palette. Base hues in the grey-violet and dusty
   blue range.
+- IMPORTANT — the body color must be a MUTED GREY-VIOLET that sits much closer
+  to grey than to purple. It should look almost desaturated, like grey with only
+  a faint violet cast. Never let the body read as a vivid, clearly purple,
+  lavender or lilac color. When in doubt, remove saturation.
 - IMPORTANT — every creature in the set must share the same overall brightness.
   The body must read as a MID-DARK tone: clearly darker than a light background,
   never pale or washed out. Do not make any single creature lighter or airier
@@ -96,7 +100,11 @@ STYLE SPEC (identical for every image in this set):
 
 ```
 CHARACTER: A slouching blob creature that has half-melted downward and pooled
-into a puddle at its own base. Rounded, drooping shoulders it cannot hold up.
+into a puddle at its own base. The body is BULKY, HEAVY and WIDE — a thick
+sagging mass, never thin or spindly. Above it sits a CLEARLY DEFINED ROUNDED
+HEAD: a smooth dome that is somewhat narrower than the bulky body, separated
+from it by sloping drooping shoulders. The head must read as a head, but the
+body below must stay visibly heavier and wider than the head.
 Two heavy-lidded eyes with pupils drifting in different directions. A small
 mouth left hanging open. Two thin arms hanging straight down, dragging on the
 floor. Accent color: dull mustard yellow on the underside of the puddle.
@@ -147,7 +155,11 @@ Accent color: faded brick red on the pads of all visible paws.
 
 ```
 CHARACTER: A slouching blob creature that has half-melted downward and pooled
-into a puddle at its own base. Rounded, drooping shoulders it cannot hold up.
+into a puddle at its own base. The body is BULKY, HEAVY and WIDE — a thick
+sagging mass, never thin or spindly. Above it sits a CLEARLY DEFINED ROUNDED
+HEAD: a smooth dome that is somewhat narrower than the bulky body, separated
+from it by sloping drooping shoulders. The head must read as a head, but the
+body below must stay visibly heavier and wider than the head.
 Two heavy-lidded eyes with pupils drifting in different directions. A small
 mouth left hanging open. Two thin arms hanging straight down, dragging on the
 floor. Accent color: dull mustard yellow on the underside of the puddle.
@@ -422,7 +434,34 @@ Accent color: warm amber on the inner lining of the hood.
 **2つ以上落ちる場合はスタイルブロックの記述を修正する。**
 個体ブロックをいじって直そうとしないこと。原因は固定側にある。
 
-### 明度とアクセント面積は目視で判断しないこと
+### 明度と彩度はプロンプトで揃えようとしないこと（2026-07-26 の教訓）
+
+**生成は毎回すべての属性を引き直す。** ある属性を指定で直すと、別の属性が壊れる。
+ダラリで実際に4回起きた。
+
+| 回 | 頭の分離 | 質量 | 色 |
+|---|---|---|---|
+| 1 | ❌ 平ら | ✅ | ✅ |
+| 2 | ✅ | ❌ 痩せた | ✅ |
+| 3 | ✅ | ✅ | ❌ 紫に寄った |
+| 4 | ❌ 戻った | ✅ | ✅ |
+
+ゴロネでも同じことが起きた（向きを固定したら四肢が消えた）。
+
+**そこで役割を分けた。**
+
+| 性質 | 直す場所 | 理由 |
+|---|---|---|
+| シルエット・造形・ポーズ | プロンプト | 生成でしか作れない |
+| **明度・彩度** | **後処理（`tools/artpipeline`）** | 機械的に揃う。引き直しが起きない |
+
+後処理は不透明部の平均明度を 107、平均彩度を 0.23 に寄せる。色相は触らないので
+個体ごとの色味の差は残る。全アセットに同じ目標を適用するため、
+**「1体だけ明るい」「1体だけ紫」が構造的に起きなくなる。**
+
+STYLE SPEC 側の明度・彩度の記述は残してあるが、**保険であって主たる手段ではない**。
+
+### アクセント面積は目視で判断しないこと
 
 「1体だけ浮いている」は目で見ても分からない。実測する。
 

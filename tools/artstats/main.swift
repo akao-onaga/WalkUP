@@ -31,15 +31,23 @@ for path in CommandLine.arguments.dropFirst() {
     let lum = lumSum / Double(opaque)
     lums.append(lum)
     let name = (path as NSString).deletingPathExtension as NSString
-    print(String(format: "%-14@ %8.1f %7.1f%% %8.3f %7.1f%%",
+    let sat = satSum / Double(opaque)
+    let warmRatio = Double(warm) / Double(opaque) * 100
+    // 合格条件: 彩度 0.20〜0.27（灰紫）/ アクセント面積 3〜6%
+    var flags: [String] = []
+    if sat > 0.27 { flags.append("彩度↑") } else if sat < 0.20 { flags.append("彩度↓") }
+    if warmRatio > 6 { flags.append("アクセント↑") } else if warmRatio < 3 { flags.append("アクセント↓") }
+    print(String(format: "%-14@ %8.1f %7.1f%% %8.3f %7.1f%%  %@",
                  name.lastPathComponent as NSString, lum,
                  Double(opaque) / Double(w * h) * 100,
-                 satSum / Double(opaque),
-                 Double(warm) / Double(opaque) * 100))
+                 sat, warmRatio,
+                 (flags.isEmpty ? "✅" : flags.joined(separator: " ")) as NSString))
 }
 if lums.count > 1 {
     let mean = lums.reduce(0,+) / Double(lums.count)
     let sd = (lums.map { ($0-mean)*($0-mean) }.reduce(0,+) / Double(lums.count)).squareRoot()
-    print(String(format: "\n明度の幅: %.1f 〜 %.1f （差 %.1f / 標準偏差 %.1f）",
-                 lums.min()!, lums.max()!, lums.max()! - lums.min()!, sd))
+    let spread = lums.max()! - lums.min()!
+    print(String(format: "\n明度の幅: %.1f 〜 %.1f （差 %.1f / 標準偏差 %.1f） %@",
+                 lums.min()!, lums.max()!, spread, sd,
+                 (spread <= 15 ? "✅" : "❌ 15以内に収めること") as NSString))
 }

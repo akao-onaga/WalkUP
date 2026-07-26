@@ -50,6 +50,14 @@ enum Config {
 
     /// ポスタリゼーションの階調数。8〜12色相当。
     static let posterizeLevels = 10
+
+    /// 色の正規化の目標値。
+    ///
+    /// **明度と彩度はプロンプトで揃えようとしないこと。** 生成は毎回すべての属性を
+    /// 引き直すため、色を指定し直すと造形が崩れる（実際にダラリで3回起きた）。
+    /// シルエットは生成でしか作れないが、色は機械的に揃えられる。ここで吸収する。
+    static let targetLuminance = 107.0
+    static let targetSaturation = 0.23
 }
 
 // MARK: - 画像の読み書き
@@ -315,6 +323,56 @@ func normalize(_ bitmap: Bitmap) -> Bitmap? {
     return Bitmap(width: side, height: side, pixels: output)
 }
 
+// MARK: - 3b. 色の正規化
+
+/// 不透明部の平均明度と平均彩度を目標値へ寄せる。
+///
+/// 全アセットに同じ目標を適用するので、並べたときに「1体だけ明るい」「1体だけ紫」が
+/// 構造的に起きなくなる。色相は触らないため、個体ごとの色味の差は残る。
+func normalizeColor(_ bitmap: inout Bitmap) -> (luminance: Double, saturation: Double) {
+    var lumSum = 0.0, satSum = 0.0, count = 0
+    for y in 0..<bitmap.height {
+        for x in 0..<bitmap.width {
+            let p = bitmap[x, y]
+            guard p.a > 128 else { continue }
+            let r = Double(p.r), g = Double(p.g), b = Double(p.b)
+            lumSum += 0.2126 * r + 0.7152 * g + 0.0722 * b
+            let mx = max(r, g, b), mn = min(r, g, b)
+            satSum += mx > 0 ? (mx - mn) / mx : 0
+            count += 1
+        }
+    }
+    guard count > 0 else { return (0, 0) }
+
+    let meanLum = lumSum / Double(count)
+    let meanSat = satSum / Double(count)
+    let lumScale = meanLum > 0 ? Config.targetLuminance / meanLum : 1
+    let satScale = meanSat > 0 ? Config.targetSaturation / meanSat : 1
+
+    for y in 0..<bitmap.height {
+        for x in 0..<bitmap.width {
+            var p = bitmap[x, y]
+            guard p.a > 0 else { continue }
+            var r = Double(p.r), g = Double(p.g), b = Double(p.b)
+
+            // 彩度: 各画素の最大値からの差を伸縮させる。色相は保つ。
+            let mx = max(r, g, b)
+            r = mx - (mx - r) * satScale
+            g = mx - (mx - g) * satScale
+            b = mx - (mx - b) * satScale
+
+            // 明度: 全体を一律に伸縮させる。
+            r *= lumScale; g *= lumScale; b *= lumScale
+
+            p.r = UInt8(max(0, min(255, r)))
+            p.g = UInt8(max(0, min(255, g)))
+            p.b = UInt8(max(0, min(255, b)))
+            bitmap[x, y] = p
+        }
+    }
+    return (meanLum, meanSat)
+}
+
 // MARK: - 4. ポスタリゼーション
 
 /// 全アセットに同一設定で適用する。生成ごとの微妙な色の揺れを吸収する。
@@ -351,6 +409,7 @@ guard var normalized = normalize(bitmap) else {
     print("本体が見つかりません（背景の除去が効きすぎている可能性）: \(arguments[1])")
     exit(1)
 }
+let before = normalizeColor(&normalized)
 posterize(&normalized)
 
 guard normalized.write(to: arguments[2]) else {
@@ -360,7 +419,8 @@ guard normalized.write(to: arguments[2]) else {
 
 let total = bitmap.width * bitmap.height
 let percent = Double(removed) / Double(total) * 100
-print(String(format: "%@ → %@  背景除去 %.1f%%  %dx%d",
+print(String(format: "%@ → %@  背景除去 %.1f%%  色補正 明度%.0f→%.0f 彩度%.2f→%.2f",
              (arguments[1] as NSString).lastPathComponent,
              (arguments[2] as NSString).lastPathComponent,
-             percent, Config.canvasSize, Config.canvasSize))
+             percent, before.luminance, Config.targetLuminance,
+             before.saturation, Config.targetSaturation))
