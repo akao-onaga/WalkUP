@@ -131,8 +131,7 @@ enum MasterData {
             name: bossName(chapter),
             hp: stats.hp, atk: stats.atk, def: stats.def,
             isBoss: true,
-            // ボスのアートは未生成。実装側は nil を受けて記号で代替する。
-            assetName: nil
+            assetName: bossAssetName(chapter)
         )
     }
 
@@ -142,6 +141,17 @@ enum MasterData {
         case 2: return "ムキリョク"
         case 3: return "ダルモン"
         default: return "ダルモン"
+        }
+    }
+
+    /// ボスの立ち絵。`Assets.xcassets/Darumon/` の imageset 名と一致させる。
+    /// アセットが無い間は `DarumonPortrait` が記号で代替するので、先に埋めておいてよい。
+    private static func bossAssetName(_ chapter: Int) -> String {
+        switch chapter {
+        case 1: return "madoromi"
+        case 2: return "mukiryoku"
+        case 3: return "darumon"
+        default: return "darumon"
         }
     }
 

@@ -92,7 +92,10 @@ struct BattleView: View {
 
             ZStack {
                 DarumonPortrait(enemy: session.enemy)
-                    .frame(height: session.enemy.isBoss ? 210 : 170)
+                    // 画像は正方キャンバスで、絵の縦幅は個体の形で変わる。
+                    // **マドロミのような横長のボスは高さ指定だと縮んで見える**ので、
+                    // ボスは雑魚の 1.8 倍まで上げて威圧感を確保する。
+                    .frame(height: session.enemy.isBoss ? 310 : 170)
                     .brightness(flash == .enemy ? 0.5 : 0)
                     .modifier(IdleBob(active: !enemyDefeated))
                     // 攻撃時は前へ、被弾時は後ろへ。
