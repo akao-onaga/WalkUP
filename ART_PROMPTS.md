@@ -93,9 +93,11 @@ Accent color: sallow yellow-ochre at the tips of the tendrils.
 
 ```
 CHARACTER: A heavy four-legged creature lying flat on its side, too massive
-and unmotivated to stand. A broad blunt head resting on the ground with a
-slack jaw. Thick stubby legs folded uselessly, one paw limply raised in the
-air. Loose folds of skin pooling on the ground around its body.
+and unmotivated to stand. Seen from the side, the body is HORIZONTAL and level,
+with the head at the LEFT resting directly on the ground, slack jaw touching
+the floor. The spine runs left to right across the image; do not tilt or rotate
+the body. Thick stubby legs folded uselessly, one paw limply raised straight up.
+Loose folds of skin pooling on the ground around its body.
 Accent color: faded brick red on the pads of its paws.
 ```
 
@@ -140,9 +142,11 @@ Accent color: sallow yellow-ochre at the tips of the tendrils.
 
 ```
 CHARACTER: A heavy four-legged creature lying flat on its side, too massive
-and unmotivated to stand. A broad blunt head resting on the ground with a
-slack jaw. Thick stubby legs folded uselessly, one paw limply raised in the
-air. Loose folds of skin pooling on the ground around its body.
+and unmotivated to stand. Seen from the side, the body is HORIZONTAL and level,
+with the head at the LEFT resting directly on the ground, slack jaw touching
+the floor. The spine runs left to right across the image; do not tilt or rotate
+the body. Thick stubby legs folded uselessly, one paw limply raised straight up.
+Loose folds of skin pooling on the ground around its body.
 Accent color: faded brick red on the pads of its paws.
 ```
 
