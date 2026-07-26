@@ -133,8 +133,6 @@ struct BattleView: View {
         ZStack(alignment: .top) {
             HeroPortrait()
                 .frame(maxWidth: portraitWidth, maxHeight: 175)
-                // ダメージ数値の表示領域を立ち絵と分け、頭部に重ならないようにする。
-                .padding(.top, 44)
                 // 明度を上げると髪の細い輪郭が白飛びして、頭が欠けたように見える。
                 // 主人公の画素は変えず、外周の発光だけで被弾を表現する。
                 .shadow(

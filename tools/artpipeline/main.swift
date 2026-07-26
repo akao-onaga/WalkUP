@@ -337,7 +337,9 @@ func normalize(_ bitmap: Bitmap) -> Bitmap? {
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     ), let sourceImage = sourceCtx.makeImage(),
        let cropped = sourceImage.cropping(to: CGRect(
-           x: minX, y: bitmap.height - maxY - 1, width: cropWidth, height: cropHeight))
+           // `sourceImage` は `Bitmap` と同じ行順で作っているため、ここでY座標を
+           // 反転すると上下にずれ、縦長の素材では頭頂側が切り落とされる。
+           x: minX, y: minY, width: cropWidth, height: cropHeight))
     else { return nil }
 
     let w = Double(cropWidth) * finalScale
