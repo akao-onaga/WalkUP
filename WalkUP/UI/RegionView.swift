@@ -52,8 +52,16 @@ struct RegionView: View {
             }
             .padding(16)
         }
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Theme.card)
+                .shadow(color: Theme.ink.opacity(0.22), radius: 0, y: 3)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
+        )
     }
 
     // MARK: - 見出し

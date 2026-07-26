@@ -69,8 +69,7 @@ struct BestiaryView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                .panel()
     }
 
     // MARK: - 章
@@ -87,8 +86,7 @@ struct BestiaryView: View {
                 row(item.enemy)
             }
         }
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                .panel()
     }
 
     private func row(_ enemy: MasterData.Enemy) -> some View {

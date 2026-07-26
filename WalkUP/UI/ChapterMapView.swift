@@ -73,8 +73,7 @@ struct ChapterMapView: View {
                 }
             }
         }
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                .panel()
         .opacity(isOpen ? 1 : 0.55)
     }
 

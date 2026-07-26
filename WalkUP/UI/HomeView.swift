@@ -64,7 +64,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Lv \(game.player.level)")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.system(size: 38, weight: .heavy, design: .rounded).monospacedDigit())
                     .contentTransition(.numericText())
                 Spacer()
                 if let outcome = game.lastOutcome, outcome.gainedSteps > 0 {
@@ -80,8 +80,7 @@ struct HomeView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .panel()
     }
 
     private var resourceRow: some View {
@@ -119,10 +118,10 @@ struct HomeView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                Image(systemName: "chevron.right").foregroundStyle(Theme.ink.opacity(0.6))
             }
-            .padding(16)
-            .background(Theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(Rectangle())
+            .panel(fill: Theme.accent.opacity(0.28))
         }
         .buttonStyle(.plain)
     }
@@ -131,8 +130,8 @@ struct HomeView: View {
 
     @ViewBuilder
     private var destinationCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("次の目的地").font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(text: "次の目的地")
 
             if let next = game.nextNode {
                 let node = MasterData.node(chapter: next.chapter, index: next.index)
@@ -169,8 +168,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .panel()
     }
 
     private var nextGate: (chapter: Int, remaining: Int, progress: Double)? {
@@ -192,59 +190,42 @@ struct HomeView: View {
     // MARK: - 導線
 
     private var actionRow: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             Button {
                 isShowingMap = true
             } label: {
                 Label(game.nextNode == nil ? "周回して素材を集める" : "討伐に出る",
                       systemImage: "map")
-                    .frame(maxWidth: .infinity, minHeight: 50)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accentFill)
+            .buttonStyle(InkButtonStyle())
             // 未挑戦のノードが無くても討伐は続けられる（周回で素材が集まる）。
             // 第1章のゲートに届いていない間だけ閉じる。
             .disabled(!game.canBattle)
+            .opacity(game.canBattle ? 1 : 0.5)
 
-            HStack(spacing: 10) {
-                Button {
-                    isShowingEquipment = true
-                } label: {
+            HStack(spacing: 12) {
+                Button { isShowingEquipment = true } label: {
                     Label("装備・強化", systemImage: "shield.lefthalf.filled")
-                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme.accent)
+                .buttonStyle(InkSecondaryButtonStyle())
 
-                Button {
-                    isShowingPaywall = true
-                } label: {
+                Button { isShowingPaywall = true } label: {
                     Label(purchases.hasPass ? "パス有効" : "活力パス", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme.accent)
+                .buttonStyle(InkSecondaryButtonStyle())
             }
 
             // 収集の導線。討伐に出られない日でも開く場所として置いている。
-            HStack(spacing: 10) {
-                Button {
-                    isShowingRegions = true
-                } label: {
+            HStack(spacing: 12) {
+                Button { isShowingRegions = true } label: {
                     Label("地域", systemImage: "map.circle")
-                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme.accent)
+                .buttonStyle(InkSecondaryButtonStyle())
 
-                Button {
-                    isShowingBestiary = true
-                } label: {
+                Button { isShowingBestiary = true } label: {
                     Label("図鑑", systemImage: "book.closed")
-                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme.accent)
+                .buttonStyle(InkSecondaryButtonStyle())
             }
         }
     }
@@ -286,8 +267,7 @@ struct MilestoneResultView: View {
                             Spacer()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                                                .panel(radius: 14, inset: 14)
                     }
                 }
                 .padding(16)

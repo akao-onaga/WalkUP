@@ -137,8 +137,7 @@ struct PaywallView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 52)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accentFill)
+            .buttonStyle(InkButtonStyle())
             .disabled(purchases.isPurchasing)
 
             Text("自動更新サブスクリプションです。解約するまで毎月 \(package.storeProduct.localizedPriceString) が請求されます。解約は App Store の設定からいつでも行えます。")
@@ -198,8 +197,7 @@ struct PaywallView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                        .panel(radius: 12, inset: 12)
             .foregroundStyle(.secondary)
         }
         #endif

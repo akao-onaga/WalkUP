@@ -24,6 +24,14 @@ enum Theme {
     /// 危険・敗北。
     static let danger     = adaptive(light: 0x9B4A4A, dark: 0xD68A8A)
 
+    /// 輪郭線。**アートと同じ「太く均一な暗い線」を UI 側にも引く**（§15-10）。
+    /// 標準の SwiftUI 部品は線を持たないため、並べるとアートだけが浮いて
+    /// 「絵は描き込んであるのに画面はただのアプリ」に見える。
+    static let ink        = adaptive(light: 0x2E2A38, dark: 0x0B0910)
+
+    /// 線の太さ。アートの輪郭線と釣り合う値を実測で決めた。細いと弱く、太いと重い。
+    static let strokeWidth: CGFloat = 2
+
     private static func adaptive(light: Int, dark: Int) -> Color {
         Color(uiColor: UIColor { traits in
             UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
@@ -42,6 +50,148 @@ extension UIColor {
     }
 }
 
+// MARK: - 画集寄りの下地（§15-10）
+
+/// 絵と同じ作法で囲んだ面。**全画面のカードはこれを使う。**
+///
+/// 標準の `.background(Theme.card, in: RoundedRectangle(...))` は線を持たないため、
+/// 太い輪郭線のアートと並ぶと UI だけが別の作品に見える。塗り・線・落ち影を
+/// 1か所に閉じ込めておき、調整はここだけで済むようにしている。
+struct Panel: ViewModifier {
+    var radius: CGFloat = 18
+    var fill: Color = Theme.card
+    var inset: CGFloat = 16
+
+    func body(content: Content) -> some View {
+        content
+            .padding(inset)
+            // **影は面にだけ落とす。** `.shadow` を content 側に付けると
+            // 文字にも影が乗り、二重写しになって読めなくなる（実際にやらかした）。
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(fill)
+                    .shadow(color: Theme.ink.opacity(0.22), radius: 0, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
+            )
+    }
+}
+
+extension View {
+    func panel(radius: CGFloat = 18, fill: Color = Theme.card, inset: CGFloat = 16) -> some View {
+        modifier(Panel(radius: radius, fill: fill, inset: inset))
+    }
+}
+
+/// 主要な行動のボタン。押すと**沈んで影が消える**。
+///
+/// `.borderedProminent` は iOS の見た目そのものなので使わない。
+/// 手応えは色ではなく **動き**で作る。押した瞬間に影の分だけ下がると、
+/// 実際に押し込んだように見える。
+struct InkButtonStyle: ButtonStyle {
+    var fill: Color = Theme.accentFill
+    var foreground: Color = .white
+    var radius: CGFloat = 16
+
+    private let depth: CGFloat = 3
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(fill)
+                    .shadow(
+                        color: Theme.ink.opacity(configuration.isPressed ? 0 : 0.9),
+                        radius: 0,
+                        y: configuration.isPressed ? 0 : depth
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
+            )
+            .offset(y: configuration.isPressed ? depth : 0)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+/// 副次的な行動。塗りが薄いだけで、作法は主要ボタンと同じ。
+struct InkSecondaryButtonStyle: ButtonStyle {
+    var radius: CGFloat = 14
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.bold())
+            .foregroundStyle(Theme.ink)
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(Theme.card)
+                    .shadow(
+                        color: Theme.ink.opacity(configuration.isPressed ? 0 : 0.7),
+                        radius: 0,
+                        y: configuration.isPressed ? 0 : 2
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
+            )
+            .offset(y: configuration.isPressed ? 2 : 0)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+/// 行内に置く小さなボタン（装備の着脱・強化など）。
+/// 幅を広げないので、`InkSecondaryButtonStyle` とは別に用意している。
+struct InkChipButtonStyle: ButtonStyle {
+    var fill: Color = Theme.card
+    var foreground: Color = Theme.ink
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.bold())
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(fill)
+                    .shadow(
+                        color: Theme.ink.opacity(configuration.isPressed ? 0 : 0.7),
+                        radius: 0,
+                        y: configuration.isPressed ? 0 : 2
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
+            )
+            .offset(y: configuration.isPressed ? 2 : 0)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+/// 見出し。下に短い線を引いて、章立てされた本のページに見せる。
+struct SectionTitle: View {
+    let text: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(text)
+                .font(.system(.headline, design: .rounded).weight(.heavy))
+            Capsule()
+                .fill(Theme.ink)
+                .frame(width: 28, height: Theme.strokeWidth)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - 共通部品
 
 /// 数値を1つ見せるための枠。ホームで多用する。
@@ -57,32 +207,39 @@ struct StatTile: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                // 桁が増えても幅が跳ねないよう等幅にする。数値が主役の画面なので効く。
+                .font(.system(size: 26, weight: .heavy, design: .rounded).monospacedDigit())
                 .foregroundStyle(tint)
                 .contentTransition(.numericText())
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .panel(radius: 14, inset: 14)
     }
 }
 
 /// HP や活気ゲージ。
+///
+/// **ゲージにも輪郭線を引く。** 線の無い細いバーは iOS の標準部品にしか見えず、
+/// ここだけで画面全体の印象が「アプリ」に戻る。
 struct MeterBar: View {
     var value: Double
     var tint: Color
+    var height: CGFloat = 12
 
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(tint.opacity(0.18))
+                Capsule().fill(tint.opacity(0.16))
                 Capsule()
                     .fill(tint)
-                    .frame(width: max(0, min(1, value)) * proxy.size.width)
+                    .frame(width: max(0, min(1, value)) * (proxy.size.width - Theme.strokeWidth * 2))
+                    .padding(Theme.strokeWidth)
+                Capsule().strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth)
             }
         }
-        .frame(height: 8)
+        .frame(height: height)
+        .animation(.easeOut(duration: 0.3), value: value)
     }
 }

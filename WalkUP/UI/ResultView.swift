@@ -84,8 +84,7 @@ struct ResultView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                .panel()
     }
 
     private func rewardRow(icon: String, title: String, amount: String) -> some View {
@@ -113,10 +112,8 @@ struct ResultView: View {
                 isShowingEquipment = true
             } label: {
                 Label("装備を強化する", systemImage: "hammer.fill")
-                    .frame(maxWidth: .infinity, minHeight: 46)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accentFill)
+            .buttonStyle(InkButtonStyle())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

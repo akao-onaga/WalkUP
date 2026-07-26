@@ -65,8 +65,7 @@ struct EquipmentView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(28)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                .panel(inset: 28)
     }
 
     @ViewBuilder
@@ -92,8 +91,7 @@ struct EquipmentView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                        .panel()
         }
     }
 
@@ -121,8 +119,10 @@ struct EquipmentView: View {
                 Button(item.isEquipped ? "装備中" : "装備") {
                     game.toggleEquip(item)
                 }
-                .buttonStyle(.bordered)
-                .tint(item.isEquipped ? Theme.accentFill : Theme.accent)
+                .buttonStyle(InkChipButtonStyle(
+                    fill: item.isEquipped ? Theme.accentFill : Theme.card,
+                    foreground: item.isEquipped ? .white : Theme.ink
+                ))
             }
 
             HStack(spacing: 10) {
@@ -141,9 +141,9 @@ struct EquipmentView: View {
                         Label("\(cost)", systemImage: "hammer.fill")
                             .font(.caption.bold())
                     }
-                    .buttonStyle(.bordered)
-                    .tint(Theme.accent)
+                    .buttonStyle(InkChipButtonStyle())
                     .disabled(!game.canEnhance(item))
+                    .opacity(game.canEnhance(item) ? 1 : 0.45)
                 }
             }
         }
