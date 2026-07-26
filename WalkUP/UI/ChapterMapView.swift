@@ -10,6 +10,10 @@ struct ChapterMapView: View {
     @State private var session: GameModel.BattleSession?
     @State private var errorMessage: String?
 
+    /// 戦闘へ入る前の暗転。**標準のシートのまま繋ぐと場面転換に見えない。**
+    /// 一拍暗くしてから戦闘を出すと、ここから先が別の場所だと伝わる。
+    @State private var curtain = 0.0
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -44,6 +48,28 @@ struct ChapterMapView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+        }
+        .overlay {
+            Color.black
+                .opacity(curtain)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// 暗転してから戦闘を開く。勝敗は `startBattle` の時点で確定しているので、
+    /// ここで待たせても結果は変わらない。
+    private func enterBattle(chapter: Int, index: Int) async {
+        do {
+            let started = try game.startBattle(chapter: chapter, nodeIndex: index)
+            withAnimation(.easeIn(duration: 0.22)) { curtain = 1 }
+            try? await Task.sleep(for: .seconds(0.24))
+            session = started
+            // 戦闘が上に乗ってから幕を上げる。先に戻すと下の一覧が見えてしまう。
+            try? await Task.sleep(for: .seconds(0.05))
+            withAnimation(.easeOut(duration: 0.28)) { curtain = 0 }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -84,11 +110,7 @@ struct ChapterMapView: View {
         let affordable = game.player.ap >= node.enemy.apCost
 
         return Button {
-            do {
-                session = try game.startBattle(chapter: chapter, nodeIndex: index)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+            Task { await enterBattle(chapter: chapter, index: index) }
         } label: {
             HStack(spacing: 12) {
                 ZStack {

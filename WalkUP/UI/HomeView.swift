@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// ホーム（画面 #1）。今日の歩数・活力・レベル・次の目的地。
 ///
@@ -15,6 +16,8 @@ struct HomeView: View {
     @State private var isShowingRegions = false
     @State private var isShowingBestiary = false
     @State private var milestoneFinds: [MilestoneOpener.Find] = []
+    @State private var gaugeShown = false
+    @State private var levelBadgePopped = false
 
     var body: some View {
         NavigationStack {
@@ -62,41 +65,63 @@ struct HomeView: View {
 
     private var levelCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("Lv \(game.player.level)")
                     .font(.system(size: 38, weight: .heavy, design: .rounded).monospacedDigit())
                     .contentTransition(.numericText())
+
+                // レベルが上がった日だけ出す。毎回出すと祝いの意味が消える。
+                if let outcome = game.lastOutcome, outcome.levelsGained > 0 {
+                    Text("Lv UP")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Theme.vigor, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Theme.ink, lineWidth: Theme.strokeWidth))
+                        .scaleEffect(levelBadgePopped ? 1 : 1.6)
+                        .opacity(levelBadgePopped ? 1 : 0)
+                }
+
                 Spacer()
+
                 if let outcome = game.lastOutcome, outcome.gainedSteps > 0 {
-                    Text("+\(outcome.gainedSteps.formatted()) 歩")
-                        .font(.footnote.bold())
-                        .foregroundStyle(Theme.accent)
+                    // 今日の増分。**ここが「歩いた甲斐」の本体**なので、静止させない。
+                    HStack(spacing: 2) {
+                        Text("+")
+                        CountUp(target: outcome.gainedSteps)
+                        Text(" 歩")
+                    }
+                    .font(.system(.footnote, design: .rounded).weight(.heavy).monospacedDigit())
+                    .foregroundStyle(Theme.accent)
                 }
             }
 
-            MeterBar(value: game.levelProgress, tint: Theme.accent)
+            // ゲージは 0 から伸ばす。到達点だけ置くと、伸びた実感が残らない。
+            MeterBar(value: gaugeShown ? game.levelProgress : 0, tint: Theme.accent)
 
             Text("累計 \(game.player.cumulativeSteps.formatted()) 歩")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .panel()
+        .task {
+            withAnimation(.easeOut(duration: 0.8)) { gaugeShown = true }
+            guard let outcome = game.lastOutcome, outcome.levelsGained > 0 else { return }
+            try? await Task.sleep(for: .seconds(0.5))
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { levelBadgePopped = true }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
     }
 
     private var resourceRow: some View {
         HStack(spacing: 12) {
-            StatTile(
-                title: "今日の歩数", value: game.todaySteps.formatted(),
-                systemImage: "figure.walk", tint: Theme.accent
-            )
-            StatTile(
-                title: "活力", value: "\(game.player.ap)",
-                systemImage: "bolt.fill", tint: Theme.vigor
-            )
-            StatTile(
-                title: "澱", value: "\(game.dregs)",
-                systemImage: "cube", tint: Theme.accent
-            )
+            StatTile(title: "今日の歩数", count: game.todaySteps,
+                     systemImage: "figure.walk", tint: Theme.accent)
+            StatTile(title: "活力", count: game.player.ap,
+                     systemImage: "bolt.fill", tint: Theme.vigor)
+            StatTile(title: "澱", count: game.dregs,
+                     systemImage: "cube", tint: Theme.accent)
         }
     }
 

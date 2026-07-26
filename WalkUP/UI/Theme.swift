@@ -192,12 +192,56 @@ struct SectionTitle: View {
     }
 }
 
+// MARK: - 数の演出（§15-11）
+
+/// 数を回して見せる。
+///
+/// **「今日も無駄じゃなかった」は数字が動いて初めて伝わる。**
+/// 完成値をいきなり置くと、同じ数でも受け取られ方がまるで違う。
+struct RollingNumber: View, Animatable {
+    var value: Double
+    var format: (Int) -> String = { $0.formatted() }
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text(format(Int(value.rounded())))
+    }
+}
+
+/// 表示された瞬間に 0 から回る数値。
+struct CountUp: View {
+    let target: Int
+    var duration: Double = 0.7
+    var format: (Int) -> String = { $0.formatted() }
+
+    @State private var shown: Double = 0
+
+    var body: some View {
+        RollingNumber(value: shown, format: format)
+            .onAppear {
+                shown = 0
+                withAnimation(.easeOut(duration: duration)) { shown = Double(target) }
+            }
+            // 値が後から変わる場合（歩数の再取得など）にも追従させる。
+            .onChange(of: target) { _, newValue in
+                withAnimation(.easeOut(duration: duration)) { shown = Double(newValue) }
+            }
+    }
+}
+
 // MARK: - 共通部品
 
 /// 数値を1つ見せるための枠。ホームで多用する。
+///
+/// `count` を渡すと**開いた瞬間に 0 から回る**。文字列を渡す用途も残してある。
 struct StatTile: View {
     var title: String
-    var value: String
+    var value: String? = nil
+    var count: Int? = nil
     var systemImage: String
     var tint: Color = Theme.accent
 
@@ -206,13 +250,20 @@ struct StatTile: View {
             Label(title, systemImage: systemImage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(value)
-                // 桁が増えても幅が跳ねないよう等幅にする。数値が主役の画面なので効く。
-                .font(.system(size: 26, weight: .heavy, design: .rounded).monospacedDigit())
-                .foregroundStyle(tint)
-                .contentTransition(.numericText())
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
+
+            Group {
+                if let count {
+                    CountUp(target: count)
+                } else {
+                    Text(value ?? "")
+                }
+            }
+            // 桁が増えても幅が跳ねないよう等幅にする。数値が主役の画面なので効く。
+            .font(.system(size: 26, weight: .heavy, design: .rounded).monospacedDigit())
+            .foregroundStyle(tint)
+            .contentTransition(.numericText())
+            .minimumScaleFactor(0.6)
+            .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .panel(radius: 14, inset: 14)
