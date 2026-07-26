@@ -74,9 +74,18 @@ struct EquipmentView: View {
         let items = game.state.equipment.filter { $0.slot == slot }
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text(slotName(slot))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(slotName(slot))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let note = slotNote(slot) {
+                        Text(note)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
 
                 ForEach(items) { item in
                     equipmentRow(item)
@@ -151,9 +160,18 @@ struct EquipmentView: View {
 
     private func slotName(_ slot: EquipmentSlot) -> String {
         switch slot {
-        case .weapon: return "武器"
+        case .weapon: return "武器 — 靴"
         case .armor: return "防具"
         case .accessory: return "装飾"
+        }
+    }
+
+    /// 武器が靴であることの説明。**この設定は放っておくと伝わらない。**
+    /// 「武器」の欄に靴が並ぶ理由が分かるのは、ここに一行あるときだけ。
+    private func slotNote(_ slot: EquipmentSlot) -> String? {
+        switch slot {
+        case .weapon: return "この世界で武器になるのは踏み出す力——ウォーク力だけ。"
+        default: return nil
         }
     }
 }

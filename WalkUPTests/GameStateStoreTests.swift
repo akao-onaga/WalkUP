@@ -125,6 +125,27 @@ struct GameStateStoreTests {
         #expect(migrated.bestiary[0].firstSeenAt == old)
     }
 
+    @Test("入手済みの装備の名前が、マスターデータから引き直される")
+    func refreshesEquipmentNames() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        // 武器が「杖」だった頃に入手した装備。名前は保存データに焼き付いている。
+        var state = GameState()
+        state.equipment = [
+            Equipment(id: "eq_ch1_weapon", name: "目覚めの杖", slot: .weapon,
+                      hp: 0, atk: 7, def: 0, enhanceLevel: 3, isEquipped: true)
+        ]
+        try store.save(state)
+
+        let item = try #require(try store.load().equipment.first)
+        #expect(item.name == MasterData.equipment(chapter: 1, slot: .weapon).name)
+        #expect(item.name.hasSuffix("靴"))
+        // 強化段階と装備状態は触らない。
+        #expect(item.enhanceLevel == 3)
+        #expect(item.isEquipped)
+    }
+
     @Test("移行は繰り返し通しても結果が変わらない")
     func migrationIsIdempotent() throws {
         var state = GameState()

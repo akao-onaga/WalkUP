@@ -48,10 +48,19 @@ struct BattleView: View {
         ZStack {
             RegionBackdrop(chapter: session.chapter)
 
-            VStack(spacing: 20) {
-                enemyPane
+            VStack(spacing: 16) {
+                enemyHeader
                 Spacer(minLength: 0)
-                playerPane
+                // **主人公は左、ダルモンは右。** 主人公は右へ歩いていく絵なので、
+                // 左に置くと進む先に敵がいることになり、踏み込みの向きと絵が噛み合う。
+                HStack(alignment: .bottom, spacing: 12) {
+                    playerPane
+                    enemyPane
+                }
+                // 下の余白は詰める。**上下均等に空けると2体が画面の上半分に寄り**、
+                // 背景の道路だけが広く残って、立っている場所が宙に浮いて見える。
+                Spacer(minLength: 0).frame(maxHeight: 40)
+                playerFooter
             }
             .padding(20)
             // 画面全体を揺らす。個々の要素ではなく画面が動くと衝撃が伝わる。
@@ -71,8 +80,8 @@ struct BattleView: View {
 
     // MARK: - 敵
 
-    private var enemyPane: some View {
-        VStack(spacing: 12) {
+    private var enemyHeader: some View {
+        VStack(spacing: 10) {
             Text(session.enemy.name)
                 .font(session.enemy.isBoss ? .title3.bold() : .headline)
                 // 背景を暗く固定しているので、文字色も固定する。
@@ -80,72 +89,82 @@ struct BattleView: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
 
-            HStack(spacing: 8) {
-                MeterBar(value: Double(enemyHP) / Double(max(1, session.enemy.hp)), tint: Theme.danger)
-                Text("\(max(0, enemyHP))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.85))
-                    .shadow(color: .black.opacity(0.5), radius: 2)
-                    .frame(width: 44, alignment: .trailing)
-            }
-            .frame(maxWidth: 280)
-
-            ZStack {
-                DarumonPortrait(enemy: session.enemy)
-                    // 画像は正方キャンバスで、絵の縦幅は個体の形で変わる。
-                    // **マドロミのような横長のボスは高さ指定だと縮んで見える**ので、
-                    // ボスは雑魚の 1.8 倍まで上げて威圧感を確保する。
-                    .frame(height: session.enemy.isBoss ? 310 : 170)
-                    .brightness(flash == .enemy ? 0.5 : 0)
-                    .modifier(IdleBob(active: !enemyDefeated))
-                    // 攻撃時は前へ、被弾時は後ろへ。
-                    .offset(
-                        y: (lunge == .enemy ? 22 : 0) + (recoil == .enemy ? -14 : 0)
-                    )
-                    // 撃破は「崩れ落ちる」。倒れて縮んで消える。
-                    .rotationEffect(.degrees(enemyDefeated ? 78 : 0), anchor: .bottom)
-                    .scaleEffect(enemyDefeated ? 0.72 : 1, anchor: .bottom)
-                    .opacity(enemyDefeated ? 0 : 1)
-
-                if let damage = floatingDamage, damage.side == .enemy {
-                    DamageNumber(amount: damage.amount, tint: Theme.danger)
-                        .id(damage.id)
-                }
-            }
-            .frame(height: 220)
+            meter(
+                value: Double(enemyHP) / Double(max(1, session.enemy.hp)),
+                remaining: enemyHP,
+                tint: Theme.danger
+            )
         }
+    }
+
+    private var enemyPane: some View {
+        ZStack {
+            DarumonPortrait(enemy: session.enemy)
+                // **左右に並べると使える幅が半分になる。** 高さだけを決めると
+                // マドロミのような横長の個体が主人公側にはみ出すので、幅も縛る。
+                .frame(maxWidth: portraitWidth, maxHeight: session.enemy.isBoss ? 250 : 175)
+                .brightness(flash == .enemy ? 0.5 : 0)
+                .modifier(IdleBob(active: !enemyDefeated))
+                // 攻撃時は相手（左）へ、被弾時は後ろ（右）へ。
+                .offset(
+                    x: (lunge == .enemy ? -26 : 0) + (recoil == .enemy ? 16 : 0)
+                )
+                // 撃破は「崩れ落ちる」。主人公とは反対側へ倒す。
+                .rotationEffect(.degrees(enemyDefeated ? 78 : 0), anchor: .bottom)
+                .scaleEffect(enemyDefeated ? 0.72 : 1, anchor: .bottom)
+                .opacity(enemyDefeated ? 0 : 1)
+
+            if let damage = floatingDamage, damage.side == .enemy {
+                DamageNumber(amount: damage.amount, tint: Theme.danger)
+                    .id(damage.id)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
     }
 
     // MARK: - 主人公
 
     private var playerPane: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                HeroPortrait()
-                    .frame(height: 150)
-                    .brightness(flash == .player ? 0.5 : 0)
-                    .offset(
-                        y: (lunge == .player ? -22 : 0) + (recoil == .player ? 14 : 0)
-                    )
+        ZStack {
+            HeroPortrait()
+                .frame(maxWidth: portraitWidth, maxHeight: 175)
+                .brightness(flash == .player ? 0.5 : 0)
+                // 攻撃時は相手（右）へ、被弾時は後ろ（左）へ。
+                .offset(
+                    x: (lunge == .player ? 26 : 0) + (recoil == .player ? -16 : 0)
+                )
 
-                if let damage = floatingDamage, damage.side == .player {
-                    DamageNumber(amount: damage.amount, tint: Theme.danger)
-                        .id(damage.id)
-                }
+            if let damage = floatingDamage, damage.side == .player {
+                DamageNumber(amount: damage.amount, tint: Theme.danger)
+                    .id(damage.id)
             }
-            .frame(height: 170)
-
-            HStack(spacing: 8) {
-                MeterBar(value: Double(playerHP) / Double(max(1, session.player.maxHP)), tint: Theme.accent)
-                Text("\(max(0, playerHP))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.85))
-                    .shadow(color: .black.opacity(0.5), radius: 2)
-                    .frame(width: 44, alignment: .trailing)
-            }
-            .frame(maxWidth: 280)
         }
+        .frame(maxWidth: .infinity, minHeight: 250, alignment: .bottom)
     }
+
+    private var playerFooter: some View {
+        meter(
+            value: Double(playerHP) / Double(max(1, session.player.maxHP)),
+            remaining: playerHP,
+            tint: Theme.accent
+        )
+    }
+
+    /// HP バーと残量。敵と主人公で同じ形にして、左右のどちらの残量かを色で区別させる。
+    private func meter(value: Double, remaining: Int, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            MeterBar(value: value, tint: tint)
+            Text("\(max(0, remaining))")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.85))
+                .shadow(color: .black.opacity(0.5), radius: 2)
+                .frame(width: 44, alignment: .trailing)
+        }
+        .frame(maxWidth: 280)
+    }
+
+    /// 立ち絵1体あたりの幅。画面を左右で分けるので、片側はこれ以上広げられない。
+    private var portraitWidth: CGFloat { 168 }
 
     // MARK: - 再生
 

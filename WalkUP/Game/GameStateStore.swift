@@ -49,6 +49,7 @@ struct GameStateStore {
         // 読み込みの直後に移行を通す。以降のコードは常に現行の形だけを見ればよい。
         return try decoder.decode(GameState.self, from: data)
             .migratingLegacyBestiaryIDs()
+            .refreshingEquipmentNames()
     }
 
     /// 保存する。

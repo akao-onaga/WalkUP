@@ -424,15 +424,25 @@ STYLE SPEC (protagonist):
 
 ```
 CHARACTER: A small determined traveler seen from behind at a three-quarter
-angle, mid-stride, one foot lifted in a clear walking pose. Simple hooded
-travel cloak, a short staff in one hand, a satchel at the hip. The posture is
-upright and forward-leaning — the only figure in this world that is still
+angle, mid-stride, one foot lifted high in a clear walking pose so the thick
+SOLE of the lifted boot is turned toward the viewer. Simple hooded travel
+cloak and a satchel at the hip. BOTH HANDS ARE EMPTY — no staff, no stick,
+no weapon of any kind. The heavy walking boots are the most detailed part of
+the figure: thick treaded soles, visible laces, reinforced toes, worn from
+use. The cloak is cut short enough that both boots read clearly. The posture
+is upright and forward-leaning — the only figure in this world that is still
 moving. Face is not visible.
 Accent color: warm amber on the inner lining of the hood.
 ```
 
 **主人公だけは暖色のアクセントを使う。** ダルモンが全て寒色に沈んでいる中で、
 唯一動いている存在であることを色で示す。
+
+**武器は靴（2026-07-26 変更）。** 当初は「短い杖」を持たせていたが、
+歩くことが冒険になる（§1）という設計原理に対して、手に持つ武器は嘘になる。
+装備の武器スロットも「杖」から「靴」に変えてある。
+**靴が絵の中で最も描き込まれた部分になるよう指示している。** ここを普通の靴として
+描かれると、ただのフードの旅人に戻ってしまう。
 
 ---
 

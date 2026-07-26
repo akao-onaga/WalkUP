@@ -149,6 +149,35 @@ extension GameState {
         return migrated
     }
 
+    /// 装備の表示名をマスターデータから引き直す。
+    ///
+    /// **`Equipment.name` は保存データに焼き付いている。** 入手した時点の名前が
+    /// そのまま残るので、`equipmentName()` を変えても既に持っている装備には効かない。
+    /// 武器を「杖」から「靴」に変えたとき（§1 の設計原理に合わせた）、
+    /// 既存プレイヤーの持ち物だけ「目覚めの杖」のまま残る状態になった。
+    ///
+    /// 名前は完全にマスターデータから導けるので、読み込みのたびに引き直せば済む。
+    /// 強化段階や装備状態には触らない。
+    func refreshingEquipmentNames() -> GameState {
+        var migrated = self
+        for index in migrated.equipment.indices {
+            let item = migrated.equipment[index]
+            guard let source = Self.masterEquipment(id: item.id) else { continue }
+            migrated.equipment[index].name = source.name
+        }
+        return migrated
+    }
+
+    /// `eq_ch{章}_{スロット}` からマスターデータの装備を引く。形式が合わなければ nil。
+    private static func masterEquipment(id: String) -> Equipment? {
+        let parts = id.split(separator: "_")
+        guard parts.count == 3, parts[0] == "eq",
+              let chapter = Int(parts[1].dropFirst(2)),
+              let slot = EquipmentSlot(rawValue: String(parts[2]))
+        else { return nil }
+        return MasterData.equipment(chapter: chapter, slot: slot)
+    }
+
     /// `zako_ch{章}_{役割}` を、その章で同じ役割を持つ最初の個体の ID に読み替える。
     /// 形式が合わなければそのまま返す（既に種別ベース、またはボス）。
     private static func modernBestiaryID(_ id: String) -> String {

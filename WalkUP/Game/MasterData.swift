@@ -262,10 +262,18 @@ enum MasterData {
         )
     }
 
+    /// 装備の表示名。
+    ///
+    /// **武器は靴。** 歩数だけが怠惰を打ち破る資源（§1）である以上、
+    /// 主人公が振るうのは足であって手に持つ物ではない。剣や杖を持たせると、
+    /// 「歩いた分だけ強くなる」という一本の筋がそこで切れる。
+    ///
+    /// `EquipmentSlot.weapon` という内部名は変えない。保存データの装備 ID
+    /// （`eq_ch1_weapon`）に入っているため、変えると既存の装備が消える。
     private static func equipmentName(chapter: Int, slot: EquipmentSlot) -> String {
         let tier = ["", "目覚めの", "抗いの", "灯火の"][min(chapter, 3)]
         switch slot {
-        case .weapon:    return "\(tier)杖"
+        case .weapon:    return "\(tier)靴"
         case .armor:     return "\(tier)外套"
         case .accessory: return "\(tier)護符"
         }
