@@ -133,9 +133,14 @@ struct BattleView: View {
         ZStack(alignment: .top) {
             HeroPortrait()
                 .frame(maxWidth: portraitWidth, maxHeight: 175)
-                // **フラッシュは 0.5 だと輪郭まで飛ぶ。** 髪の先の細い線が背景に溶け、
-                // 頭が平らに欠けて見えた。当たった感じは残しつつ、形が壊れない量にする。
-                .brightness(flash == .player ? 0.3 : 0)
+                // ダメージ数値の表示領域を立ち絵と分け、頭部に重ならないようにする。
+                .padding(.top, 44)
+                // 明度を上げると髪の細い輪郭が白飛びして、頭が欠けたように見える。
+                // 主人公の画素は変えず、外周の発光だけで被弾を表現する。
+                .shadow(
+                    color: flash == .player ? .white.opacity(0.85) : .clear,
+                    radius: flash == .player ? 9 : 0
+                )
                 .shadow(color: .black.opacity(0.45), radius: 3)
                 // 攻撃時は相手（右）へ、被弾時は後ろ（左）へ。
                 .offset(
