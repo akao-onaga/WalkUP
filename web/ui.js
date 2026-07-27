@@ -537,6 +537,8 @@ function renderHome() {
 function maybeInterlude() {
   if (layers.length > 0) return;
   if (!Game.state.seenIntro) { Nav.push(introScreen()); return; }
+  // チュートリアルは導入の直後、章の扉より前。**歩数ゼロのまま3戦させる**（§11-1）。
+  if (Tutorial.active && Tutorial.run()) return;
   const door = Game.pendingDoor;
   if (door !== null) { Nav.push(chapterDoorScreen(door)); return; }
   if (Game.isFinished && !Game.state.seenEnding) { Nav.push(endingScreen()); }
@@ -767,6 +769,141 @@ function chapterDoorScreen(chapter) {
   Sound.play('transition');
   return el;
 }
+
+/* ------------------------------------------------------------------ */
+/* 場面（チュートリアル・今後の物語で共用）                              */
+/* ------------------------------------------------------------------ */
+
+/** 世界の画面の上で文章を送る。**帳面にしない。**
+ *
+ * 紙面で読ませると読み物になる。物語は「その場所で起きていること」なので、
+ * 地はその街のアートのままにして、文字だけを暗い札に載せる。
+ * 章の扉（`chapterDoorScreen`）と同じ作りを、複数行と後始末が要る場面向けに広げたもの。 */
+function sceneScreen(stage, onDone) {
+  const chapter = stage.chapter ?? 1;
+  const life = Game.vitality(chapter) / Balance.vitalityMax;
+  const isWalk = stage.kind === 'walk';
+
+  const el = make('screen cover world scene', `
+    ${worldLayers(chapter, life)}
+    <div class="world-inner">
+      <div class="grow"></div>
+      <div class="scene-stage">
+        <img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">
+        ${stage.foe ? `<img class="scene-foe bob" src="${artOf(stage.foe)}" alt="">` : ''}
+      </div>
+      ${isWalk ? `<div class="scene-gain">
+        ${crest(Game.level, Game.levelProgress)}
+        <div class="scene-steps"><span class="num" data-steps>0</span><span class="unit">歩</span></div>
+      </div>` : ''}
+      <div class="night scene-text">${stage.lines.map(() => '<p></p>').join('')}</div>
+      <div class="scene-hint">画面を触ると最後まで送る</div>
+      <button class="btn go scene-go" style="visibility:hidden">
+        ${stage.action === 'equip' ? '装備を開く' : '進む'}
+      </button>
+    </div>`);
+
+  const paragraphs = $$(el, '.scene-text p');
+  const button = $(el, '.scene-go');
+  let typing = null;
+  let skipped = false;
+  let finished = false;
+
+  const reveal = () => {
+    finished = true;
+    $(el, '.scene-hint')?.remove();
+    button.style.visibility = 'visible';
+  };
+
+  (async () => {
+    await sleep(420);
+    for (let i = 0; i < paragraphs.length; i++) {
+      if (skipped) { paragraphs[i].textContent = stage.lines[i]; continue; }
+      typing = typeInto(paragraphs[i], stage.lines[i]);
+      await typing;
+      await sleep(240);
+    }
+    reveal();
+  })();
+
+  // **待たされる文章は読まれない。** 触れば全部出る（章の扉と同じ作法）。
+  el.addEventListener('click', (event) => {
+    if (event.target.closest('.btn')) return;
+    if (finished || skipped) return;
+    skipped = true;
+    typing?.stop();
+    paragraphs.forEach((p, i) => { p.textContent = stage.lines[i]; });
+    reveal();
+  });
+
+  // 歩いた分を、この場面の中で入れる。**数と紋章を同じ瞬間に動かす。**
+  if (isWalk) {
+    setTimeout(() => {
+      const before = Game.level;
+      // **二度は入れない。** 数と紋章は毎回動かすが、歩数そのものは一度きり。
+      if (!Game.state.tutorialWalked) {
+        Game.state.tutorialWalked = true;
+        Game.walk(stage.steps);
+      }
+      countUp($(el, '[data-steps]'), stage.steps, 900);
+      const arc = $(el, '.crest .arc');
+      if (arc) requestAnimationFrame(() => { arc.style.strokeDashoffset = String(Number(arc.dataset.len) * (1 - Game.levelProgress)); });
+      if (Game.level > before) {
+        const face = $(el, '.crest .no');
+        setTimeout(() => {
+          face.textContent = Game.level;
+          $(el, '.crest').classList.add('level-up');
+          Sound.play('levelup');
+        }, 700);
+      }
+      settleLife(el);
+      updateTray();
+    }, 900);
+  }
+
+  button.addEventListener('click', () => { Sound.play('page'); onDone(); });
+  Sound.play('transition');
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
+/* チュートリアル（§11-1）                                              */
+/* ------------------------------------------------------------------ */
+
+/** 歩数ゼロでも遊べる、という審査対策の進行役。
+ *
+ * **段は `Game.state.tutorialStep` に保存する。** 途中で閉じられても続きから出す。
+ * 段の中身は `data.js` の `TUTORIAL`。ここは「出す・進める」だけを持つ。 */
+const Tutorial = {
+  get active() { return !Game.state.seenTutorial; },
+
+  /** いまの段を画面として出す。段が無ければ何もしない（＝呼び出し側は次へ進む）。 */
+  run() {
+    const stage = Game.tutorialStage;
+    if (!stage) return false;
+
+    // 靴は最初の段に入る前に履かせる。**戦闘の直前に渡すと、
+    // 「渡されたから勝てた」という筋が画面から見えない。**
+    Game.grantStarterShoe();
+
+    if (stage.kind === 'battle') {
+      Nav.curtainTo(() => Nav.push(battleScreen(Game.startTutorialBattle(stage.node))));
+      Game.advanceTutorial();
+      return true;
+    }
+
+    Nav.push(sceneScreen(stage, () => {
+      Game.advanceTutorial();
+      // 装備を開かせる段だけ、先に装備画面を挟む。閉じれば続きへ戻る。
+      if (stage.action === 'equip') {
+        Nav.replaceTop(equipScreen());
+        return;
+      }
+      Nav.pop();
+    }));
+    return true;
+  },
+};
 
 /* ------------------------------------------------------------------ */
 /* 討伐マップ                                                          */
@@ -1094,7 +1231,7 @@ function resultScreen(session) {
   if (r.dregs > 0) rows.push([itemArt('mat_dregs', 38), '怠惰の澱', `×${r.dregs}`]);
   if (r.cores > 0) rows.push([itemArt('mat_core', 38), '怠惰の核', `×${r.cores}`]);
   if (r.vitality > 0) rows.push([icon('sparkle', 30), '地域の活気', `+${r.vitality}`]);
-  if (r.equipment) rows.push([itemArt(r.equipment.id, 38), r.equipment.name, '入手']);
+  if (r.equipment) rows.push([itemArt(r.equipment.id, 38, SLOT_GLYPH[r.equipment.slot]), r.equipment.name, '入手']);
 
   const turnCount = Math.ceil(session.log.turns.length / 2);
 
@@ -1131,7 +1268,7 @@ function resultScreen(session) {
 
       <div class="grow" style="max-height:24px"></div>
       ${!won ? `<button class="btn secondary" data-act="equip" style="margin-bottom:10px">${icon('hammer', 15)}装備を強化する</button>` : ''}
-      <button class="btn go" data-act="close-result">${won ? '地図へ戻る' : '出直す'}</button>
+      <button class="btn go" data-act="close-result">${session.tutorial ? '進む' : won ? '地図へ戻る' : '出直す'}</button>
     </div>`);
 
   // 判子 → 獲得物の順に鳴らす。**1枚ずつ順に出す。**
@@ -1154,8 +1291,15 @@ const SLOT_GLYPH = { weapon: 'shoe', armor: 'cloak', accessory: 'charm' };
 const SLOT_NAME = { weapon: '靴', armor: '外套', accessory: '護符' };
 
 /** 持ち物の絵札。`<img>` を枠いっぱいに置く。
- *  絵が無い物（まだ生成していない物）は記号で代替し、**画面が壊れないようにする。** */
-const itemArt = (id, size) => `<img class="item-art" src="${itemOf(id)}" alt="" style="width:${size}px;height:${size}px">`;
+ *
+ * **絵が無い物は記号で代替する。** README にはそう書いてあったのに実装が無く、
+ * 絵を持たない装備（チュートリアルの「履き古した靴」）を足した瞬間に、
+ * 装備画面とスロットの両方に壊れた画像の印が出た。
+ * 絵は後から足せるが、**壊れた印は画面をそのまま壊す。** */
+const itemArt = (id, size, glyph = 'shoe') => `<span class="item-art" style="width:${size}px;height:${size}px">
+  <img src="${itemOf(id)}" alt="" onerror="this.closest('.item-art').classList.add('no-art')">
+  <span class="art-fallback">${icon(glyph, Math.round(size * 0.68))}</span>
+</span>`;
 
 /** 素材の絵の名前。engine 側の ID と対応させる。 */
 const MATERIAL_ART = { dregs: 'mat_dregs', core: 'mat_core', core_shard: 'mat_shard' };
@@ -1174,7 +1318,7 @@ function equipScreen(slot = 'weapon') {
     // 着けている物はその物の絵、空きは記号の影。**絵と記号を役割で分ける。**
     return `<button class="slot ${worn ? '' : 'empty'} ${s === slot ? 'sel' : ''}"
               style="left:${x}%;top:${y}%" data-slot="${s}">
-      ${worn ? itemArt(worn.id, 46) : icon(SLOT_GLYPH[s], 30)}
+      ${worn ? itemArt(worn.id, 46, SLOT_GLYPH[s]) : icon(SLOT_GLYPH[s], 30)}
       ${worn && worn.enhanceLevel > 0 ? `<span class="lv">+${worn.enhanceLevel}</span>` : ''}
       <span class="tag">${SLOT_NAME[s]}</span>
     </button>`;
@@ -1275,7 +1419,7 @@ function gearRow(item, slot) {
   const short = !Game.canEnhance(item) && !maxed;
 
   return `<div class="gear ${item.isEquipped ? 'on' : ''}">
-    <span class="face">${itemArt(item.id, 40)}</span>
+    <span class="face">${itemArt(item.id, 40, SLOT_GLYPH[slot])}</span>
     <div>
       <div class="name">${item.name}${item.enhanceLevel > 0 ? ` <b>+${item.enhanceLevel}</b>` : ''}</div>
       <div class="stat">${stats}</div>

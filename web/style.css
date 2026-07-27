@@ -912,6 +912,59 @@ img { display: block; }
 @keyframes door-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ------------------------------------------------------------------ */
+/* 6b. 場面（チュートリアル・物語）                                     */
+/* ------------------------------------------------------------------ */
+
+/* **地はその街のアートのまま。** 紙面に切り替えると読み物になり、
+   「その場所で起きていること」ではなくなる。文字だけを夜の札に載せる。 */
+.scene .world-inner { padding-bottom: 22px; }
+
+/* 立ち絵は向かい合わせる。主人公は右へ歩く絵なので左に置く（戦闘と同じ並び）。
+   **余白は立ち絵の上だけに置く。** 上下で挟むと画面の真ん中に浮き、
+   背景に描かれた道より高い位置に立つので、宙に浮いて見える。 */
+.scene-stage {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 34px; width: 100%;
+}
+.scene-hero { height: 168px; width: auto; filter: drop-shadow(0 5px 4px rgba(0,0,0,.65)); }
+.scene-foe {
+  height: 132px; width: auto; max-width: 168px; object-fit: contain;
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65));
+  animation-delay: .7s;
+}
+
+/* 歩いた分を見せる一拍。**数と紋章を同じ瞬間に動かす。** */
+.scene-gain {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 20px;
+}
+.scene-steps { display: flex; align-items: baseline; gap: 3px; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+.scene-steps .num { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.scene-steps .unit { font-size: .78em; opacity: .8; }
+/* 位が上がった瞬間だけ跳ねる。常に動いていると、上がったことが読めない。 */
+.crest.level-up { animation: crest-up .5s cubic-bezier(.2,1.5,.4,1); }
+@keyframes crest-up {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+.scene-text {
+  margin-top: 18px; padding: 15px 17px;
+  width: 100%;
+  min-height: 5.6em;
+  font-size: 13.5px; line-height: 1.95;
+}
+.scene-text p + p { margin-top: 4px; }
+.scene-hint {
+  margin-top: 12px; text-align: center;
+  font-size: 10px; letter-spacing: .16em; color: rgba(255,255,255,.5);
+  animation: hint-fade 2s ease-in-out infinite alternate;
+}
+/* 送り終わるまで場所だけ空けておく。出た瞬間に他が動くと、読んでいる行がずれる。 */
+.scene-go { margin-top: 12px; }
+
+/* ------------------------------------------------------------------ */
 /* 7. 討伐 — 地図                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -1449,7 +1502,17 @@ img { display: block; }
 }
 /* 持ち物の絵。**枠に合わせて縮める。** 生成物は 1024 角なので、
    そのまま置くと枠を突き破る。 */
-.item-art { object-fit: contain; }
+/* 絵と記号を同じ枠に重ね、絵が読めなかった時だけ記号に入れ替える。
+   **絵の有無で寸法が変わらないこと。** 変わると並びが崩れて、欠けが二重に目立つ。 */
+.item-art {
+  position: relative; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle;
+}
+.item-art img { width: 100%; height: 100%; object-fit: contain; }
+.item-art .art-fallback { display: none; opacity: .5; }
+.item-art.no-art img { display: none; }
+.item-art.no-art .art-fallback { display: inline-flex; }
 .gear.on .face { background: var(--accent-fill); color: #fff; }
 .gear .name { font-size: 14px; font-weight: 800; }
 .gear .name b { color: var(--vigor); font-size: 12px; margin-left: 2px; }

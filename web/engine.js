@@ -21,8 +21,13 @@ const BattleEngine = {
     return Math.max(1, Math.round(base * roll));
   },
 
-  /** 先攻は主人公固定。**戦闘に入る前に勝敗まで確定させる**（§4.1）。 */
-  resolve(player, enemy) {
+  /** 先攻は主人公固定。**戦闘に入る前に勝敗まで確定させる**（§4.1）。
+   *
+   * `guaranteed` はチュートリアル専用（§11-1）。**倒れず、必ず勝つ。**
+   * 装備を渡した上で数値の上も3戦とも100%にしてあるが、乱数に委ねている限り
+   * 「必ず勝つ」を仕様として言えない。ここで断ち切る。
+   * 本編の戦闘からは決して渡さないこと。 */
+  resolve(player, enemy, { guaranteed = false } = {}) {
     let playerHP = player.maxHP;
     let enemyHP = enemy.maxHP;
     const turns = [];
@@ -35,10 +40,19 @@ const BattleEngine = {
 
       const toPlayer = BattleEngine.damage(enemy.atk, player.def);
       playerHP -= toPlayer;
+      // **踏みとどまる。** 削られる手応えは残したまま、倒れる一撃だけを止める。
+      if (guaranteed && playerHP <= 0) playerHP = 1;
       turns.push({ index, attacker: 'enemy', damage: toPlayer, remaining: Math.max(0, playerHP) });
       if (playerHP <= 0) return { turns, result: 'defeat', playerRemainingHP: 0 };
     }
+
     // 30ターンで決着せず＝「活力が尽きて撤退」（§4.2）。
+    if (guaranteed) {
+      // 決着だけは付ける。ここに来ることは想定していないが、
+      // 来た時に「必ず勝つ」が破れる方が困る。
+      turns.push({ index: Balance.maxTurns, attacker: 'player', damage: Math.max(1, enemyHP), remaining: 0 });
+      return { turns, result: 'victory', playerRemainingHP: playerHP };
+    }
     return { turns, result: 'defeat', playerRemainingHP: Math.max(0, playerHP) };
   },
 
@@ -182,6 +196,21 @@ const emptyState = () => ({
 
   /** 導入画面を見せ終えたか。**初回だけ。** */
   seenIntro: false,
+
+  /** チュートリアル（§11-1）を終えたか、と何段目まで進んだか。
+   *
+   * **途中で閉じても続きから再開できるように段を保存する。** 3戦を通す間に
+   * アプリを閉じられる可能性は普通にあり、そこで最初からやり直させると
+   * 「歩かずに理解できる」どころか二度と開かれない。 */
+  seenTutorial: false,
+  tutorialStep: 0,
+
+  /** チュートリアルの「歩く」一拍で歩数を入れ終えたか。
+   *
+   * **段だけでは足りない。** 段が進むのは進むボタンを押した時なので、
+   * 歩数を入れた直後・押す前に閉じられると、開き直すたびに歩数が入る。
+   * §3.4 の二重計上防止と同じ話で、入れた事実そのものを残す必要がある。 */
+  tutorialWalked: false,
 
   /** 完結を見せ終えたか。第3章のボスを倒した後に一度だけ出す（§5.3）。 */
   seenEnding: false,
@@ -404,6 +433,45 @@ const Game = {
 
     Game.applyReward(reward, chapter, index, log.result, node.enemy);
     return { chapter, nodeIndex: index, enemy: node.enemy, log, reward, player: fighter };
+  },
+
+  // ---- チュートリアル（§11-1） ----
+
+  /** いまチュートリアルの何段目か。終わっていれば null。 */
+  get tutorialStage() {
+    if (Game.state.seenTutorial) return null;
+    return TUTORIAL[Game.state.tutorialStep] ?? null;
+  },
+
+  /** 一段進める。最後まで来たら終わりにする。 */
+  advanceTutorial() {
+    Game.state.tutorialStep += 1;
+    if (Game.state.tutorialStep >= TUTORIAL.length) Game.state.seenTutorial = true;
+    Game.save();
+  },
+
+  /** 最初の靴を履かせる。**二度渡さない**（再開したときに増える）。 */
+  grantStarterShoe() {
+    const shoe = Master.starterShoe();
+    if (Game.state.equipment.some((e) => e.id === shoe.id)) return;
+    Game.state.equipment.push({ ...shoe });
+    Game.save();
+  },
+
+  /** チュートリアルの戦闘。**章ゲートと活力の消費を外し、必ず勝つ**（§11-1）。
+   *
+   * 敵も報酬も第1章のノードそのものを使う。専用の敵を置くと、
+   * チュートリアルで倒した相手を本編でもう一度倒すことになる。 */
+  startTutorialBattle(index) {
+    const node = Master.node(1, index);
+    const fighter = Game.fighter;
+    const log = BattleEngine.resolve(fighter, BattleEngine.enemyFighter(node.enemy), { guaranteed: true });
+
+    const alreadyOwned = node.equipment && Game.state.equipment.some((e) => e.id === node.equipment.id);
+    const reward = Rewards.forBattle(node.enemy, log.result, Game.state.hasPass, alreadyOwned ? null : node.equipment);
+
+    Game.applyReward(reward, 1, index, log.result, node.enemy);
+    return { chapter: 1, nodeIndex: index, enemy: node.enemy, log, reward, player: fighter, tutorial: true };
   },
 
   applyReward(reward, chapter, index, result, enemy) {
