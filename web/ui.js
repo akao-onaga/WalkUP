@@ -107,15 +107,19 @@ const Nav = {
     renderHome();
     Nav.refresh();
   },
-  /** 下の階層を作り直す。**アニメーションは付けない**（戻っただけなのに開き直して見える）。 */
-  refresh() {
+  /** 今の階層を作り直す。**アニメーションは付けない**（同じ画面が開き直して見える）。 */
+  rebuild(build) {
     const top = layers[layers.length - 1];
-    if (!top || !top._build) return;
-    const fresh = top._build();
-    fresh._build = top._build;
+    if (!top) return;
+    const fresh = build();
     fresh.classList.add('static');
     layers[layers.length - 1] = fresh;
     frame.replaceChild(fresh, top);
+  },
+  /** 下の階層を、それが自分で覚えている作り方で描き直す。 */
+  refresh() {
+    const top = layers[layers.length - 1];
+    if (top && top._build) Nav.rebuild(top._build);
   },
   replaceTop(el, build) {
     const old = layers.pop();
@@ -153,103 +157,115 @@ function renderHome() {
   const gate = Game.nextGate;
   const next = Game.nextNode;
 
-  const walked = s.player.todayCreditedSteps > 0;
+  const chapter = Game.unlockedChapter;
+  const region = Master.region(chapter);
+  const cap = Balance.dailyStepCap;
 
+  home.className = 'screen world';
   home.innerHTML = `
-    <div class="signboard">
-      <span class="title">Walk UP!</span>
-      <span class="day">${s.player.day} 日目</span>
-    </div>
+    <div class="world-bg" style="background-image:url('${bgOf(chapter)}')"></div>
+    <div class="world-scrim"></div>
 
-    <!-- 図版。**絵を薄めない。** ここが1枚の絵として立っているかどうかで、
-         開いた瞬間に「ゲーム」か「記録アプリ」かが決まる。 -->
-    <div class="plate-art" style="background-image:url('${bgOf(Game.unlockedChapter)}')">
-      <div class="ground"></div>
-      <img class="hero bob" src="${artOf('hero')}" alt="主人公">
-      <div class="voice">
-        <div class="l1">${walked ? '今日も歩いた' : 'まだ歩いていない'}</div>
-        <div class="l2">${walked ? 'その分だけ、世界が目を覚ます。' : '一歩ごとに、止まった街が動き出す。'}</div>
-      </div>
-    </div>
+    ${s.pendingMilestones > 0 ? `
+      <button class="marker" data-act="milestones" title="道標">
+        ${icon('post', 26)}
+        <span class="bubble">${s.pendingMilestones}</span>
+      </button>` : ''}
 
-    <div class="body">
-      <div class="rank-band">
-        <span class="lv">Lv <b>${Game.level}</b></span>
-        <div class="right">
-          <div class="row between">
-            <span class="caption">累計 ${fmt(s.player.cumulativeSteps)} 歩</span>
-            ${outcome && outcome.levelsGained > 0 ? '<span class="badge-up">Lv UP</span>' : ''}
-            ${outcome && outcome.gainedSteps > 0
-              ? `<span class="num" style="font-size:13px;color:var(--accent)">+<span data-gain>0</span> 歩</span>` : ''}
-          </div>
-          ${meter('slim')}
+    <div class="world-inner">
+      <div class="hud">
+        ${crest(Game.level, Game.levelProgress)}
+        <div class="grow"></div>
+        <div class="pills">
+          <span class="pill vigor">${icon('bolt', 13)}${fmt(s.player.ap)}</span>
+          <span class="pill">${icon('cube', 13)}${fmt(Game.dregs)}</span>
         </div>
       </div>
 
-      <div class="tile-row">
-        <div class="tile"><span class="k">${icon('walk', 11)}今日</span><span class="v" data-count="${s.player.todayCreditedSteps}">0</span></div>
-        <div class="tile vigor"><span class="k">${icon('bolt', 11)}活力</span><span class="v" data-count="${s.player.ap}">0</span></div>
-        <div class="tile accent"><span class="k">${icon('cube', 11)}澱</span><span class="v" data-count="${Game.dregs}">0</span></div>
+      <!-- 居場所を出す。アプリ名ではなく地名。RPG が画面上部に出すのと同じ扱い。 -->
+      <div class="place">
+        <div class="ch">第${chapter}章 ・ ${s.player.day} 日目</div>
+        <div class="nm">${region.name}</div>
       </div>
 
-      ${s.pendingMilestones > 0 ? `
-      <button class="notice" data-act="milestones" style="text-align:left;width:100%">
-        <span class="tag">道標</span>
-        <span class="face">${icon('post', 34)}</span>
-        <span>
-          <span class="who" style="display:block">${s.pendingMilestones} つ 残されている</span>
-          <span class="caption">歩いた道のりに、何かが落ちている</span>
-        </span>
-      </button>` : ''}
-
-      ${destinationBlock(next, gate)}
-
-      <button class="btn" data-act="map" ${Game.canBattle ? '' : 'disabled'}>
-        ${icon('map', 18)}${next ? '討伐に出る' : '周回して素材を集める'}
-      </button>
-      <div class="btn-row">
-        <button class="btn secondary" data-act="equip">${icon('shield', 15)}装備・強化</button>
-        <button class="btn secondary" data-act="bestiary">${icon('book', 15)}図鑑</button>
+      <!-- **画面で一番広い面積を絵に渡す。** 主人公はここに立つ。 -->
+      <div class="stage">
+        <div class="ground"></div>
+        <img class="hero bob" src="${artOf('hero')}" alt="主人公">
       </div>
-      <div class="btn-row">
-        <button class="btn secondary" data-act="region">${icon('map', 15)}地域</button>
-        <button class="btn secondary" data-act="pass">${icon('sparkle', 15)}${s.hasPass ? 'パス有効' : '活力パス'}</button>
+
+      ${targetRibbon(next, gate)}
+
+      <div class="night stepbar">
+        <span class="k">今日</span>
+        <span class="v" data-count="${s.player.todayCreditedSteps}">0</span>
+        <span class="cap">/ ${fmt(cap)}</span>
+        <div class="meter" data-step="${s.player.todayCreditedSteps / cap}"><i style="width:0"></i></div>
+        ${outcome && outcome.levelsGained > 0 ? '<span class="badge-up">Lv UP</span>' : ''}
       </div>
-      <div style="height:6px"></div>
+
+      <div class="dock">
+        <button class="btn go" data-act="map" ${Game.canBattle ? '' : 'disabled'}>
+          ${icon('map', 18)}${next ? '討伐に出る' : '周回して素材を集める'}
+        </button>
+        <div class="satellites">
+          <button class="sat" data-act="equip"><span class="disc">${icon('shield', 22)}</span><span class="lb">装備</span></button>
+          <button class="sat" data-act="bestiary"><span class="disc">${icon('book', 22)}</span><span class="lb">図鑑</span></button>
+          <button class="sat" data-act="region"><span class="disc">${icon('map', 22)}</span><span class="lb">地域</span></button>
+          <button class="sat ${s.hasPass ? 'on' : ''}" data-act="pass"><span class="disc">${icon('sparkle', 22)}</span><span class="lb">パス</span></button>
+        </div>
+      </div>
     </div>`;
 
   // 数値は置いた瞬間から回す。「今日も無駄じゃなかった」は数字が動いて初めて伝わる。
   $$(home, '[data-count]').forEach((el) => countUp(el, Number(el.dataset.count)));
-  growMeter($(home, '.rank-band .meter'), Game.levelProgress);
-  if (outcome && outcome.gainedSteps > 0) countUp($(home, '[data-gain]'), outcome.gainedSteps);
+  $$(home, '[data-step]').forEach((m) => growMeter(m, Number(m.dataset.step)));
+  $$(home, '[data-gate]').forEach((m) => growMeter(m, Number(m.dataset.gate)));
+  // 位の環。0 から回す。
+  const arc = $(home, '.crest .arc');
+  const len = Number(arc.dataset.len);
+  requestAnimationFrame(() => { arc.style.strokeDashoffset = len * (1 - Game.levelProgress); });
 }
 
-/** 次の目的地。**高札として出す。** 「見出し＋行」で書くと予定表になる。 */
-function destinationBlock(next, gate) {
+/** 位の紋。**数値を四角い札に入れない。** 丸い紋章に環のゲージが回ると「格」に見える。 */
+function crest(level, progress) {
+  const r = 33;
+  const len = 2 * Math.PI * r;
+  return `<div class="crest">
+    <svg viewBox="0 0 74 74">
+      <circle cx="37" cy="37" r="${r}" fill="none" stroke="rgba(10,9,13,.55)" stroke-width="6"/>
+      <circle class="arc" cx="37" cy="37" r="${r}" fill="none" stroke="var(--vigor)" stroke-width="6"
+              stroke-linecap="round" transform="rotate(-90 37 37)"
+              stroke-dasharray="${len.toFixed(1)}" stroke-dashoffset="${len.toFixed(1)}" data-len="${len.toFixed(1)}"/>
+    </svg>
+    <div class="face"><span class="lv">LV</span><span class="no">${level}</span></div>
+  </div>`;
+}
+
+/** 次の標的。**帯（リボン）で出す。** 四角い箱に入れると予定表に戻る。 */
+function targetRibbon(next, gate) {
   if (next) {
     const node = Master.node(next.chapter, next.index);
     const affordable = Game.player.ap >= node.enemy.apCost;
-    return `<div class="notice">
-      <span class="tag">次の目的地</span>
+    return `<button class="ribbon" data-act="map">
       <span class="face"><img src="${artOf(node.enemy.asset)}" alt=""></span>
-      <span>
-        <span class="where">第${next.chapter}章 ・ ノード ${next.index}</span>
-        <span class="who" style="display:block">${node.enemy.isBoss ? 'ボス：' : ''}${node.enemy.name}</span>
+      <span style="text-align:left">
+        <span class="where" style="display:block">第${next.chapter}章 ・ ノード ${next.index}</span>
+        <span class="who">${node.enemy.isBoss ? 'ボス：' : ''}${node.enemy.name}</span>
       </span>
-      <span class="cost ${affordable ? '' : 'short'}">${icon('bolt', 15)}${node.enemy.apCost}</span>
-    </div>`;
+      <span class="cost ${affordable ? '' : 'short'}">${icon('bolt', 14)}${node.enemy.apCost}</span>
+    </button>`;
   }
   if (gate) {
-    return `<div class="notice" style="display:block">
-      <span class="tag">次の目的地</span>
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px">第${gate.chapter}章の解放まで あと ${fmt(gate.remaining)} 歩</div>
-      <div class="meter slim"><i style="width:${Math.round(gate.progress * 100)}%"></i></div>
-      ${Game.canBattle ? '<div class="caption" style="margin-top:8px">解放を待つ間も、討伐済みのダルモンに再挑戦して素材を集められます。</div>' : ''}
+    // 歩数ゲートに届いていない状態。**ここで「歩けば開く」ことを明示する。**
+    return `<div class="ribbon" style="display:block;padding:10px 22px 10px 14px">
+      <span class="where">次の地へ</span>
+      <div class="who" style="margin:2px 0 7px">第${gate.chapter}章まで あと ${fmt(gate.remaining)} 歩</div>
+      <div class="meter slim" data-gate="${gate.progress}" style="border-color:rgba(232,228,220,.7);background:rgba(255,255,255,.12)"><i style="width:0"></i></div>
     </div>`;
   }
-  return `<div class="notice" style="display:block">
-    <span class="tag">次の目的地</span>
-    <div class="body-text">本編は完結しました。地域の復興を進められます。</div>
+  return `<div class="ribbon" style="padding:12px 22px 12px 14px">
+    <span class="who">世界は動き出した</span>
   </div>`;
 }
 
@@ -257,52 +273,131 @@ function destinationBlock(next, gate) {
 /* 討伐マップ                                                          */
 /* ------------------------------------------------------------------ */
 
-function mapScreen() {
-  const chapters = [1, 2, 3].map((chapter) => {
-    const gate = Master.chapterGate(chapter);
-    const isOpen = Game.player.cumulativeSteps >= gate;
-    const cleared = Game.progress(chapter).isCleared;
+/** 標の座標（%）。下から上へ蛇行させる。
+ *
+ * **等間隔の縦一列にしないこと。** 均等に並んだ点は目次であって地図ではない。
+ * 手で置いた不規則な配置が「道」を作る。 */
+const PIN_SPOTS = [
+  [24, 90], [50, 82], [74, 73], [40, 63], [19, 53], [53, 44], [77, 34], [46, 20],
+];
 
-    const nodes = isOpen ? `<div class="trail">${[...Array(Master.nodesPerChapter)].map((_, i) => {
-      const index = i + 1;
-      const node = Master.node(chapter, index);
-      const done = Game.isNodeCleared(chapter, index);
-      const open = Game.isNodeUnlocked(chapter, index);
-      const affordable = Game.player.ap >= node.enemy.apCost;
-      return `<button class="node ${done ? 'cleared' : ''} ${open ? '' : 'locked'} ${node.enemy.isBoss ? 'boss' : ''}"
-                data-battle="${chapter}-${index}" ${open ? '' : 'disabled'}>
-        <span class="medal">
-          ${open ? `<img src="${artOf(node.enemy.asset)}" alt="">` : icon('lock', 16)}
-          ${done ? `<span class="stamp">${icon('check', 11)}</span>` : ''}
-        </span>
-        <span>
-          <span class="name">${node.enemy.isBoss ? 'ボス：' : ''}${node.enemy.name}</span>
-          ${node.equipment ? `<span class="drop">${icon('shield', 11)}装備を入手</span>` : ''}
-        </span>
-        <span class="cost ${affordable ? '' : 'short'}">${icon('bolt', 13)}${node.enemy.apCost}</span>
-      </button>`;
-    }).join('')}</div>` : `<div class="caption row" style="gap:6px">${icon('lock', 13)}${fmt(gate)} 歩で解放</div>`;
+/** 討伐（画面 #2）。**紙の一覧をやめて地図にした。** 1画面に1章。 */
+function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, selected = null) {
+  const isOpen = Game.player.cumulativeSteps >= Master.chapterGate(chapter);
+  const region = Master.region(chapter);
+  const cleared = Game.progress(chapter).isCleared;
+  const nextIndex = Game.nextNode?.chapter === chapter ? Game.nextNode.index : null;
 
-    // 章は「扉」で開く。見出しの文字だけだと目次になる。
-    return `<div class="panel chapter-card ${isOpen ? '' : 'closed'}">
-      <div class="chapter-door ${isOpen ? '' : 'locked'}" style="background-image:url('${bgOf(chapter)}')">
-        <span class="no">第${chapter}章</span>
-        <h2>${Master.region(chapter).name}</h2>
-        <div class="grow"></div>
-        ${cleared ? `<span class="no">${icon('check', 11)} 制圧</span>` : ''}
-      </div>
-      <div class="chapter-body">${nodes}</div>
-    </div>`;
+  // 道。通った区間と未踏の区間で線を描き分ける。
+  const done = Game.progress(chapter).nodeIndex;
+  const path = (from, to) => PIN_SPOTS.slice(from, to).map(([x, y]) => `${x},${y}`).join(' ');
+
+  const pins = PIN_SPOTS.map(([x, y], i) => {
+    const index = i + 1;
+    const node = Master.node(chapter, index);
+    const isDone = Game.isNodeCleared(chapter, index);
+    const unlocked = Game.isNodeUnlocked(chapter, index);
+    return `<button class="pin ${isDone ? 'cleared' : ''} ${unlocked ? '' : 'locked'}
+              ${node.enemy.isBoss ? 'boss' : ''} ${index === nextIndex ? 'next' : ''} ${index === selected ? 'sel' : ''}"
+            style="left:${x}%; top:${y}%" data-pin="${index}" ${unlocked ? '' : 'disabled'}>
+      ${unlocked ? `<img src="${artOf(node.enemy.asset)}" alt="">` : icon('lock', 18)}
+      <span class="no">${index}</span>
+      ${isDone ? `<span class="stamp">${icon('check', 11)}</span>` : ''}
+    </button>`;
   }).join('');
 
-  const el = make('screen sheet', header('討伐', counter('bolt', Game.player.ap, 'vigor')) + `<div class="body">${chapters}</div>`);
+  const el = make('screen world cover', `
+    <!-- 未開放の地は色を抜くだけ。**暗くしすぎると何も見えず、行きたい気持ちが湧かない。** -->
+    <div class="world-bg" style="background-image:url('${bgOf(chapter)}')${isOpen ? '' : ';filter:grayscale(1) brightness(.92)'}"></div>
+    <div class="world-scrim"></div>
 
-  $$(el, '[data-battle]').forEach((btn) => btn.addEventListener('click', () => {
-    const [chapter, index] = btn.dataset.battle.split('-').map(Number);
-    startBattle(chapter, index);
+    <div class="world-inner">
+      <div class="hud">
+        <button class="round-button" data-act="back" style="background:rgba(18,16,24,.6);border-color:rgba(232,228,220,.8);color:#fff">${icon('back', 15)}</button>
+        <div class="grow"></div>
+        <span class="pill vigor">${icon('bolt', 13)}${fmt(Game.player.ap)}</span>
+      </div>
+
+      <div class="chapter-nav" style="margin-top:8px">
+        <button class="arrow" data-chapter="${chapter - 1}" ${chapter > 1 ? '' : 'disabled'}>${icon('back', 14)}</button>
+        <div class="place" style="flex:1">
+          <div class="ch">第${chapter}章${cleared ? ' ・ 制圧' : ''}</div>
+          <div class="nm">${isOpen ? region.name : '？？？'}</div>
+        </div>
+        <button class="arrow right" data-chapter="${chapter + 1}" ${chapter < 3 ? '' : 'disabled'}>${icon('back', 14)}</button>
+      </div>
+
+      ${isOpen ? `<div class="mapfield">
+        <!-- 非等比の viewBox で引くので、線は non-scaling-stroke で太さを守る。
+             これが無いと縦方向に引き伸ばされて、道が帯になる。 -->
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline class="road-todo" vector-effect="non-scaling-stroke" points="${path(Math.max(0, done - 1), 8)}"/>
+          ${done > 0 ? `<polyline class="road-done" vector-effect="non-scaling-stroke" points="${path(0, done)}"/>` : ''}
+        </svg>
+        ${pins}
+      </div>` : '<div class="grow"></div>'}
+
+      ${isOpen ? selectionPlate(chapter, selected) : `
+        <div class="locked-note night" style="padding:18px">
+          ${icon('lock', 26)}
+          <div style="font-size:15px;font-weight:800;letter-spacing:.08em">この地はまだ閉じている</div>
+          <div style="font-size:12px;opacity:.75">累計 ${fmt(Master.chapterGate(chapter))} 歩で道が開く（いま ${fmt(Game.player.cumulativeSteps)} 歩）</div>
+          <div class="meter slim" data-gate="${Game.player.cumulativeSteps / Master.chapterGate(chapter)}"
+               style="width:200px;margin-top:4px;border-color:rgba(232,228,220,.7);background:rgba(255,255,255,.12)"><i style="width:0"></i></div>
+        </div>
+        <div class="grow"></div>`}
+    </div>`);
+
+  // 標を選ぶ → 下の札が変わる。**選んでから挑む。** 押した瞬間に戦闘が始まると、
+  // 誰と戦うのか分からないまま画面が変わる。
+  $$(el, '[data-pin]').forEach((pin) => pin.addEventListener('click', () => {
+    Nav.rebuild(() => mapScreen(chapter, Number(pin.dataset.pin)));
   }));
-  el._build = mapScreen;
+  $$(el, '[data-chapter]').forEach((btn) => btn.addEventListener('click', () => {
+    Nav.rebuild(() => mapScreen(Number(btn.dataset.chapter)));
+  }));
+  const go = $(el, '[data-go]');
+  if (go) go.addEventListener('click', () => startBattle(chapter, Number(go.dataset.go)));
+  $$(el, '[data-gate]').forEach((m) => growMeter(m, Number(m.dataset.gate)));
+
+  el._build = () => mapScreen(chapter, selected);
   return el;
+}
+
+/** 地図の下端に出す、選んだ標の札。 */
+function selectionPlate(chapter, selected) {
+  if (!selected) {
+    return `<div class="ribbon selection" style="padding:12px 22px 12px 14px;margin-bottom:14px">
+      <span class="who" style="font-size:13px;opacity:.8">標を選ぶ</span>
+    </div>`;
+  }
+  const node = Master.node(chapter, selected);
+  const e = node.enemy;
+  const affordable = Game.player.ap >= e.apCost;
+  const isDone = Game.isNodeCleared(chapter, selected);
+
+  return `<div class="selection" style="margin-bottom:14px">
+    <div class="ribbon" style="margin-bottom:10px">
+      <span class="face"><img src="${artOf(e.asset)}" alt=""></span>
+      <span style="text-align:left">
+        <span class="where" style="display:block">ノード ${selected}${isDone ? ' ・ 討伐済' : ''}${e.isBoss ? ' ・ ボス' : ''}</span>
+        <span class="who">${e.name}</span>
+        <span class="stats">
+          <span>${icon('heart', 10)} ${e.hp}</span>
+          <span>${icon('flame', 10)} ${e.atk}</span>
+          <span>${icon('shield', 10)} ${e.def}</span>
+        </span>
+      </span>
+      <span class="cost ${affordable ? '' : 'short'}">${icon('bolt', 14)}${e.apCost}</span>
+    </div>
+    ${node.equipment && !Game.state.equipment.some((x) => x.id === node.equipment.id)
+      ? `<div class="row" style="gap:6px;color:#E2B486;font-size:11px;font-weight:800;justify-content:center;margin-bottom:10px">
+           ${icon('shield', 12)}${node.equipment.name} を入手できる
+         </div>` : ''}
+    <button class="btn go" data-go="${selected}" ${affordable ? '' : 'disabled'}>
+      ${affordable ? '挑む' : `活力が足りない（必要 ${e.apCost}）`}
+    </button>
+  </div>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -448,35 +543,40 @@ function resultScreen(session) {
 
   const turnCount = Math.ceil(session.log.turns.length / 2);
 
-  const el = make('screen cover result', `
-    <div class="game-header"><div class="grow"></div>
-      <button class="round-button" data-act="close-result">${icon('close', 14)}</button>
-    </div>
-    <div class="body">
-      <div class="result-seal ${won ? '' : 'lost'}">${icon(won ? 'check' : 'zzz', 44)}</div>
-      <div class="result-title">${won ? '討伐した' : '活力が尽きて撤退した'}</div>
-      <div class="caption" style="text-align:center">第${session.chapter}章 ノード${session.nodeIndex} ・ ${session.enemy.name} ・ ${turnCount} ターン</div>
+  // **紙に戻さない。** 戦った場所の上で締める。beige の紙面に切り替えると、
+  // 戦闘の熱が切れて領収書を見せられたようになる。
+  const el = make('screen world cover result', `
+    <div class="world-bg" style="background-image:url('${bgOf(session.chapter)}')"></div>
+    <div class="world-scrim" style="background:linear-gradient(to bottom, rgba(10,9,13,.86), rgba(10,9,13,.7) 45%, rgba(10,9,13,.92))"></div>
 
-      <div class="stack">
-        <div class="row" style="justify-content:center">
-          <span class="plate">${won ? '獲　得' : '持ち帰った分'}</span>
-        </div>
-        ${rows.length === 0 ? '<div class="caption" style="text-align:center">何も持ち帰れなかった</div>' : ''}
-        <div class="loot-grid">
-          ${rows.map(([g, title, amount]) => `<div class="loot hidden">
-            ${icon(g, 30)}
-            <span class="lnum">${amount}</span>
-            <span class="lname">${title}</span>
-          </div>`).join('')}
-        </div>
-        ${Game.state.hasPass && won ? `<div class="caption row" style="gap:5px;color:var(--accent);justify-content:center">${icon('sparkle', 12)}活力パスにより素材と活気が 1.5倍</div>` : ''}
+    <div class="world-inner" style="justify-content:center;gap:14px">
+      <div class="result-seal ${won ? '' : 'lost'}">${icon(won ? 'check' : 'zzz', 44)}</div>
+      <div class="result-title white">${won ? '討伐した' : '撤退した'}</div>
+      <div class="white" style="text-align:center;font-size:11px;letter-spacing:.1em;opacity:.75">
+        第${session.chapter}章 ノード${session.nodeIndex} ・ ${session.enemy.name} ・ ${turnCount} ターン
       </div>
 
-      ${!won ? `<div class="panel warn stack">
-        <div style="font-weight:800;font-size:15px">装備を整えれば勝てる</div>
-        <div class="caption">消費した活力は戻りません。ですが素材は残りました。装備を強化してから、もう一度挑んでください。</div>
-        <button class="btn" data-act="equip">${icon('hammer', 16)}装備を強化する</button>
+      <div class="row" style="justify-content:center;margin-top:6px">
+        <span class="plate night">${won ? '獲　得' : '持ち帰った分'}</span>
+      </div>
+      ${rows.length === 0 ? '<div class="white" style="text-align:center;font-size:12px;opacity:.7">何も持ち帰れなかった</div>' : ''}
+      <div class="loot-grid">
+        ${rows.map(([g, title, amount]) => `<div class="loot hidden">
+          ${icon(g, 30)}
+          <span class="lnum">${amount}</span>
+          <span class="lname">${title}</span>
+        </div>`).join('')}
+      </div>
+      ${Game.state.hasPass && won ? `<div class="white row" style="gap:5px;font-size:11px;justify-content:center;color:#E2B486">${icon('sparkle', 12)}活力パスにより素材と活気が 1.5倍</div>` : ''}
+
+      ${!won ? `<div class="night" style="padding:14px;background:rgba(120,50,50,.5);margin-top:4px">
+        <div class="white" style="font-weight:800;font-size:14px;margin-bottom:6px">装備を整えれば勝てる</div>
+        <div class="white" style="font-size:11px;line-height:1.7;opacity:.85">消費した活力は戻りません。ですが素材は残りました。装備を強化してから、もう一度挑んでください。</div>
       </div>` : ''}
+
+      <div class="grow" style="max-height:24px"></div>
+      ${!won ? `<button class="btn secondary" data-act="equip" style="margin-bottom:10px">${icon('hammer', 15)}装備を強化する</button>` : ''}
+      <button class="btn go" data-act="close-result">${won ? '地図へ戻る' : '出直す'}</button>
     </div>`);
 
   // **1枚ずつ順に出す。** まとめて出すと、何を得たのかが読み飛ばされる。

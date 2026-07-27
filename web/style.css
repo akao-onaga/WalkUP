@@ -8,13 +8,21 @@
  * どれだけ作り込んでも、構造が同じなら同じ顔になる。色や書体の問題ではない。
  *
  * ── ここで採る構造 ──
- * 画集の頁として組む。すなわち **図版（絵）と紙面（文字）を分ける。**
- *   1. 画面上部は「図版」。絵を薄めず、額装して1枚の絵として見せる
- *   2. 図版の下が「紙面」。数値は札に載せ、見出しは墨の帯で打つ
- *   3. 面には必ず 2px のインク線。角丸は不均一にして手で引いた線に寄せる
- *   4. 影はぼかさない。真下に落とす硬い影だけ
- *   5. OS 標準の部品（ナビバー・リスト行・トグル・システムアイコン）は1つも出さない
- *   6. 数値は等幅・極太。必ず動かしてから止める
+ * **画面を2種類に分ける。混ぜない。**
+ *   世界（ホーム・討伐・戦闘）… アートが地。全面に敷き、UI は暗い札として上に浮く
+ *   帳面（装備・図鑑・地域・道標）… 紙が地。下から上げて、開いて読む場面にする
+ *
+ * 紙の上に絵を貼るのではなく、絵の上に UI を浮かせる。順序が逆だった。
+ * 一度これを「枠を凝る」だけで済ませようとして失敗している。線と影をいくら足しても、
+ * 縦積みのカードは縦積みのカードだった。
+ *
+ * 共通の作法：
+ *   1. 面には必ず 2px の線（紙なら ink、世界なら紙色の 82%）
+ *   2. 影はぼかさない。真下に落とす硬い影だけ
+ *   3. 角丸は四隅で半径を変えて、手で引いた線に寄せる
+ *   4. OS 標準の部品（ナビバー・リスト行・トグル・システムアイコン）は1つも出さない
+ *   5. 数値は等幅・極太。必ず 0 から動かしてから止める
+ *   6. 一覧は行で組まない。地図・格子・盤面にする
  *
  * SwiftUI へ移すときの対応は `README.md` に表で置いてある。
  */
@@ -193,6 +201,8 @@ img { display: block; }
   font-size: 12px; font-weight: 800; letter-spacing: .12em;
 }
 .plate.open { background: transparent; color: var(--ink); border: var(--stroke) solid var(--ink); }
+/* 暗い地の上に置く帯。墨のままだと背景に沈む。 */
+.plate.night { background: rgba(18, 16, 24, .6); color: #fff; border: var(--stroke) solid rgba(232, 228, 220, .82); }
 
 .caption { font-size: 12px; color: var(--text-soft); line-height: 1.6; }
 .body-text { font-size: 14px; line-height: 1.75; }
@@ -293,9 +303,6 @@ img { display: block; }
 .chip.on { background: var(--accent-fill); color: #fff; }
 .chip[disabled] { opacity: .45; pointer-events: none; }
 
-.btn-row { display: flex; gap: 10px; }
-.btn-row > * { flex: 1; }
-
 /* ------------------------------------------------------------------ */
 /* 5. 数値とゲージ                                                     */
 /* ------------------------------------------------------------------ */
@@ -359,124 +366,298 @@ img { display: block; }
 .meter.slim { height: 12px; }
 
 /* ------------------------------------------------------------------ */
-/* 6. ホーム — 図版と紙面                                              */
+/* 6. 世界の画面（ホーム・討伐・戦闘）                                 */
 /* ------------------------------------------------------------------ */
 
-/* 看板。アプリ名は見出しではなく**看板**として出す。 */
-.signboard {
-  position: relative; z-index: 2;
-  display: flex; align-items: center; gap: 10px;
-  margin: 14px 16px 0;
-  padding: 9px 14px;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 6px 14px 6px 14px;
-  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .35);
-}
-.signboard .title { font-size: 20px; font-weight: 800; letter-spacing: .1em; }
-.signboard .day { margin-left: auto; font-size: 11px; opacity: .75; letter-spacing: .08em; }
+/* ── ここがゲームに見えるかどうかの分かれ目 ──
+ *
+ * 紙の上に絵を貼ると、どれだけ枠を凝っても「絵の入った書類」にしかならない。
+ * **アートを画面いっぱいに敷き、UI をその上に浮かせる。** 順序が逆。
+ *
+ * この作品では画面を2種類に分ける。混ぜないこと。
+ *   世界（ホーム・討伐・戦闘）… アートが地。UI は暗い札として上に浮く
+ *   帳面（装備・図鑑・地域・道標）… 紙が地。開いて読む場面
+ * 対比があるから、ホームが「外」に、シートが「本を開いた」に見える。
+ */
 
-/* 図版。**絵を薄めない。** 55% まで沈めた背景は「ぼやけた汚れ」にしかならず、
-   世界がそこにある感じは出ない。額に入れて1枚の絵として見せ、
-   下端だけを紙に溶かして、紙面と地続きにする。 */
-.plate-art {
+.world { background: #17151d; }
+.world .world-bg {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center 42%;
+}
+/* 上下を落として文字を読ませる。**中央は落とさない。**
+   全面を均一に暗くすると、絵ではなく単なる暗い背景になる。 */
+.world .world-scrim {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(10,9,13,.72) 0%, rgba(10,9,13,.12) 30%,
+                    rgba(10,9,13,.15) 52%, rgba(10,9,13,.86) 82%, rgba(10,9,13,.94) 100%);
+}
+.world .world-inner {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column;
+  padding: 14px 16px 18px;
+}
+
+/* 世界の上に置く札。**紙ではなく夜の色**にして、白い線で囲う。
+   ここだけ紙色の面を置くと、暗い絵の上に書類が貼られたように浮く。 */
+.night {
+  background: rgba(18, 16, 24, .62);
+  border: var(--stroke) solid rgba(232, 228, 220, .82);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(0, 0, 0, .45);
+  color: #fff;
+}
+.world .white { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.75); }
+
+/* 見出しは**居場所**を出す。アプリ名を出すのは看板であって、ゲームの画面ではない。
+   RPG が画面上部に地名を出すのと同じ。 */
+.place {
+  text-align: center; margin-top: 2px;
+}
+.place .ch {
+  font-size: 10px; font-weight: 800; letter-spacing: .3em;
+  color: rgba(255,255,255,.65); text-shadow: 0 1px 3px rgba(0,0,0,.8);
+}
+.place .nm {
+  font-size: 17px; font-weight: 800; letter-spacing: .16em;
+  color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.85);
+}
+
+/* HUD 上段。左に位、右に持ち物。 */
+.hud { display: flex; align-items: flex-start; gap: 10px; }
+
+/* 位の紋。**数値を四角い札に入れない。**
+   丸い紋章に環のゲージが回っていると、それだけで持ち物ではなく「格」に見える。 */
+.crest { position: relative; width: 74px; height: 74px; flex: none; }
+.crest svg { position: absolute; inset: 0; }
+.crest .arc { transition: stroke-dashoffset .9s cubic-bezier(.2,.8,.3,1); }
+.crest .face {
+  position: absolute; inset: 9px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: var(--stroke) solid var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.crest .face .lv { font-size: 8px; font-weight: 800; letter-spacing: .12em; color: var(--text-soft); }
+.crest .face .no { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* 持ち物。丸めた夜色の札。 */
+.pills { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  background: rgba(18, 16, 24, .66);
+  border: var(--stroke) solid rgba(232, 228, 220, .8);
+  border-radius: 999px;
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.pill.vigor { color: #E2B486; border-color: rgba(226, 180, 134, .85); }
+
+/* 道標の標。**カードにしない。** 世界に落ちている物として、絵の上に置く。 */
+.marker {
+  position: absolute; right: 20px; top: 196px; z-index: 3;
+  width: 58px; height: 58px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(18, 16, 24, .66);
+  border: var(--stroke) solid rgba(232, 228, 220, .85);
+  color: #fff;
+  box-shadow: 0 var(--depth) 0 rgba(0,0,0,.45);
+  animation: marker-breathe 2.4s ease-in-out infinite alternate;
+}
+@keyframes marker-breathe {
+  from { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.45); }
+  to { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(0,0,0,.4); }
+}
+.marker .bubble {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 24px; height: 24px; padding: 0 6px;
+  border-radius: 999px;
+  background: var(--vigor); color: #fff;
+  border: var(--stroke) solid var(--ink);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* 主人公が立つ場。**画面の中で一番広い面積を絵に渡す。** */
+.stage { flex: 1; position: relative; min-height: 0; }
+.stage .hero {
+  position: absolute; left: 50%; bottom: 0;
+  width: 196px; margin-left: -98px;
+  filter: drop-shadow(0 4px 3px rgba(0,0,0,.5));
+}
+.stage .ground {
+  position: absolute; left: 50%; bottom: 4px;
+  width: 150px; height: 22px; margin-left: -75px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.6), rgba(0,0,0,0) 70%);
+}
+
+/* 次の標的。**帯（リボン）で出す。** 四角い箱に入れると予定表に戻る。 */
+.ribbon {
   position: relative;
-  margin: 12px 16px 0;
-  height: 206px;
-  border: var(--stroke) solid var(--ink);
-  border-radius: var(--round);
-  overflow: hidden;
-  background-size: cover;
-  background-position: center 38%;
-  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .28);
-  flex: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px 8px 8px;
+  margin-bottom: 10px;
+  background: rgba(18, 16, 24, .68);
+  border: var(--stroke) solid rgba(232, 228, 220, .82);
+  /* 端を切り落とす。四隅が直角／均一角丸だと部品に見える。 */
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+  color: #fff;
 }
-.plate-art::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(232,228,220,0) 45%, rgba(232,228,220,.55) 78%, var(--paper) 100%);
+.ribbon .face {
+  flex: none; width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(232, 228, 220, .16);
+  border: var(--stroke) solid rgba(232, 228, 220, .7);
+  display: grid; place-items: center; overflow: hidden;
 }
-.plate-art .hero {
-  position: absolute; left: 18px; bottom: 6px; z-index: 1;
-  width: 132px; height: 132px; object-fit: contain;
-  filter: drop-shadow(0 3px 2px rgba(0,0,0,.4));
+.ribbon .face img { width: 40px; height: 40px; object-fit: contain; }
+.ribbon .where { font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.66); }
+.ribbon .who { font-size: 15px; font-weight: 800; letter-spacing: .04em; }
+.ribbon .cost {
+  margin-left: auto; margin-right: 10px;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 14px; font-weight: 800; color: #E2B486;
 }
-/* 接地の影。立ち絵は透過で影を持たないので、UI 側で足さないと浮く。 */
-.plate-art .ground {
-  position: absolute; left: 40px; bottom: 10px; z-index: 0;
-  width: 96px; height: 16px;
-  background: radial-gradient(ellipse at center, rgba(0,0,0,.45), rgba(0,0,0,0) 70%);
-}
-/* 世界の側の言葉。図版の中に置く。紙面に降ろすと説明文になる。 */
-.plate-art .voice {
-  position: absolute; right: 14px; bottom: 14px; z-index: 2;
-  max-width: 190px; text-align: right;
-}
-.plate-art .voice .l1 {
-  font-size: 14px; font-weight: 800; color: var(--ink);
-  text-shadow: 0 1px 0 var(--paper), 0 0 6px var(--paper);
-}
-.plate-art .voice .l2 {
-  font-size: 11px; color: var(--ink); opacity: .78; line-height: 1.5;
-  text-shadow: 0 1px 0 var(--paper), 0 0 6px var(--paper);
-}
+.ribbon .cost.short { color: rgba(255,255,255,.45); }
 
-@keyframes bob { from { transform: translateY(5px); } to { transform: translateY(-5px); } }
-.bob { animation: bob 2.2s ease-in-out infinite alternate; }
-
-/* 級位の帯。Lv とゲージを横一列に置いて、カードの積み重ねを1段減らす。 */
-.rank-band {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  background: var(--card);
-  border: var(--stroke) solid var(--ink);
-  border-radius: var(--round);
-  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+/* 今日の歩数。**この作品の心臓なので、専用の計器を与える。** */
+.stepbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 13px;
+  margin-bottom: 12px;
 }
-.rank-band .lv {
-  font-size: 15px; font-weight: 800; letter-spacing: .08em; line-height: 1;
-  display: flex; align-items: baseline; gap: 4px; flex: none;
-}
-.rank-band .lv b { font-size: 34px; font-variant-numeric: tabular-nums; }
-.rank-band .right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.stepbar .k { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: rgba(255,255,255,.65); flex: none; }
+.stepbar .v { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.stepbar .cap { font-size: 10px; color: rgba(255,255,255,.5); font-variant-numeric: tabular-nums; }
+.stepbar .meter { flex: 1; height: 12px; border-color: rgba(232,228,220,.75); background: rgba(255,255,255,.12); }
 
+/* レベルが上がった日だけ出す判。**毎回出すと祝いの意味が消える。** */
+@keyframes stamp {
+  from { transform: scale(1.7) rotate(-14deg); opacity: 0; }
+  to { transform: scale(1) rotate(-3deg); opacity: 1; }
+}
 .badge-up {
-  padding: 3px 9px 4px; border-radius: 999px;
+  flex: none;
+  padding: 3px 9px 4px; border-radius: 4px 10px 4px 10px;
   background: var(--vigor); color: #fff;
   border: var(--stroke) solid var(--ink);
   font-size: 10px; font-weight: 800; letter-spacing: .08em;
   animation: stamp .32s cubic-bezier(.2, 1.6, .4, 1) both;
 }
-@keyframes stamp {
-  from { transform: scale(1.7) rotate(-14deg); opacity: 0; }
-  to { transform: scale(1) rotate(0); opacity: 1; }
-}
+.stepbar .meter::after { background: repeating-linear-gradient(to right, rgba(255,255,255,.28) 0 1px, transparent 1px 10%); }
 
-/* 次の目的地。**行ではなく高札**として出す。 */
-.notice {
-  position: relative;
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  background: var(--card);
-  border: var(--stroke) solid var(--ink);
-  border-radius: var(--round);
-  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+/* 行動の並び。**同じ幅のボタンを縦に積まない。**
+   主となる一手を大きく、残りを丸い衛星として並べる。 */
+.dock { display: flex; flex-direction: column; gap: 10px; }
+.satellites { display: flex; gap: 10px; justify-content: space-between; }
+.sat {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: #fff;
 }
-.notice .tag {
-  position: absolute; top: -9px; left: 12px;
-  padding: 2px 9px 3px;
-  background: var(--ink); color: var(--paper);
-  font-size: 10px; font-weight: 800; letter-spacing: .1em;
-  border-radius: 3px 8px 3px 8px;
+.sat .disc {
+  width: 54px; height: 54px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(18, 16, 24, .66);
+  border: var(--stroke) solid rgba(232, 228, 220, .82);
+  box-shadow: 0 var(--depth) 0 rgba(0, 0, 0, .5);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
 }
-.notice .face { flex: none; width: 46px; height: 46px; display: grid; place-items: center; }
-.notice .face img { width: 46px; height: 46px; object-fit: contain; }
-.notice .where { font-size: 11px; color: var(--text-soft); letter-spacing: .06em; }
-.notice .who { font-size: 15px; font-weight: 800; }
-.notice .cost { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 800; color: var(--vigor); }
-.notice .cost.short { color: var(--text-soft); }
+.sat:active .disc { transform: translateY(var(--depth)); box-shadow: 0 0 0 rgba(0,0,0,.5); }
+.sat .lb { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.sat.on .disc { background: var(--vigor); }
+
+/* 世界の上に置く主ボタン。塗りは暖色にして、唯一の「進む」手にする。 */
+.btn.go {
+  background: var(--vigor);
+  border-color: var(--ink);
+  box-shadow: 0 var(--depth) 0 var(--ink);
+  letter-spacing: .1em;
+}
 
 /* ------------------------------------------------------------------ */
-/* 7. 討伐 — 道と標                                                    */
+/* 7. 討伐 — 地図                                                      */
+/* ------------------------------------------------------------------ */
+
+/* **一覧ではなく地図にする。**
+ * 8つのノードを縦に並べた行は、どう飾っても目次。地図なら、標の位置そのものが
+ * 「どこまで来たか」を語る。上へ進むほど奥へ入る配置にしてある。 */
+
+/* 地図の面は HUD の中の1段として置く。**絶対配置で全面に敷かない。**
+   全面に敷くと、上に重なる HUD が標のタップを飲み、下端の札が標を隠す。 */
+.mapfield { position: relative; flex: 1; min-height: 0; }
+/* `> svg` に限定する。標の中の記号まで拾うと、錠のアイコンが面いっぱいに伸びる。 */
+.mapfield > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 通った道は実線、これから行く道は点線。**線の種類だけで進行が読める。** */
+.mapfield .road-done { stroke: rgba(226, 180, 134, .9); stroke-width: 3; fill: none; stroke-linecap: round; }
+.mapfield .road-todo { stroke: rgba(232, 228, 220, .45); stroke-width: 3; fill: none; stroke-dasharray: 1.4 3.2; stroke-linecap: round; }
+
+.pin {
+  position: absolute; z-index: 2;
+  width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgba(18, 16, 24, .72);
+  border: var(--stroke) solid rgba(232, 228, 220, .8);
+  box-shadow: 0 var(--depth) 0 rgba(0, 0, 0, .5);
+  display: grid; place-items: center;
+  transition: transform .1s ease-out;
+}
+.pin img { width: 44px; height: 44px; object-fit: contain; }
+.pin.locked { background: rgba(10, 9, 13, .6); border-color: rgba(232, 228, 220, .35); color: rgba(232,228,220,.5); }
+.pin:not(.cleared) img { filter: grayscale(1); opacity: .55; }
+.pin.cleared { border-color: rgba(226, 180, 134, .9); }
+.pin.cleared img { filter: none; opacity: 1; }
+/* 次に挑む標だけ脈を打たせる。**どこへ行けばいいかを迷わせない。** */
+.pin.next { animation: pin-pulse 1.5s ease-in-out infinite alternate; }
+@keyframes pin-pulse {
+  from { box-shadow: 0 3px 0 rgba(0,0,0,.5), 0 0 0 0 rgba(226, 180, 134, .8); }
+  to { box-shadow: 0 3px 0 rgba(0,0,0,.5), 0 0 0 9px rgba(226, 180, 134, 0); }
+}
+.pin.boss { width: 74px; height: 74px; margin: -37px 0 0 -37px; border-width: 3px; }
+.pin.boss img { width: 60px; height: 60px; }
+.pin.sel { border-color: #fff; transform: scale(1.08); }
+.pin .stamp {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--vigor); color: #fff;
+  border: var(--stroke) solid var(--ink);
+}
+.pin .no {
+  position: absolute; left: -6px; top: -6px;
+  min-width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--paper); color: var(--ink);
+  border: var(--stroke) solid var(--ink);
+  font-size: 11px; font-weight: 800;
+}
+
+/* 章の切替。左右の矢と地名だけ。タブや Picker を出さない。
+   左右に余白を取るのは、HUD の戻り口と矢が並んで二重に見えるのを避けるため。 */
+.chapter-nav { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 0 26px; }
+.chapter-nav .arrow {
+  width: 36px; height: 36px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(18, 16, 24, .6);
+  border: var(--stroke) solid rgba(232, 228, 220, .7);
+  color: #fff;
+}
+.chapter-nav .arrow[disabled] { opacity: .3; }
+.chapter-nav .arrow.right svg { transform: scaleX(-1); }
+
+/* 選んだ標の札。地図の下端に出す。 */
+.selection { position: relative; z-index: 3; }
+.selection .stats { display: flex; gap: 12px; margin-top: 2px; }
+.selection .stats span { font-size: 11px; color: rgba(255,255,255,.66); font-variant-numeric: tabular-nums; }
+.locked-note {
+  text-align: center; color: #fff; z-index: 3; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 7b. 章の扉（図鑑で使う）                                            */
 /* ------------------------------------------------------------------ */
 
 /* 章の扉。地域の絵を細く敷き、そこから道が始まる。 */
@@ -501,55 +682,6 @@ img { display: block; }
 .chapter-door.locked { filter: grayscale(1) brightness(.8); }
 .chapter-body { padding: 12px 14px 14px; }
 .panel.closed { opacity: .6; }
-
-/* **一覧を「行」で組まない。** 上から下へ道を1本引き、ノードを標として置く。
-   同じ情報でも、リスト行にした瞬間に設定画面になる。 */
-.trail { position: relative; }
-.trail::before {
-  content: ""; position: absolute;
-  left: 27px; top: 12px; bottom: 12px;
-  width: 0; border-left: 3px dotted rgba(46, 42, 56, .38);
-}
-
-.node {
-  position: relative;
-  display: flex; align-items: center; gap: 12px;
-  width: 100%;
-  padding: 6px 2px;
-  text-align: left;
-}
-.node .medal {
-  position: relative; flex: none;
-  width: 50px; height: 50px;
-  display: grid; place-items: center;
-  background: var(--card);
-  border: var(--stroke) solid var(--ink);
-  border-radius: 50%;
-  box-shadow: 0 2px 0 rgba(46, 42, 56, .45);
-}
-.node .medal img { width: 40px; height: 40px; object-fit: contain; }
-.node.locked .medal { background: rgba(46, 42, 56, .08); }
-.node:not(.cleared) .medal img { filter: grayscale(1); opacity: .5; }
-.node.cleared .medal { background: rgba(95, 91, 118, .22); }
-/* ボスは径を変えずに**二重の輪**で示す。径を変えると道の線から中心がずれる。 */
-.node.boss .medal {
-  border-width: 3px;
-  box-shadow: 0 2px 0 rgba(46, 42, 56, .45), 0 0 0 3px var(--card), 0 0 0 5px var(--ink);
-}
-.node .stamp {
-  position: absolute; right: -3px; bottom: -3px;
-  width: 20px; height: 20px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--card); border: var(--stroke) solid var(--ink);
-  color: var(--accent);
-}
-.node .name { font-size: 14px; font-weight: 700; letter-spacing: .02em; }
-.node.boss .name { font-size: 15px; font-weight: 800; }
-.node .cost { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--vigor); }
-.node .cost.short { color: var(--text-soft); }
-.node[disabled] { opacity: .5; }
-.node:not([disabled]):active .medal { transform: translateY(2px); box-shadow: 0 0 0; }
-.node .drop { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--accent); font-weight: 700; }
 
 /* ------------------------------------------------------------------ */
 /* 8. 戦闘                                                             */
@@ -701,8 +833,15 @@ img { display: block; }
 /* 9. 結果                                                             */
 /* ------------------------------------------------------------------ */
 
-/* 結果は「閉じる」しかない画面。中身を上下の中央に置き、判子で締める。 */
-.result .body { justify-content: center; gap: 16px; }
+/* 世界の上に置く獲得の絵札。紙色のままだと暗い地から浮いて貼り紙に見える。 */
+.world .loot {
+  background: rgba(18, 16, 24, .66);
+  border-color: rgba(232, 228, 220, .8);
+  box-shadow: 0 var(--depth) 0 rgba(0, 0, 0, .5);
+  color: #E2B486;
+}
+.world .loot .lnum { color: #fff; }
+.world .loot .lname { color: rgba(255, 255, 255, .7); }
 
 /* 判子。**大きく傾いた状態から一気に縮んで、わずかに傾いたまま止まる。**
    正位置にきっちり収めると印刷物になる。手で押した跡は少し曲がっている。
@@ -726,6 +865,9 @@ img { display: block; }
   border: 1px solid currentColor; border-radius: 50%; opacity: .5;
 }
 .result-seal.lost { background: rgba(155, 74, 74, .2); color: var(--danger); border-color: var(--danger); }
+/* 暗い地の上では、紙色で塗って**押した判子**にする。半透明のままだと穴に見える。 */
+.world .result-seal { background: var(--paper); box-shadow: 0 4px 0 rgba(0,0,0,.45); }
+.world .result-seal.lost { background: #E4CFCB; }
 .result-title {
   text-align: center; font-size: 24px; font-weight: 800; letter-spacing: .14em;
   animation: stamp .32s cubic-bezier(.2,1.6,.4,1) .05s both;
@@ -747,11 +889,8 @@ img { display: block; }
 .loot .lname { font-size: 10px; color: var(--text-soft); font-weight: 700; text-align: center; line-height: 1.3; }
 .loot .lnum { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
 @keyframes reveal { from { opacity: 0; transform: translateY(12px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.loot.hidden, .reward-row.hidden { opacity: 0; }
-.loot.show, .reward-row.show { animation: reveal .3s cubic-bezier(.2, 1.2, .4, 1) both; }
-
-.reward-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.reward-row .amount { margin-left: auto; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.loot.hidden { opacity: 0; }
+.loot.show { animation: reveal .3s cubic-bezier(.2, 1.2, .4, 1) both; }
 
 /* ------------------------------------------------------------------ */
 /* 10. 図鑑                                                            */
