@@ -132,16 +132,20 @@ const Milestones = {
   },
 
   /** **一括で開ける**（§18.2）。1つずつ開けさせると1セッション3分が壊れる。 */
-  open(count, unlockedChapter, alreadyUnlocked, alreadySighted) {
+  open(count, unlockedChapter, alreadyUnlocked, alreadySighted, loreToday = 0) {
     const finds = [];
     const used = new Set(alreadyUnlocked);
     const sighted = new Set(alreadySighted);
+    let lore = loreToday;
 
     // 引き当て済みなら次の未解放へ回す。読み物として途中が抜けないようにする（§18.6）。
+    // **1日の上限に当たったら、その日はもう出さない**（§18.4）。
     const takeLore = () => {
+      if (lore >= Balance.loreDailyCap) return null;
       const entry = LORE.find((l) => l.chapter <= Math.max(1, unlockedChapter) && !used.has(l.id));
       if (!entry) return null;
       used.add(entry.id);
+      lore += 1;
       return { kind: 'lore', id: entry.id, title: '世界の記述', text: entry.text };
     };
 
@@ -188,6 +192,7 @@ const emptyState = () => ({
   player: {
     cumulativeSteps: 0, ap: 0, todayCreditedSteps: 0, milestoneCreditedToday: 0, day: 1,
     morning: 0, floors: 0, distance: 0,
+    loreCreditedToday: 0, bountyDoneToday: [],
   },
   equipment: [],
   chapters: [1, 2, 3].map((chapterId) => ({ chapterId, nodeIndex: 0, isCleared: false })),
@@ -208,6 +213,13 @@ const emptyState = () => ({
 
   /** 見せ終えた活気の節目（`"1-45"` の形）。**一度見せたら二度出さない。** */
   seenVitalityScenes: [],
+
+  /** 見せ終えた章の山場の場面（`"boss-1-after"` の形）。 */
+  seenStory: [],
+
+  /** 通知の許可を聞き終えたか（§15-4）。**第1章クリア後に一度だけ。** */
+  seenNotifyAsk: false,
+  notifyGranted: false,
 
   /** 歩数の取得を許したか。初回の導入画面で聞く（§11 の権限説明）。 */
   stepAccessGranted: false,
@@ -390,6 +402,7 @@ const Game = {
     p.milestoneCreditedToday = 0;
     p.morning = 0; p.floors = 0; p.distance = 0;
     p.bountyDoneToday = [];
+    p.loreCreditedToday = 0;
     p.day += 1;
     Game.state.lastOutcome = null;
     Game.save();
@@ -413,9 +426,13 @@ const Game = {
     if (count <= 0) return [];
 
     const sighted = Game.state.bestiary.filter((e) => e.isSighted).map((e) => e.darumonId);
-    const finds = Milestones.open(count, Game.unlockedChapter, Game.state.unlockedLore, sighted);
+    const finds = Milestones.open(count, Game.unlockedChapter, Game.state.unlockedLore, sighted,
+      Game.state.player.loreCreditedToday ?? 0);
     for (const find of finds) {
-      if (find.kind === 'lore') Game.state.unlockedLore.push(find.id);
+      if (find.kind === 'lore') {
+        Game.state.unlockedLore.push(find.id);
+        Game.state.player.loreCreditedToday = (Game.state.player.loreCreditedToday ?? 0) + 1;
+      }
       if (find.kind === 'sighting') Game.markSighted(find.id);
       if (find.kind === 'shard') Game.state.materials.core_shard += 1;
     }
@@ -464,6 +481,35 @@ const Game = {
 
     Game.applyReward(reward, chapter, index, log.result, node.enemy);
     return { chapter, nodeIndex: index, enemy: node.enemy, log, reward, player: fighter };
+  },
+
+  // ---- 章の山場の場面 ----
+
+  /** まだ見せていないボス撃破後の場面。無ければ null。
+   *
+   * **状態から導く。** 「いま倒した」という旗を立てて回すと、
+   * 結果画面を閉じ損ねた時などに旗が残り、関係ない場面で出てくる。
+   * 章が制圧済みで、まだ見せていない——これだけで一意に決まる。 */
+  get pendingStory() {
+    for (const chapter of [1, 2, 3]) {
+      const key = `boss-${chapter}-after`;
+      if (Game.progress(chapter).isCleared && !Game.state.seenStory.includes(key)) {
+        return { key, chapter, lines: STORY_SCENES[key] ?? [] };
+      }
+    }
+    return null;
+  },
+
+  /** ボスに挑む直前の場面。まだ見せていなければ返す。 */
+  bossIntroScene(chapter) {
+    const key = `boss-${chapter}-before`;
+    if (Game.state.seenStory.includes(key) || !STORY_SCENES[key]) return null;
+    return { key, chapter, lines: STORY_SCENES[key] };
+  },
+
+  markStory(key) {
+    if (!Game.state.seenStory.includes(key)) Game.state.seenStory.push(key);
+    Game.save();
   },
 
   // ---- 活気の節目と施設（§6.1 / §6.2） ----

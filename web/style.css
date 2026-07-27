@@ -897,12 +897,29 @@ img { display: block; }
   color: #2A2530;
   text-shadow: 0 1px 0 rgba(255,255,255,.28);
 }
+/* 複数行を送る。**行ごとに場所を先に空けておく**（min-height）。
+   出るたびに下の物が押し下がると、読んでいる行が動く。 */
+.door-lines { margin-top: 26px; max-width: 310px; min-height: 7.2em; }
 .door-line {
-  margin-top: 26px;
-  max-width: 300px; min-height: 3.4em;
   text-align: center;
   font-size: 14px; line-height: 1.95;
   text-shadow: 0 2px 6px rgba(0,0,0,.95);
+}
+.door-line + .door-line { margin-top: 8px; }
+
+/* 完結の「まだ戻っていない場所」。**数字の隣に、次に開く物を置く。**
+   進捗だけを見せると、何をすれば戻るのかが分からないまま終わる。 */
+.ending-row + .ending-row { margin-top: 11px; }
+.ending-next {
+  margin-top: 3px; padding-left: 121px;
+  font-size: 10px; letter-spacing: .04em;
+  color: rgba(226, 180, 134, .82);
+}
+.ending-note {
+  margin-top: 14px;
+  font-size: 11px; line-height: 1.75;
+  color: rgba(255, 255, 255, .68);
+  text-align: center;
 }
 .door-hint {
   margin-top: 30px;

@@ -541,6 +541,17 @@ function maybeInterlude() {
   if (Tutorial.active && Tutorial.run()) return;
   const door = Game.pendingDoor;
   if (door !== null) { Nav.push(chapterDoorScreen(door)); return; }
+  // 章の山場。**扉の直後、活気の節目より前。** ボスを倒した話は本編の筋なので、
+  // 街が戻っていく話（活気）より先に来なければ順序が入れ替わって読める。
+  const story = Game.pendingStory;
+  if (story) {
+    Nav.push(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines },
+      () => { Game.markStory(story.key); Nav.pop(); }));
+    return;
+  }
+  // 通知の許可（§15-4）。**第1章クリア後に一度だけ。** 山場の場面の後に置く。
+  // ボスを倒した余韻の中で聞くのが、いちばん許可率が高い（§15-4 の根拠）。
+  if (Game.progress(1).isCleared && !Game.state.seenNotifyAsk) { Nav.push(notifyAskScreen()); return; }
   // 活気の節目（§6.1）。**扉の後、完結の前。** 街が戻っていく話は本編の進行より下の層。
   const step = Game.pendingVitalityScene;
   if (step) {
@@ -669,6 +680,49 @@ function introScreen() {
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* 通知の許可（§15-4）                                                  */
+/* ------------------------------------------------------------------ */
+
+/** 第1章をクリアした直後に一度だけ聞く。
+ *
+ * **初回起動時に聞かない**（§15-4）。オンボーディングが重くなり初日離脱が増える。
+ * 第1章クリアは「面白い」と判断した直後なので、許可率が最も高くなる地点。
+ *
+ * **催促の言葉を使わない。** 「毎日歩きましょう」「連続記録が途切れます」は
+ * 習慣化アプリの語彙そのもので、`web/README.md` §1 の失敗を通知の側から呼び戻す。
+ * 知らせるのは**街に起きたこと**であって、こちらの行動への催促ではない。 */
+function notifyAskScreen() {
+  const el = make('screen cover world intro', `
+    <div class="world-bg" style="background-image:url('${bgOf(1)}')"></div>
+    <div class="world-scrim"></div>
+    <div class="intro-inner">
+      <img class="intro-hero bob" src="${artOf('hero_stand')}" alt="主人公">
+      <div class="intro-copy">
+        <p class="l1">止まった住宅街を、取り戻した。</p>
+        <p class="l2">この先、あなたが見ていない間にも街は動く。</p>
+      </div>
+      <div class="intro-note">
+        ${row2('街に起きたことを知らせる', '戸が開いた、誰かが起きた——そういう報せだけを送ります。')}
+        ${row2('歩けとは言わない', '歩数が足りないことも、間が空いたことも通知しません。')}
+      </div>
+      <button class="btn go" data-act="notify-yes">報せを受け取る</button>
+      <button class="btn secondary" data-act="notify-no" style="margin-top:10px">いまはいい</button>
+    </div>`);
+
+  // **断った人を行き止まりに入れない。** どちらを押しても同じ場所へ抜ける。
+  const finish = (granted) => {
+    Game.state.notifyGranted = granted;
+    Game.state.seenNotifyAsk = true;
+    Game.save();
+    Sound.play('page');
+    Nav.pop();
+  };
+  $(el, '[data-act="notify-yes"]').addEventListener('click', () => finish(true));
+  $(el, '[data-act="notify-no"]').addEventListener('click', () => finish(false));
+  return el;
+}
+
 /** 導入画面の箇条。**箇条書きの点を打たない。** 印を打つと約款に見える。 */
 function row2(title, body) {
   return `<div class="intro-row">
@@ -688,8 +742,14 @@ function row2(title, body) {
  * 続ける理由がその場で消える。**残っているものを見せて、復興へ渡す。** */
 function endingScreen() {
   const remaining = [1, 2, 3]
-    .map((c) => ({ chapter: c, life: Game.vitality(c) }))
+    .map((c) => ({ chapter: c, life: Game.vitality(c), stage: Game.facilityStage(c) }))
     .filter((r) => r.life < Balance.vitalityMax);
+
+  // **「まだ戻っていない」だけでは足りない。** 何をすれば戻るのかが無いと、
+  // 数字を見せられて終わる。その地域で次に開く物を、同じ行に添える。
+  const nextThing = (r) => (r.stage === 0
+    ? `活気 45 で ${FACILITIES[r.chapter].name} が開く`
+    : `活気 100 で ${FACILITIES[r.chapter].name} が伸びる`);
 
   const el = make('screen cover door ending', `
     <div class="door-inner">
@@ -697,20 +757,24 @@ function endingScreen() {
       <div class="door-frame">
         <div class="door-art" style="background-image:url('${bgAliveOf(3)}')"></div>
       </div>
-      <p class="door-line"></p>
+      <div class="door-lines"><p class="door-line"></p></div>
       ${remaining.length ? `
         <div class="ending-left">
           <span class="plate night">まだ戻っていない場所</span>
           <div class="stack" style="margin-top:10px;width:100%">
-            ${remaining.map((r) => `<div class="row" style="gap:9px">
-              <span style="font-size:11px;color:rgba(255,255,255,.72);flex:none;width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${Master.region(r.chapter).name}</span>
-              <!-- **ゲージに flex を与える。** flex 行の中では既定で幅0まで縮む。 -->
-              <div class="meter vigor slim" style="flex:1;border-color:rgba(232,228,220,.6);background:rgba(255,255,255,.12)">
-                <i style="width:${r.life}%"></i>
+            ${remaining.map((r) => `<div class="ending-row">
+              <div class="row" style="gap:9px">
+                <span style="font-size:11px;color:rgba(255,255,255,.72);flex:none;width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${Master.region(r.chapter).name}</span>
+                <!-- **ゲージに flex を与える。** flex 行の中では既定で幅0まで縮む。 -->
+                <div class="meter vigor slim" style="flex:1;border-color:rgba(232,228,220,.6);background:rgba(255,255,255,.12)">
+                  <i style="width:${r.life}%"></i>
+                </div>
+                <span class="num" style="font-size:11px;color:#E2B486;flex:none">${r.life}<small>/100</small></span>
               </div>
-              <span class="num" style="font-size:11px;color:#E2B486;flex:none">${r.life}<small>/100</small></span>
+              <div class="ending-next">${nextThing(r)}</div>
             </div>`).join('')}
           </div>
+          <div class="ending-note">討伐を続けると活気が戻る。戻った分だけ、街は使えるようになる。</div>
         </div>` : ''}
       <div class="door-hint">画面を触って戻る</div>
     </div>`);
@@ -756,18 +820,38 @@ function chapterDoorScreen(chapter) {
       <div class="door-frame">
         <div class="door-art" style="background-image:url('${doorOf(chapter)}')"></div>
       </div>
-      <p class="door-line"></p>
+      <div class="door-lines">${Master.doorLines(chapter).map(() => '<p class="door-line"></p>').join('')}</div>
       <div class="door-hint">画面を触って進む</div>
     </div>`);
 
-  // 一行は送る。扉で足を止めさせるのは、ここで読ませたいからで、
+  // 送る。扉で足を止めさせるのは、ここで読ませたいからで、
   // 読ませたい文章を一度に出すと読まれない。
-  const line = $(el, '.door-line');
+  const lines = Master.doorLines(chapter);
+  const paragraphs = $$(el, '.door-line');
   let typing = null;
-  setTimeout(() => { typing = typeInto(line, Master.doorLine(chapter), { speed: 46 }); }, 1100);
+  let skipped = false;
+  let done = false;
+
+  (async () => {
+    await sleep(1100);
+    for (let i = 0; i < paragraphs.length; i++) {
+      if (skipped) { paragraphs[i].textContent = lines[i]; continue; }
+      typing = typeInto(paragraphs[i], lines[i], { speed: 46 });
+      await typing;
+      await sleep(300);
+    }
+    done = true;
+  })();
 
   el.addEventListener('click', () => {
-    if (typing && line.textContent !== Master.doorLine(chapter)) { typing.stop(); return; }
+    // 一度目の接触は「最後まで出す」、二度目で進む。**読み終える前に閉じさせない。**
+    if (!done && !skipped) {
+      skipped = true;
+      typing?.stop();
+      paragraphs.forEach((p, i) => { p.textContent = lines[i]; });
+      done = true;
+      return;
+    }
     Game.markDoorSeen(chapter);
     Sound.play('page');
     Nav.pop();
@@ -1254,6 +1338,19 @@ function wireFacility(el, chapter, id) {
 /* ------------------------------------------------------------------ */
 
 function startBattle(chapter, index) {
+  // ボスの前に一度だけ場面を挟む。**名乗りだけでは、章の山場に何も残らない。**
+  // 挟むのは初回のみ。周回のたびに読ませると、二度目からは飛ばす画面になる。
+  const intro = index === Master.nodesPerChapter ? Game.bossIntroScene(chapter) : null;
+  if (intro) {
+    Nav.push(sceneScreen({ kind: 'scene', chapter, lines: intro.lines, foe: Master.boss(chapter).asset }, () => {
+      Game.markStory(intro.key);
+      const session = Game.startBattle(chapter, index);
+      // ここで挑めなかったら地図へ戻す。**場面だけ見せて放り出さない。**
+      if (session.error) { toast(session.error); Nav.pop(); return; }
+      Nav.curtainTo(() => Nav.replaceTop(battleScreen(session)));
+    }));
+    return;
+  }
   const session = Game.startBattle(chapter, index);
   if (session.error) { toast(session.error); return; }
   Nav.curtainTo(() => Nav.push(battleScreen(session)));
@@ -1985,7 +2082,7 @@ frame.addEventListener('click', (event) => {
   if (!target) return;
   switch (target.dataset.act) {
     case 'back': Sound.play('page'); Nav.pop(); break;
-    case 'close-result': Nav.pop(); break;
+    case 'close-result': closeResult(); break;
     case 'map': leaveForMap(); break;
     case 'equip': Sound.play('page'); Nav.push(equipScreen()); break;
     case 'bestiary': Sound.play('page'); Nav.push(bestiaryScreen()); break;
@@ -1995,6 +2092,22 @@ frame.addEventListener('click', (event) => {
     case 'milestones': Sound.play('page'); Nav.push(milestoneScreen(Game.openMilestones())); break;
   }
 });
+
+/** 結果画面を閉じる。
+ *
+ * **ボスを倒した直後の場面は、地図に戻る前に出す。**
+ * `maybeInterlude` は「階層が空になった時」しか見ないので、
+ * 地図の上に戦闘を重ねている間（階層に地図が残っている）は永久に出てこない。
+ * 倒した → 結果 → 地図 と進んでしまい、章の山場がホームへ帰るまで持ち越される。 */
+function closeResult() {
+  const story = Game.pendingStory;
+  if (story) {
+    Nav.replaceTop(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines },
+      () => { Game.markStory(story.key); Nav.pop(); }));
+    return;
+  }
+  Nav.pop();
+}
 
 /** 討伐へ出る。**主人公が歩き去ってから地図を開く。**
  *  その場で画面が差し替わると「画面遷移」だが、歩いて出て行くと「移動」になる。 */
