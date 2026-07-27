@@ -170,6 +170,23 @@ img { display: block; }
 }
 #curtain.on { opacity: 1; }
 
+/* 場面転換のワイプ。**暗転だけだと「次の頁」に見える。**
+   上下の帯が逆方向から閉じ、そのまま逆へ抜けると、場所が切り替わったと伝わる。
+   斜めに傾けているのは、水平の帯だと画面分割の UI に見えるため。 */
+#wipe { position: absolute; inset: 0; z-index: 92; pointer-events: none; visibility: hidden; }
+#wipe.on { visibility: visible; }
+#wipe i {
+  position: absolute; left: -25%; width: 150%; height: 52%;
+  background: #141119;
+  box-shadow: 0 0 0 2px rgba(232, 228, 220, .12);
+}
+#wipe i.a { top: 0; transform: translateX(-120%) skewX(-11deg); }
+#wipe i.b { bottom: 0; transform: translateX(120%) skewX(-11deg); }
+#wipe.close i { transition: transform .26s cubic-bezier(.4, 0, .2, 1); transform: translateX(0) skewX(-11deg); }
+#wipe.open i { transition: transform .3s cubic-bezier(.5, 0, .8, .3); }
+#wipe.open i.a { transform: translateX(120%) skewX(-11deg); }
+#wipe.open i.b { transform: translateX(-120%) skewX(-11deg); }
+
 /* ------------------------------------------------------------------ */
 /* 2. 紙面の部品                                                       */
 /* ------------------------------------------------------------------ */
@@ -385,6 +402,93 @@ img { display: block; }
   position: absolute; inset: 0;
   background-size: cover; background-position: center 42%;
 }
+
+/* ── 生気（活気ゲージ）を風景で返す ──
+ *
+ * **この作品の主題は「止まった世界が、歩いた分だけ動き出す」。**
+ * それをシートの中の数値とバーで済ませていた。歩いた成果が風景に返らないなら、
+ * 活気という仕組みは無いのと同じ。ここで見せる。
+ *
+ * 層の重ね順（下から）:
+ *   world-bg      … 止まったままの街
+ *   world-alive   … 活気が満ちた街。opacity = 活気 / 100 で重なる
+ *   lamps         … 灯り。段階的に点く
+ *   distant       … 遠景のダルモン。討伐すると消える
+ *   motes         … 空気中の粒。活気が上がるほど暖色で速く漂う
+ */
+
+.world .world-alive {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center 42%;
+  transition: opacity 1.2s ease-out;
+}
+/* 本物の「復興後」が来るまでの擬似版。彩度と明度を上げ、暖色へ寄せる。
+   絵として正しくはないが、**機構が正しく動いているかは確かめられる。** */
+.world .world-alive.faux { filter: saturate(1.75) brightness(1.22) hue-rotate(-10deg) contrast(1.04); }
+
+/* 息づかい。静止画のままだと「止まった世界」ではなく「ただの画像」に見える。
+   ごく僅かに膨らませ続けると、空気があるように見える。**気づかれない大きさに留める。** */
+@keyframes breathe { from { transform: scale(1); } to { transform: scale(1.035); } }
+.world .world-bg, .world .world-alive { animation: breathe 24s ease-in-out infinite alternate; }
+
+/* 灯り。窓・自販機・街灯のあたりに置く暖色のにじみ。
+   **輪郭を持たせない。** 円が見えると絵の上の図形になる。 */
+.lamps { position: absolute; inset: 0; pointer-events: none; }
+.lamp {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 150, .85), rgba(255, 190, 110, .35) 42%, rgba(255, 180, 100, 0) 70%);
+  opacity: 0;
+  transition: opacity 1.4s ease-out;
+  animation: lamp-flicker 5s ease-in-out infinite alternate;
+}
+@keyframes lamp-flicker { from { filter: brightness(.88); } to { filter: brightness(1.12); } }
+
+/* 遠景のダルモン。**襲ってこない。ただそこにいる。**
+   §18.4 の設定どおり、居るだけで気力を抜く存在として背景に沈めておく。
+   その章の未討伐ノードの数だけ現れ、討伐すると消える。 */
+.distant { position: absolute; inset: 0; pointer-events: none; }
+.distant img {
+  position: absolute;
+  /* **暗い影を暗い背景に置いても見えない。** 縁にごく弱い光を回して形だけ読ませる。
+     濃くすると主人公と競うので、明度は落としたまま輪郭で存在を示す。 */
+  filter: brightness(.28) blur(.4px)
+          drop-shadow(0 0 5px rgba(226, 214, 200, .38))
+          drop-shadow(0 0 1px rgba(226, 214, 200, .5));
+  opacity: .75;
+  transition: opacity 1s ease-out, transform 1s ease-out;
+  animation: bob 3.6s ease-in-out infinite alternate;
+}
+.distant img.gone { opacity: 0; transform: scaleY(.2) translateY(10px); }
+
+/* 空気中の粒。活気が低いと灰色でほとんど動かず、高いと暖色で漂う。 */
+.motes { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.mote {
+  position: absolute;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(232, 228, 220, .55);
+  animation: drift linear infinite;
+}
+@keyframes drift {
+  from { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  to { transform: translate(22px, -120px); opacity: 0; }
+}
+
+/* 気配の目盛り。地名の下に短く出す。**数値は書かない。**
+   何%かではなく「戻ってきているか」だけ分かればいい。 */
+.life-mark {
+  width: 64px; height: 4px; margin: 6px auto 0;
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.life-mark i {
+  display: block; height: 100%;
+  background: #E2B486;
+  transition: width 1.2s cubic-bezier(.2, .8, .3, 1);
+}
 /* 上下を落として文字を読ませる。**中央は落とさない。**
    全面を均一に暗くすると、絵ではなく単なる暗い背景になる。 */
 .world .world-scrim {
@@ -480,6 +584,28 @@ img { display: block; }
   display: grid; place-items: center;
   font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
 }
+
+/* 待機の揺れ。ART_PROMPTS の sluggish / drowsy に合わせ、あえて遅くしている。
+   主人公と遠景のダルモンで共用する。 */
+@keyframes bob { from { transform: translateY(5px); } to { transform: translateY(-5px); } }
+.bob { animation: bob 2.2s ease-in-out infinite alternate; }
+
+/* 歩いて画面に入る。**止まった絵で始めない。**
+   この世界で唯一動いている存在なので、最初の一動作を「移動」にする。
+   減速しながら定位置に収まり、そのまま待機の揺れへ引き渡す。 */
+@keyframes walk-in {
+  from { transform: translateX(-130px) translateY(5px); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: translateX(0) translateY(5px); opacity: 1; }
+}
+.walk-in { animation: walk-in 1s cubic-bezier(.22, .7, .3, 1) both; }
+
+/* 討伐へ出る。**画面を差し替えるのではなく、歩いて出て行く。** */
+@keyframes walk-out {
+  from { transform: translateX(0) translateY(5px); opacity: 1; }
+  to { transform: translateX(190px) translateY(5px); opacity: 0; }
+}
+.walk-out { animation: walk-out .6s cubic-bezier(.5, 0, .8, .4) both; }
 
 /* 主人公が立つ場。**画面の中で一番広い面積を絵に渡す。** */
 .stage { flex: 1; position: relative; min-height: 0; }
@@ -732,6 +858,13 @@ img { display: block; }
 .gauge-plate .hp { width: 46px; text-align: right; font-size: 12px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
 .gauge-plate .who { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: rgba(255,255,255,.7); flex: none; }
 
+/* 残りが少ない時。**数字を読ませずに危うさを伝える。** */
+@keyframes critical {
+  from { border-color: rgba(232,228,220,.5); box-shadow: 0 0 0 0 rgba(155,74,74,0); }
+  to { border-color: rgba(219,120,120,.95); box-shadow: 0 0 14px 0 rgba(155,74,74,.55); }
+}
+.gauge-plate.critical { animation: critical .55s ease-in-out infinite alternate; }
+
 .field { flex: 1; display: flex; align-items: flex-end; gap: 8px; padding-bottom: 18px; }
 .fighter { position: relative; flex: 1; display: flex; justify-content: center; align-items: flex-end; }
 /* 立ち絵は背景が透過で影を持たない（アートの規約）。**接地の影は UI 側で足す。**
@@ -822,6 +955,45 @@ img { display: block; }
 @keyframes sole-fade { from { opacity: .9; transform: rotate(-12deg) scale(.9); } to { opacity: 0; transform: rotate(-12deg) scale(1.1); } }
 
 .battle .hit-flash { position: absolute; inset: 0; background: var(--danger); opacity: 0; pointer-events: none; transition: opacity .18s ease-out; }
+
+/* とどめ。振りかぶってから、止める時間を倍にして、画面を一瞬抜く。 */
+.fighter.wind-up img { transform: translateX(-14px) scale(1.04); transition: transform .26s cubic-bezier(.3,-0.4,.6,1); }
+.fighter.foe.wind-up img { transform: translateX(14px) scale(1.04); }
+.battle.impact::after {
+  content: ""; position: absolute; inset: 0; z-index: 5;
+  background: rgba(255, 252, 245, .5);
+  pointer-events: none;
+  animation: impact-flash .22s ease-out both;
+}
+@keyframes impact-flash { from { opacity: 1; } to { opacity: 0; } }
+
+/* ボスの名乗り。**雑魚と同じ入り方をすると、ボスがただの強い個体になる。**
+   暗幕を落として名前だけを大きく置き、字間が詰まりながら収まる。 */
+.boss-intro {
+  position: absolute; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  background: rgba(8, 7, 11, .82);
+  animation: boss-veil 1.75s ease-in-out both;
+  pointer-events: none;
+}
+.boss-intro .bn {
+  color: #fff;
+  font-size: 34px; font-weight: 800;
+  text-shadow: 0 3px 10px rgba(0,0,0,.9);
+  animation: boss-name 1.75s cubic-bezier(.2, .8, .3, 1) both;
+}
+@keyframes boss-veil {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  74% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes boss-name {
+  0% { letter-spacing: .9em; opacity: 0; transform: scale(1.25); }
+  22% { letter-spacing: .3em; opacity: 1; transform: scale(1); }
+  74% { letter-spacing: .3em; opacity: 1; transform: scale(1); }
+  100% { letter-spacing: .22em; opacity: 0; transform: scale(.97); }
+}
 
 /* 画面ごと揺らす。個々の要素ではなく画面が動くと衝撃に見える。 */
 @keyframes shake-l { 0%{transform:translateX(0)} 25%{transform:translateX(9px)} 50%{transform:translateX(-6px)} 75%{transform:translateX(4px)} 100%{transform:translateX(0)} }
@@ -1025,6 +1197,15 @@ img { display: block; }
 @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .scripture p.hidden { opacity: 0; }
 .scripture p.show { animation: fade-in .35s ease-out both; }
+/* 送っている最中も高さを確保しない。**文字が増えるたびに下が動くのが読み物の呼吸。** */
+.scripture p:empty { min-height: 0; }
+
+.skip-hint {
+  align-self: center;
+  font-size: 10px; color: var(--text-soft); letter-spacing: .1em;
+  animation: hint-fade 2s ease-in-out infinite alternate;
+}
+@keyframes hint-fade { from { opacity: .35; } to { opacity: .9; } }
 
 .pass-hero { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .pass-price { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }

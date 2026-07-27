@@ -398,6 +398,49 @@ oppressive sky.
 
 ---
 
+## 3.7.1 復興後の地域背景（3枚・2026-07-27 追加）
+
+活気ゲージ（§17.9）が満ちた状態の背景。**同じ場所の「戻ってきた」姿**を1枚ずつ作り、
+活気 0〜100 に応じて元の背景の上に重ねてクロスフェードさせる（`web/style.css` の
+`.world-alive`、`web/ui.js` の `worldLayers`）。
+
+歩いた成果を数値ではなく風景で返すための素材で、この作品の主題そのものを担う。
+
+### 生成方法の制約（守らないと使えない）
+
+**新規に文章から生成しないこと。** 必ず既存の `assets/generated/bg{1,2,3}.png` を
+入力にした画像編集（img2img / inpaint）で作る。構図・視点・建物の配置が1ピクセルでも
+ずれると、重ねたときに別の場所へ溶暗するだけの絵になり、「同じ街が戻ってきた」に
+見えない。**変えてよいのは光・色・そこに在る物だけ。**
+
+```
+EDIT INSTRUCTION (apply to the existing background image, keep the composition
+identical — same viewpoint, same buildings, same camera, same framing):
+
+- Keep every structure, road, pole, and object in exactly the same position.
+- The place has come back to life. Windows and signs are lit with warm amber
+  light. The vending machine glows. Street lamps are on.
+- Raise the overall value slightly and warm the palette toward amber, while
+  staying inside the same limited, desaturated grey-violet and dusty blue range.
+  Do not make it saturated or cheerful — this is a quiet return, not a festival.
+- Remove signs of abandonment: shutters half open instead of closed, mail no
+  longer spilling, weeds thinner.
+- Still no people and no creatures anywhere. The life is in the light, not in
+  figures.
+- Same flat vector style, same bold uniform dark outline, no gradients, no glow
+  sprites, no texture.
+- Keep the CENTER of the image visually quiet — character art sits on top of it.
+```
+
+出力先は `WalkUP/Assets.xcassets/Regions/bg{n}_alive.imageset/bg{n}_alive.png`。
+3枚が揃ったら `web/data.js` の `HAS_ALIVE_ART` を `true` にする。
+それまでは既存背景に暖色補正をかけた擬似版で機構だけ動いている（`.world-alive.faux`）。
+
+**後処理は背景用の設定で通すこと。** `artpipeline` の既定は立ち絵向け（透過・切り出し・
+70% 配置）なので、背景にそのまま掛けると壊れる。
+
+---
+
 ## 3.8 主人公
 
 **ダルモン用の STYLE SPEC は使えない。** mood が正反対（あちらは inert、こちらは

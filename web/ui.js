@@ -54,6 +54,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const $ = (root, sel) => root.querySelector(sel);
 const $$ = (root, sel) => [...root.querySelectorAll(sel)];
 
+/** 文字送り。
+ *
+ * **読み物は、置くのではなく送る。** 完成した文章を一度に出すと、
+ * 目に入った瞬間に「読むか読まないか」を選ばれてしまう。1文字ずつ出れば読み始めている。
+ * 句読点で息を置くと、朗読の間になる。
+ *
+ * 途中で止められること（`stop`）が要件。**待たされる読み物は二度と開かれない。** */
+function typeInto(el, text, { speed = 32 } = {}) {
+  let index = 0;
+  let timer = null;
+  let finish;
+  el.textContent = '';
+
+  const done = new Promise((resolve) => { finish = resolve; });
+
+  const tick = () => {
+    el.textContent = text.slice(0, ++index);
+    if (index % 3 === 0) Sound.play('type');
+    if (index >= text.length) { finish(); return; }
+    // 句読点の後だけ長く置く。均等に送ると機械の出力に見える。
+    const ch = text[index - 1];
+    timer = setTimeout(tick, '、，'.includes(ch) ? speed * 6 : '。！？'.includes(ch) ? speed * 10 : speed);
+  };
+  tick();
+
+  // **止めた時も必ず解決させる。** ここを忘れると、送りを飛ばした後の続きが永久に来ない。
+  done.stop = () => { clearTimeout(timer); el.textContent = text; finish(); };
+  return done;
+}
+
 /** 数を回して見せる。**完成値をいきなり置くと、同じ数でも受け取られ方がまるで違う。** */
 function countUp(el, target, duration = 700) {
   const start = performance.now();
@@ -134,6 +164,22 @@ const Nav = {
     await sleep(60);
     curtain.classList.remove('on');
   },
+
+  /** 帯で切り替える。討伐へ入る時のように、場所が変わったと伝えたい所で使う。 */
+  async wipeTo(build) {
+    const w = document.getElementById('wipe');
+    Sound.play('transition');
+    w.classList.add('on');
+    w.classList.remove('open');
+    requestAnimationFrame(() => w.classList.add('close'));
+    await sleep(290);
+    build();
+    await sleep(110);
+    w.classList.remove('close');
+    w.classList.add('open');
+    await sleep(320);
+    w.classList.remove('on', 'open');
+  },
 };
 
 /** 画面の見出し。標準のナビゲーションバーの代わり。 */
@@ -145,6 +191,93 @@ function header(title, trailing = '') {
 }
 
 const counter = (name, value, cls = '') => `<span class="counter ${cls}">${icon(name, 14)}<span class="num">${fmt(value)}</span></span>`;
+
+/* ------------------------------------------------------------------ */
+/* 世界の層（生気）                                                     */
+/* ------------------------------------------------------------------ */
+
+/** 灯りの位置（%）。地域ごとに手で置く。
+ *  絵の中の光源（自販機・窓・街灯）に大まかに合わせてあるが、
+ *  **輪郭の無いにじみなので、多少ずれても「どこかに灯りがある」として読める。** */
+const LAMP_SPOTS = {
+  1: [[79, 55, 120], [17, 47, 90], [50, 46, 70]],
+  2: [[13, 52, 110], [87, 50, 110], [50, 33, 80]],
+  3: [[50, 62, 130], [22, 57, 80], [78, 57, 80]],
+};
+
+/** 遠景のダルモンを置く位置（%）。
+ *
+ * 中央は主人公が立つので空け、下端は暗く沈むので避ける（形が見えなくなる）。
+ * **接地する個体は路面の高さに置く。** 空に浮かせると、絵の中の存在ではなく
+ * 貼り付けた画像に見える。浮いていてよいのは各章2番目（浮遊型）だけ。 */
+const DISTANT_SPOTS = [[11, 60, 52], [88, 50, 46], [31, 57, 34]];
+
+/**
+ * 世界の地の層をまとめて作る。ホームと討伐で共用する。
+ *
+ * @param life  0...1（活気 / 100）。この一つの値で、背景の復活・灯りの数・
+ *              粒の色と速さ・遠景のダルモンの濃さが決まる。
+ */
+function worldLayers(chapter, life, { distant = 0 } = {}) {
+  // **前に見せた状態から現在の状態へ動かす。**
+  // 討伐から戻ったとき、いきなり明るい街が出ても「増えた」ことは伝わらない。
+  // 前回の生気で描いてから今の値へ遷移させると、灯りが1つ増えるのが見える。
+  const from = shownLife[chapter] ?? life;
+  shownLife[chapter] = life;
+
+  const lampOn = (i, value) => {
+    // 段階的に点す。全部が同時に明るくなると照明のスイッチに見える。
+    const threshold = [0.12, 0.45, 0.75][i] ?? 0.9;
+    return value >= threshold ? Math.min(1, (value - threshold) / 0.25) : 0;
+  };
+
+  const lamps = (LAMP_SPOTS[chapter] ?? []).map(([x, y, size], i) => {
+    return `<div class="lamp" data-on="${lampOn(i, life).toFixed(2)}"
+      style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;
+      margin:${-size / 2}px 0 0 ${-size / 2}px;opacity:${lampOn(i, from).toFixed(2)};
+      animation-delay:${i * 1.3}s"></div>`;
+  }).join('');
+
+  const ghosts = DISTANT_SPOTS.slice(0, 3).map(([x, y, size], i) => {
+    const species = Master.species(chapter)[i];
+    const gone = i >= distant;
+    return `<img src="${artOf(species.id)}" alt="" class="${gone ? 'gone' : ''}"
+      style="left:${x}%;top:${y}%;width:${size}px;margin:${-size / 2}px 0 0 ${-size / 2}px;
+             animation-delay:${i * 0.9}s">`;
+  }).join('');
+
+  // 粒は活気で色と速さが変わる。止まった世界では灰色でほとんど動かない。
+  const moteCount = 6 + Math.round(life * 12);
+  const motes = [...Array(moteCount)].map((_, i) => {
+    const dur = (16 - life * 7) + (i % 5) * 2;
+    const tint = life > 0.4 ? 'rgba(226,180,134,.7)' : 'rgba(232,228,220,.45)';
+    return `<div class="mote" style="left:${(i * 37) % 100}%;top:${45 + (i * 17) % 45}%;
+      background:${tint};animation-duration:${dur}s;animation-delay:${-(i * 1.7)}s"></div>`;
+  }).join('');
+
+  return `
+    <div class="world-bg" style="background-image:url('${bgOf(chapter)}')"></div>
+    <div class="world-alive ${HAS_ALIVE_ART ? '' : 'faux'}" data-life="${life.toFixed(2)}"
+         style="background-image:url('${HAS_ALIVE_ART ? bgAliveOf(chapter) : bgOf(chapter)}');opacity:${from.toFixed(2)}"></div>
+    <div class="world-scrim"></div>
+    <div class="lamps">${lamps}</div>
+    <div class="distant">${ghosts}</div>
+    <div class="motes">${motes}</div>`;
+}
+
+/** 前回この章を見せたときの生気。遷移の起点に使う（保存はしない）。 */
+const shownLife = {};
+
+/** 生気を目標値へ動かす。`worldLayers` を差し込んだ直後に1回呼ぶ。 */
+function settleLife(root) {
+  requestAnimationFrame(() => {
+    const alive = $(root, '.world-alive');
+    if (alive) alive.style.opacity = alive.dataset.life;
+    $$(root, '.lamp').forEach((l) => { l.style.opacity = l.dataset.on; });
+    const mark = $(root, '.life-mark i');
+    if (mark) mark.style.width = `${Number(mark.dataset.life) * 100}%`;
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /* ホーム                                                              */
@@ -161,10 +294,14 @@ function renderHome() {
   const region = Master.region(chapter);
   const cap = Balance.dailyStepCap;
 
+  // 生気。活気ゲージがそのまま風景の状態になる。
+  const life = Game.vitality(chapter) / Balance.vitalityMax;
+  // まだ討伐していないダルモンが、この章にあと何体いるか（遠景に出す数）。
+  const remaining = Math.max(0, Math.min(3, Master.nodesPerChapter - Game.progress(chapter).nodeIndex));
+
   home.className = 'screen world';
   home.innerHTML = `
-    <div class="world-bg" style="background-image:url('${bgOf(chapter)}')"></div>
-    <div class="world-scrim"></div>
+    ${worldLayers(chapter, life, { distant: remaining })}
 
     ${s.pendingMilestones > 0 ? `
       <button class="marker" data-act="milestones" title="道標">
@@ -186,12 +323,15 @@ function renderHome() {
       <div class="place">
         <div class="ch">第${chapter}章 ・ ${s.player.day} 日目</div>
         <div class="nm">${region.name}</div>
+        <div class="life-mark" title="この地に戻った気配"><i data-life="${life}" style="width:0"></i></div>
       </div>
 
       <!-- **画面で一番広い面積を絵に渡す。** 主人公はここに立つ。 -->
       <div class="stage">
         <div class="ground"></div>
-        <img class="hero bob" src="${artOf('hero')}" alt="主人公">
+        <!-- 立っているのではなく、**歩いて来る。** この世界で唯一動いている存在なので、
+             最初の一動作を「移動」にする。止まった絵で始めると背景と同類になる。 -->
+        <img class="hero walk-in" src="${artOf('hero')}" alt="主人公">
       </div>
 
       ${targetRibbon(next, gate)}
@@ -225,6 +365,19 @@ function renderHome() {
   const arc = $(home, '.crest .arc');
   const len = Number(arc.dataset.len);
   requestAnimationFrame(() => { arc.style.strokeDashoffset = len * (1 - Game.levelProgress); });
+
+  // 生気（背景・灯り・気配の目盛り）を目標値へ動かす。
+  settleLife(home);
+
+  // 歩いて入ってきたら、待機の揺れに移る。
+  const hero = $(home, '.hero');
+  hero.addEventListener('animationend', () => {
+    hero.classList.remove('walk-in');
+    hero.classList.add('bob');
+  }, { once: true });
+
+  // レベルが上がった日だけ鳴らす。毎回鳴らすと祝いの意味が消える。
+  if (outcome && outcome.levelsGained > 0) setTimeout(() => Sound.play('levelup'), 450);
 }
 
 /** 位の紋。**数値を四角い札に入れない。** 丸い紋章に環のゲージが回ると「格」に見える。 */
@@ -306,10 +459,14 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
     </button>`;
   }).join('');
 
+  const life = Game.vitality(chapter) / Balance.vitalityMax;
+
   const el = make('screen world cover', `
-    <!-- 未開放の地は色を抜くだけ。**暗くしすぎると何も見えず、行きたい気持ちが湧かない。** -->
-    <div class="world-bg" style="background-image:url('${bgOf(chapter)}')${isOpen ? '' : ';filter:grayscale(1) brightness(.92)'}"></div>
-    <div class="world-scrim"></div>
+    ${isOpen
+      ? worldLayers(chapter, life, { distant: 0 })
+      : `<!-- 未開放の地は色を抜くだけ。**暗くしすぎると何も見えず、行きたい気持ちが湧かない。** -->
+         <div class="world-bg" style="background-image:url('${bgOf(chapter)}');filter:grayscale(1) brightness(.92)"></div>
+         <div class="world-scrim"></div>`}
 
     <div class="world-inner">
       <div class="hud">
@@ -359,6 +516,7 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
   const go = $(el, '[data-go]');
   if (go) go.addEventListener('click', () => startBattle(chapter, Number(go.dataset.go)));
   $$(el, '[data-gate]').forEach((m) => growMeter(m, Number(m.dataset.gate)));
+  settleLife(el);
 
   el._build = () => mapScreen(chapter, selected);
   return el;
@@ -415,8 +573,10 @@ function battleScreen(session) {
   const el = make('screen cover battle', `
     <div class="bg" style="background-image:url('${bgOf(session.chapter)}')"></div>
     <div class="scrim"></div>
+    ${enemy.isBoss ? `<div class="boss-intro"><span class="bn">${enemy.name}</span></div>` : ''}
+
     <div class="inner">
-      <div class="battle-tag">第${session.chapter}章 ・ ノード ${session.nodeIndex}</div>
+      <div class="battle-tag" data-tag>第${session.chapter}章 ・ ノード ${session.nodeIndex}</div>
       <div class="enemy-name ${enemy.isBoss ? 'boss' : ''}">${enemy.name}</div>
       <div class="gauge-plate">
         ${meter('danger')}<span class="hp" data-enemy-hp>${enemy.hp}</span>
@@ -457,34 +617,57 @@ async function playBattle(el, session, meters) {
   // 1手あたりの間隔は手数から逆算して総時間を 3〜8秒に収める（§4.1）。
   const beat = Math.min(400, Math.max(130, 4500 / Math.max(1, log.turns.length)));
 
+  // ボスは名乗ってから始める。**雑魚と同じ入り方をすると、ボスがただの強い個体になる。**
+  if (enemy.isBoss) {
+    Sound.play('defeat');   // 低く落ちる音。歓迎ではなく、圧として鳴らす
+    await sleep(1750);
+    $(el, '.boss-intro')?.remove();
+  }
+
   await sleep(320);
 
-  for (const turn of log.turns) {
+  const tag = $(el, '[data-tag]');
+  const tagBase = tag.textContent;
+
+  for (const [i, turn] of log.turns.entries()) {
+    const isFinal = i === log.turns.length - 1;
+    tag.textContent = `${tagBase} ・ ${turn.index}手目`;
     const attacker = turn.attacker === 'player' ? hero : foe;
     const target = turn.attacker === 'player' ? foe : hero;
     const hurtIsPlayer = target === hero;
 
-    // 1. 踏み込み。
+    // 1. 踏み込み。**とどめだけ、踏み込む前に一拍置く。**
+    //    速さが一定のままだと、決着の瞬間が他の手と同じ重さになる。
+    if (isFinal) { attacker.classList.add('wind-up'); await sleep(260); attacker.classList.remove('wind-up'); }
     attacker.classList.add('lunge');
+    Sound.play('step');
     await sleep(beat * 0.35);
     attacker.classList.remove('lunge');
 
-    // 2. 命中。HP の減少・数値・煙・振動を同じ瞬間に集中させる。
+    // 2. 命中。HP の減少・数値・煙・振動・音を同じ瞬間に集中させる。
     target.classList.add('recoil', 'flash');
-    spawnDamage(target, turn.damage);
+    spawnDamage(target, turn.damage, hurtIsPlayer);
     spawnPuff(target);
-    inner.classList.add(hurtIsPlayer ? 'shake-strong' : 'shake-light');
+    inner.classList.add(isFinal ? 'shake-strong' : hurtIsPlayer ? 'shake-strong' : 'shake-light');
     if (hurtIsPlayer) flash.style.opacity = '.22';
+    if (isFinal) el.classList.add('impact');   // 画面全体を一瞬白く抜く
+    Sound.play(hurtIsPlayer ? 'hurt' : 'hit');
 
     const ratio = turn.remaining / (hurtIsPlayer ? player.maxHP : enemy.hp);
     growMeter(hurtIsPlayer ? meters.playerMeter : meters.enemyMeter, ratio);
     $(el, hurtIsPlayer ? '[data-player-hp]' : '[data-enemy-hp]').textContent = turn.remaining;
 
-    await sleep(beat * 0.28);
+    // 残りが少ないと計器が脈を打つ。**数字を読ませずに危うさを伝える。**
+    const plate = (hurtIsPlayer ? meters.playerMeter : meters.enemyMeter).closest('.gauge-plate');
+    plate.classList.toggle('critical', ratio > 0 && ratio < 0.3);
+
+    // **止める時間を、とどめだけ倍にする。** 手応えは動かす量ではなく止める長さで出る。
+    await sleep(isFinal ? beat * 0.7 : beat * 0.28);
 
     // 3. 戻す。
     target.classList.remove('recoil', 'flash');
     inner.classList.remove('shake-strong', 'shake-light');
+    el.classList.remove('impact');
     flash.style.opacity = '0';
     await sleep(beat * 0.37);
   }
@@ -492,9 +675,11 @@ async function playBattle(el, session, meters) {
   if (log.result === 'victory') {
     foe.classList.add('melted');
     $(foe, 'img').classList.remove('bob');
+    Sound.play('melt');
     await sleep(750);
   } else {
     flash.style.opacity = '.35';
+    Sound.play('defeat');
     await sleep(450);
     flash.style.opacity = '0';
   }
@@ -502,9 +687,9 @@ async function playBattle(el, session, meters) {
   Nav.replaceTop(resultScreen(session));
 }
 
-function spawnDamage(target, amount) {
+function spawnDamage(target, amount, onPlayer) {
   const n = document.createElement('div');
-  n.className = 'dmg';
+  n.className = `dmg ${onPlayer ? 'on-player' : ''}`;
   n.textContent = amount;
   target.appendChild(n);
   setTimeout(() => n.remove(), 620);
@@ -579,10 +764,13 @@ function resultScreen(session) {
       <button class="btn go" data-act="close-result">${won ? '地図へ戻る' : '出直す'}</button>
     </div>`);
 
-  // **1枚ずつ順に出す。** まとめて出すと、何を得たのかが読み飛ばされる。
+  // 判子 → 獲得物の順に鳴らす。**1枚ずつ順に出す。**
+  // まとめて出すと、何を得たのかが読み飛ばされる。
+  setTimeout(() => Sound.play('stamp'), 60);
   $$(el, '.loot').forEach((card, i) => setTimeout(() => {
     card.classList.remove('hidden');
     card.classList.add('show');
+    Sound.play('gain');
   }, 320 + i * 140));
 
   return el;
@@ -836,17 +1024,44 @@ function milestoneScreen(finds) {
     ${lore.length ? `<div class="stack">
       <span class="plate" style="align-self:flex-start">世界の記述 ${lore.length} 篇</span>
       <div class="scripture">
-        ${lore.map((l) => `<p class="hidden">${l.text}</p>`).join('')}
+        ${lore.map(() => '<p></p>').join('')}
       </div>
+      <div class="skip-hint">画面を触ると最後まで送る</div>
     </div>` : ''}
   </div>`);
 
-  // 物 → 記述 の順に置いていく。まとめて出すと何を拾ったか読み飛ばされる。
-  const revealed = [...$$(el, '.loot'), ...$$(el, '.scripture p')];
-  revealed.forEach((node, i) => setTimeout(() => {
+  // 拾った物を先に置く。
+  $$(el, '.loot').forEach((node, i) => setTimeout(() => {
     node.classList.remove('hidden');
     node.classList.add('show');
+    Sound.play('gain');
   }, 140 + i * 110));
+
+  // 記述は**送る**。読み始めさせるための一手。
+  const lines = $$(el, '.scripture p');
+  let current = null;
+  let skipped = false;
+
+  (async () => {
+    await sleep(200 + $$(el, '.loot').length * 110);
+    for (let i = 0; i < lines.length; i++) {
+      if (skipped) { lines[i].textContent = lore[i].text; continue; }
+      current = typeInto(lines[i], lore[i].text);
+      await current;
+      await sleep(260);
+    }
+    $(el, '.skip-hint')?.remove();
+  })();
+
+  // 待たされる読み物は二度と開かれない。触れば全部出る。
+  el.addEventListener('click', () => {
+    if (skipped) return;
+    skipped = true;
+    current?.stop();
+    lines.forEach((p, i) => { p.textContent = lore[i].text; });
+    $(el, '.skip-hint')?.remove();
+  });
+
   return el;
 }
 
@@ -895,20 +1110,42 @@ function toast(message) {
 /* 配線                                                                */
 /* ------------------------------------------------------------------ */
 
+// 触れた合図は**押した部品の側で**鳴らす。画面ごとに書くと必ず付け忘れる。
+frame.addEventListener('pointerdown', (event) => {
+  if (event.target.closest('.btn, .chip, .sat, .round-button, .arrow, .pin, .marker, .ribbon')) {
+    Sound.play('tap');
+  }
+}, true);
+
 frame.addEventListener('click', (event) => {
   const target = event.target.closest('[data-act]');
   if (!target) return;
   switch (target.dataset.act) {
-    case 'back': Nav.pop(); break;
+    case 'back': Sound.play('page'); Nav.pop(); break;
     case 'close-result': Nav.pop(); break;
-    case 'map': Nav.push(mapScreen()); break;
-    case 'equip': Nav.push(equipScreen()); break;
-    case 'bestiary': Nav.push(bestiaryScreen()); break;
-    case 'region': Nav.push(regionScreen()); break;
-    case 'pass': Nav.push(passScreen()); break;
-    case 'milestones': Nav.push(milestoneScreen(Game.openMilestones())); break;
+    case 'map': leaveForMap(); break;
+    case 'equip': Sound.play('page'); Nav.push(equipScreen()); break;
+    case 'bestiary': Sound.play('page'); Nav.push(bestiaryScreen()); break;
+    case 'region': Sound.play('page'); Nav.push(regionScreen()); break;
+    case 'pass': Sound.play('page'); Nav.push(passScreen()); break;
+    case 'milestones': Sound.play('page'); Nav.push(milestoneScreen(Game.openMilestones())); break;
   }
 });
+
+/** 討伐へ出る。**主人公が歩き去ってから地図を開く。**
+ *  その場で画面が差し替わると「画面遷移」だが、歩いて出て行くと「移動」になる。 */
+async function leaveForMap() {
+  const hero = $(document.getElementById('home'), '.hero');
+  if (hero) {
+    hero.classList.remove('bob', 'walk-in');
+    hero.classList.add('walk-out');
+    Sound.play('step');
+    setTimeout(() => Sound.play('step'), 190);
+    setTimeout(() => Sound.play('step'), 380);
+    await sleep(520);
+  }
+  await Nav.wipeTo(() => Nav.push(mapScreen()));
+}
 
 /* 開発用トレイ。歩数はブラウザに存在しないので手で入れる。 */
 function bindTray() {
@@ -923,6 +1160,29 @@ function bindTray() {
     if (confirm('進行状況を消して最初から始めますか？')) { Game.reset(); renderHome(); updateTray(); }
   });
   $(tray, '[data-act="fold"]').addEventListener('click', () => tray.classList.toggle('folded'));
+
+  // 生気の変化を目で確かめるための操作。討伐しなくても街が戻る様子を見られる。
+  $(tray, '[data-act="vitality"]').addEventListener('click', () => {
+    const chapter = Game.unlockedChapter;
+    const id = Master.region(chapter).id;
+    let region = Game.state.regions.find((r) => r.regionId === id);
+    if (!region) { region = { regionId: id, vitality: 0, isUnlocked: true }; Game.state.regions.push(region); }
+    const before = region.vitality;
+    region.vitality = Math.min(Balance.vitalityMax, region.vitality + 25);
+    Game.save();
+    renderHome();
+    // 灯りの段階を越えた時だけ音を鳴らす。毎回鳴らすと段階の意味が消える。
+    const steps = [12, 45, 75];
+    if (steps.some((s) => before < s && region.vitality >= s)) setTimeout(() => Sound.play('light'), 700);
+    updateTray();
+  });
+
+  const soundButton = $(tray, '[data-act="sound"]');
+  soundButton.addEventListener('click', () => {
+    Sound.enabled = !Sound.enabled;
+    soundButton.textContent = `音: ${Sound.enabled ? 'ON' : 'OFF'}`;
+    if (Sound.enabled) Sound.play('tap');
+  });
 }
 
 function updateTray() {
