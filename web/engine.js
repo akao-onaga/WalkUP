@@ -159,6 +159,19 @@ const emptyState = () => ({
   /** 扉絵を見せ終えた章。**一度見せたら二度出さない。**
    *  毎回出すと、開く度に足止めされる画面になる。 */
   seenDoors: [],
+
+  /** 日別の歩数（新しい順）。設定画面の「直近7日」に出す。
+   *  本編ではヘルスケアから引くので保存しないが、ブラウザ版は自前で持つしかない。 */
+  history: [],
+
+  /** 歩数の取得を許したか。初回の導入画面で聞く（§11 の権限説明）。 */
+  stepAccessGranted: false,
+
+  /** 導入画面を見せ終えたか。**初回だけ。** */
+  seenIntro: false,
+
+  /** 完結を見せ終えたか。第3章のボスを倒した後に一度だけ出す（§5.3）。 */
+  seenEnding: false,
   /** 直前の変換結果。ホームで「今回の増分」を出すために持つ。 */
   lastOutcome: null,
 });
@@ -297,11 +310,25 @@ const Game = {
   /** 日付を進める。当日カウンタを畳むだけ（§3.4 の日跨ぎ処理に相当）。 */
   nextDay() {
     const p = Game.state.player;
+    // 畳む前に、その日の歩数を履歴へ移す。7日ぶんだけ持つ。
+    Game.state.history.unshift({ day: p.day, steps: p.todayCreditedSteps });
+    Game.state.history = Game.state.history.slice(0, 7);
     p.todayCreditedSteps = 0;
     p.milestoneCreditedToday = 0;
     p.day += 1;
     Game.state.lastOutcome = null;
     Game.save();
+  },
+
+  /** 直近7日。当日を先頭に置く（まだ畳んでいないので履歴には入っていない）。 */
+  get recentDays() {
+    return [{ day: Game.state.player.day, steps: Game.state.player.todayCreditedSteps, today: true },
+            ...Game.state.history];
+  },
+
+  /** 本編を最後まで終えたか。第3章のボスまで討伐済み。 */
+  get isFinished() {
+    return Game.progress(3).nodeIndex >= Master.nodesPerChapter;
   },
 
   // ---- 道標 ----

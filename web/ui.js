@@ -43,6 +43,8 @@ const ICONS = {
   heart: 'M12 21.5S2.5 14.6 2.5 8.6A4.9 4.9 0 0 1 12 6a4.9 4.9 0 0 1 9.5 2.6c0 6-9.5 12.9-9.5 12.9z',
   flame: 'M12 1.5c3.4 4.4 6.5 6.6 6.5 10.8a6.5 6.5 0 1 1-13 0c0-2.2 1.1-3.4 2.2-4.4 0 2.2 1.1 3.3 2.2 3.3 0-3.3 1.1-6.6 2.1-9.7z',
   zzz: 'M4 4h9v2.2L7.5 12H13v2.2H4V12l5.5-5.8H4zm11 9h7v1.8l-4.2 4.4H22V21h-7v-1.8l4.2-4.4H15z',
+  /* 歯車。**設定は概念なので記号のまま。** 中央を穴で抜いて輪に見せる。 */
+  gear: 'M13.6 1.5h-3.2l-.5 2.6-2 .8-2.2-1.5-2.3 2.3 1.5 2.2-.8 2-2.6.5v3.2l2.6.5.8 2-1.5 2.2 2.3 2.3 2.2-1.5 2 .8.5 2.6h3.2l.5-2.6 2-.8 2.2 1.5 2.3-2.3-1.5-2.2.8-2 2.6-.5v-3.2l-2.6-.5-.8-2 1.5-2.2-2.3-2.3-2.2 1.5-2-.8zM12 8.3a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4z',
 };
 
 /** 内側を「穴」として抜く記号。
@@ -53,7 +55,7 @@ const ICONS = {
  *
  * **重なり合う副パスを持つ記号（道標の柱と板）はここに入れない。**
  * evenodd だと重なった部分が穴になる。既定の nonzero なら和集合になる。 */
-const EVENODD = new Set(['cloak', 'charm', 'book', 'map', 'eye', 'lock']);
+const EVENODD = new Set(['cloak', 'charm', 'book', 'map', 'eye', 'lock', 'gear']);
 
 /** 記号。色は継承させ、置いた場所の文字色に従わせる。 */
 function icon(name, size = 16) {
@@ -182,7 +184,7 @@ const Nav = {
     setTimeout(() => el.remove(), 220);
     renderHome();
     Nav.refresh();
-    maybeShowDoor();
+    maybeInterlude();
   },
   /** 今の階層を作り直す。**アニメーションは付けない**（同じ画面が開き直して見える）。 */
   rebuild(build) {
@@ -483,12 +485,13 @@ function renderHome() {
         </button>
         <div class="satellites">
           <button class="sat" data-act="equip">
-            <span class="disc">${icon('shield', 22)}${Game.hasEquipWork ? '<span class="dot"></span>' : ''}</span>
+            <span class="disc">${icon('shield', 20)}${Game.hasEquipWork ? '<span class="dot"></span>' : ''}</span>
             <span class="lb">装備</span>
           </button>
-          <button class="sat" data-act="bestiary"><span class="disc">${icon('book', 22)}</span><span class="lb">図鑑</span></button>
-          <button class="sat" data-act="region"><span class="disc">${icon('map', 22)}</span><span class="lb">地域</span></button>
-          <button class="sat ${s.hasPass ? 'on' : ''}" data-act="pass"><span class="disc">${icon('sparkle', 22)}</span><span class="lb">パス</span></button>
+          <button class="sat" data-act="bestiary"><span class="disc">${icon('book', 20)}</span><span class="lb">図鑑</span></button>
+          <button class="sat" data-act="region"><span class="disc">${icon('map', 20)}</span><span class="lb">地域</span></button>
+          <button class="sat ${s.hasPass ? 'on' : ''}" data-act="pass"><span class="disc">${icon('sparkle', 20)}</span><span class="lb">パス</span></button>
+          <button class="sat" data-act="settings"><span class="disc">${icon('gear', 20)}</span><span class="lb">設定</span></button>
         </div>
       </div>
     </div>`;
@@ -525,13 +528,18 @@ function renderHome() {
 
 }
 
-/** 新しい章に届いていたら扉絵を挟む。
+/** ホームへ戻った時に、間に挟むべき画面があれば出す。
  *
  * **タイトルより先に出さない。** 起動直後は必ずタイトルが最前面なので、
- * ここは「一番上の階層が無くなった時」——つまり戻ってきた時にだけ確かめる。 */
-function maybeShowDoor() {
+ * ここは「一番上の階層が無くなった時」——つまり戻ってきた時にだけ確かめる。
+ *
+ * 順序が意味を持つ。導入（歩数を読ませる）→ 章の扉 → 完結。 */
+function maybeInterlude() {
+  if (layers.length > 0) return;
+  if (!Game.state.seenIntro) { Nav.push(introScreen()); return; }
   const door = Game.pendingDoor;
-  if (door !== null && layers.length === 0) Nav.push(chapterDoorScreen(door));
+  if (door !== null) { Nav.push(chapterDoorScreen(door)); return; }
+  if (Game.isFinished && !Game.state.seenEnding) { Nav.push(endingScreen()); }
 }
 
 /** 位の紋。**数値を四角い札に入れない。** 丸い紋章に環のゲージが回ると「格」に見える。 */
@@ -605,6 +613,112 @@ function titleScreen() {
     Nav.pop();
   }, { once: true });
 
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
+/* 初回の導入（権限の説明）                                             */
+/* ------------------------------------------------------------------ */
+
+/** 歩数を読ませてもらう前に、なぜ要るのかを言う画面。
+ *
+ * **「ヘルスケアへのアクセスを許可してください」だけでは通らない。**
+ * 審査（§11）でも要求されるが、それ以前に、開いた直後の人にとって
+ * これは見知らぬアプリからの要求でしかない。
+ * 何のために読むのか、読んだ数がどこへ行くのかを、世界の言葉で先に言う。
+ *
+ * §15-4 の判断とは分けて考える。あちらは**通知**の許可で、
+ * 「第1章クリア後に聞く」のが正しい。歩数は無いと何も始まらないので最初に聞く。 */
+function introScreen() {
+  // `world` を付けないと `.world .world-bg` が当たらず、背景が高さ0で消える。
+  const el = make('screen cover world intro', `
+    <div class="world-bg" style="background-image:url('${bgOf(1)}')"></div>
+    <div class="world-scrim"></div>
+    <div class="intro-inner">
+      <img class="intro-hero bob" src="${artOf('hero_stand')}" alt="主人公">
+      <div class="intro-copy">
+        <p class="l1">この世界は、みんなが歩かなくなって止まった。</p>
+        <p class="l2">動かせるのは、あなたが実際に歩いた数だけ。</p>
+      </div>
+      <div class="intro-note">
+        ${row2('歩数を読む', '一日に歩いた数だけを読みます。場所も経路も読みません。')}
+        ${row2('端末から出さない', '読んだ数はこの端末の中だけで扱います。外へ送りません。')}
+      </div>
+      <button class="btn go" data-act="grant">歩数を読ませる</button>
+      <button class="btn secondary" data-act="skip" style="margin-top:10px">いまはデモで遊ぶ</button>
+    </div>`);
+
+  const finish = (granted) => {
+    Game.state.stepAccessGranted = granted;
+    Game.state.seenIntro = true;
+    Game.save();
+    Sound.play('page');
+    Nav.pop();
+  };
+  $(el, '[data-act="grant"]').addEventListener('click', () => finish(true));
+  $(el, '[data-act="skip"]').addEventListener('click', () => finish(false));
+  return el;
+}
+
+/** 導入画面の箇条。**箇条書きの点を打たない。** 印を打つと約款に見える。 */
+function row2(title, body) {
+  return `<div class="intro-row">
+    <div class="ir-title">${title}</div>
+    <div class="ir-body">${body}</div>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 完結（§5.3）                                                        */
+/* ------------------------------------------------------------------ */
+
+/** 第3章のボスを倒した後に一度だけ出す。
+ *
+ * **「クリアしました」で終わらせない。** §5.3 のとおり、ダルモン本体は倒しても
+ * 世界の完全復興は達成されていない。ここで終わりだと告げると、
+ * 続ける理由がその場で消える。**残っているものを見せて、復興へ渡す。** */
+function endingScreen() {
+  const remaining = [1, 2, 3]
+    .map((c) => ({ chapter: c, life: Game.vitality(c) }))
+    .filter((r) => r.life < Balance.vitalityMax);
+
+  const el = make('screen cover door ending', `
+    <div class="door-inner">
+      <div class="door-no">終　章</div>
+      <div class="door-frame">
+        <div class="door-art" style="background-image:url('${bgAliveOf(3)}')"></div>
+      </div>
+      <p class="door-line"></p>
+      ${remaining.length ? `
+        <div class="ending-left">
+          <span class="plate night">まだ戻っていない場所</span>
+          <div class="stack" style="margin-top:10px;width:100%">
+            ${remaining.map((r) => `<div class="row" style="gap:9px">
+              <span style="font-size:11px;color:rgba(255,255,255,.72);flex:none;width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${Master.region(r.chapter).name}</span>
+              <!-- **ゲージに flex を与える。** flex 行の中では既定で幅0まで縮む。 -->
+              <div class="meter vigor slim" style="flex:1;border-color:rgba(232,228,220,.6);background:rgba(255,255,255,.12)">
+                <i style="width:${r.life}%"></i>
+              </div>
+              <span class="num" style="font-size:11px;color:#E2B486;flex:none">${r.life}<small>/100</small></span>
+            </div>`).join('')}
+          </div>
+        </div>` : ''}
+      <div class="door-hint">画面を触って戻る</div>
+    </div>`);
+
+  const text = 'ダルモンは融けた。それでも街の灯りは、まだ半分も戻っていない。';
+  let typing = null;
+  setTimeout(() => { typing = typeInto($(el, '.door-line'), text, { speed: 52 }); }, 900);
+
+  el.addEventListener('click', () => {
+    if (typing && $(el, '.door-line').textContent !== text) { typing.stop(); return; }
+    Game.state.seenEnding = true;
+    Game.save();
+    Sound.play('page');
+    Nav.pop();
+  });
+
+  Sound.play('levelup');
   return el;
 }
 
@@ -1395,6 +1509,95 @@ function milestoneScreen(finds) {
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* 設定                                                                */
+/* ------------------------------------------------------------------ */
+
+/** 設定（画面 #9）。
+ *
+ * **ここは標準の Form を使わない。**
+ * Swift 側は「設定だけは OS の作法に従う方が迷わない」として `Form` を残しているが、
+ * 開いた瞬間に iOS の灰色のリストが出れば、それまで作った世界は一枚で消える。
+ * 迷わせない責任は部品の出自ではなく、**行の構造と言葉**が負う。
+ * 切替は同じ動きをする自前の部品で作り、並びと余白を標準に合わせる。 */
+function settingsScreen() {
+  const s = Game.state;
+
+  const row = (label, note, control) => `<div class="set-row">
+    <div>
+      <div class="set-label">${label}</div>
+      ${note ? `<div class="caption" style="margin-top:2px">${note}</div>` : ''}
+    </div>
+    <div class="set-control">${control}</div>
+  </div>`;
+
+  const el = make('screen sheet', header('設定') + `<div class="body">
+    <div class="panel">
+      <span class="plate">歩数</span>
+      <div style="margin-top:8px">
+        ${row('取得元', 'シミュレータには歩数が存在しない。デモは審査員向けの体験モードも兼ねる。',
+          `<div class="segment">
+             <button class="seg ${s.stepAccessGranted ? 'on' : ''}" data-src="health">ヘルスケア</button>
+             <button class="seg ${s.stepAccessGranted ? '' : 'on'}" data-src="demo">デモ</button>
+           </div>`)}
+        ${row('1日の上限', `${fmt(Balance.dailyStepCap)} 歩。これを超えた分は加算しない。`, '')}
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="plate">直近 7 日</span>
+      <div class="days" style="margin-top:10px">
+        ${Game.recentDays.map((d) => `<div class="day-row">
+          <span class="day-name">${d.today ? '今日' : `${d.day} 日目`}</span>
+          <div class="day-bar"><i style="width:${Math.min(100, d.steps / Balance.dailyStepCap * 100)}%"></i></div>
+          <span class="day-num num">${fmt(d.steps)}<small>歩</small></span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="plate">音</span>
+      <div style="margin-top:8px">
+        ${row('効果音', '足音・命中・獲得。無音でも遊べる。',
+          `<button class="switch ${Sound.enabled ? 'on' : ''}" data-act="toggle-sound"><i></i></button>`)}
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="plate">購入</span>
+      <div style="margin-top:8px">
+        ${row('活力パス', s.hasPass ? '有効' : '未購入', `<button class="chip" data-act="pass">見る</button>`)}
+        ${row('購入を復元', '端末を変えた時に使う。', `<button class="chip" data-act="restore">復元</button>`)}
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="plate">この作品について</span>
+      <div style="margin-top:8px">
+        ${row('プライバシーポリシー', null, `<button class="chip" data-act="legal-privacy">開く</button>`)}
+        ${row('利用規約', null, `<button class="chip" data-act="legal-terms">開く</button>`)}
+        <div class="caption" style="margin-top:10px">歩数はこの端末の中だけで扱う。外に送らない。</div>
+      </div>
+    </div>
+  </div>`);
+
+  $(el, '[data-act="toggle-sound"]').addEventListener('click', () => {
+    Sound.enabled = !Sound.enabled;
+    if (Sound.enabled) Sound.play('tap');
+    Nav.rebuild(settingsScreen);
+  });
+  $$(el, '[data-src]').forEach((b) => b.addEventListener('click', () => {
+    Game.state.stepAccessGranted = b.dataset.src === 'health';
+    Game.save();
+    Nav.rebuild(settingsScreen);
+  }));
+  $(el, '[data-act="restore"]').addEventListener('click', () => toast('ブラウザ版では復元できません。'));
+  $$(el, '[data-act^="legal-"]').forEach((b) => b.addEventListener('click', () => toast('ブラウザ版では開けません。')));
+
+  el._build = settingsScreen;
+  return el;
+}
+
 function passScreen() {
   const on = Game.state.hasPass;
   const el = make('screen sheet', header('活力パス') + `<div class="body">
@@ -1458,6 +1661,7 @@ frame.addEventListener('click', (event) => {
     case 'bestiary': Sound.play('page'); Nav.push(bestiaryScreen()); break;
     case 'region': Sound.play('page'); Nav.push(regionScreen()); break;
     case 'pass': Sound.play('page'); Nav.push(passScreen()); break;
+    case 'settings': Sound.play('page'); Nav.push(settingsScreen()); break;
     case 'milestones': Sound.play('page'); Nav.push(milestoneScreen(Game.openMilestones())); break;
   }
 });
