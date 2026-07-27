@@ -536,6 +536,9 @@ function renderHome() {
  * 順序が意味を持つ。導入（歩数を読ませる）→ 章の扉 → 完結。 */
 function maybeInterlude() {
   if (layers.length > 0) return;
+  // プロローグ。**タイトルの直後、歩数の許可を聞く前。**
+  // 先に世界を見せておくと、次の画面の「歩数を読ませてほしい」に理由が付く。
+  if (Prologue.active && Prologue.run()) return;
   if (!Game.state.seenIntro) { Nav.push(introScreen()); return; }
   // チュートリアルは導入の直後、章の扉より前。**歩数ゼロのまま3戦させる**（§11-1）。
   if (Tutorial.active && Tutorial.run()) return;
@@ -656,9 +659,10 @@ function introScreen() {
     <div class="world-scrim"></div>
     <div class="intro-inner">
       <img class="intro-hero bob" src="${artOf('hero_stand')}" alt="主人公">
+      <!-- 世界の成り立ちはプロローグで見せ終えている。**ここは権限の話だけにする。** -->
       <div class="intro-copy">
-        <p class="l1">この世界は、みんなが歩かなくなって止まった。</p>
-        <p class="l2">動かせるのは、あなたが実際に歩いた数だけ。</p>
+        <p class="l1">この世界を動かせるのは、実際に歩いた数だけ。</p>
+        <p class="l2">あなたの歩数を読ませてほしい。</p>
       </div>
       <div class="intro-note">
         ${row2('歩数を読む', '一日に歩いた数だけを読みます。場所も経路も読みません。')}
@@ -947,7 +951,9 @@ function sceneScreen(stage, onDone) {
     <div class="world-inner">
       <div class="grow"></div>
       <div class="scene-stage">
-        <img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">
+        <!-- **主人公を出さない場面がある。** プロローグの前半は
+             「まだ誰も歩いていない世界」なので、立っていると筋が合わない。 -->
+        ${stage.hero === false ? '' : `<img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">`}
         ${stage.foe ? `<img class="scene-foe bob" src="${artOf(stage.foe)}" alt="">` : ''}
       </div>
       ${isWalk ? `<div class="scene-gain">
@@ -1011,6 +1017,17 @@ function sceneScreen(stage, onDone) {
   Sound.play('transition');
   return el;
 }
+
+/** プロローグの進行役。場面を順に出すだけ。 */
+const Prologue = {
+  get active() { return !Game.state.seenPrologue; },
+  run() {
+    const stage = Game.prologueStage;
+    if (!stage) return false;
+    Nav.push(sceneScreen(stage, () => { Game.advancePrologue(); Nav.pop(); }));
+    return true;
+  },
+};
 
 /* ------------------------------------------------------------------ */
 /* チュートリアル（§11-1）                                              */

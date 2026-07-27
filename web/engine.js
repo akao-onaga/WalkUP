@@ -224,6 +224,10 @@ const emptyState = () => ({
   /** 歩数の取得を許したか。初回の導入画面で聞く（§11 の権限説明）。 */
   stepAccessGranted: false,
 
+  /** プロローグを見せ終えたか、と何場面目まで進んだか。**タイトルの直後・導入の前。** */
+  seenPrologue: false,
+  prologueStep: 0,
+
   /** 導入画面を見せ終えたか。**初回だけ。** */
   seenIntro: false,
 
@@ -653,6 +657,23 @@ const Game = {
     }
     Game.applyReward(reward, enemy.chapter, 0, log.result, enemy);
     return { chapter: enemy.chapter, nodeIndex: 0, enemy, log, reward, player: fighter, bounty: true };
+  },
+
+  // ---- プロローグ ----
+
+  /** いまプロローグの何場面目か。終わっていれば null。
+   *  段が範囲外なら終わったことにする（チュートリアルと同じ理由）。 */
+  get prologueStage() {
+    if (Game.state.seenPrologue) return null;
+    const stage = PROLOGUE[Game.state.prologueStep];
+    if (!stage) { Game.state.seenPrologue = true; Game.save(); return null; }
+    return stage;
+  },
+
+  advancePrologue() {
+    Game.state.prologueStep += 1;
+    if (Game.state.prologueStep >= PROLOGUE.length) Game.state.seenPrologue = true;
+    Game.save();
   },
 
   // ---- チュートリアル（§11-1） ----
