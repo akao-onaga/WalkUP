@@ -1153,19 +1153,102 @@ img { display: block; }
 /* 12. 装備                                                            */
 /* ------------------------------------------------------------------ */
 
-.equip-item { display: flex; flex-direction: column; gap: 10px; padding: 6px 0; }
-.equip-item + .equip-item { border-top: 1px dashed rgba(46, 42, 56, .25); padding-top: 12px; }
-.equip-item .ename { font-size: 14px; font-weight: 800; }
-.equip-item .plus { font-size: 12px; font-weight: 800; color: var(--vigor); }
+/* ── 装備は「一覧」ではなく「人形」で見せる ──
+ *
+ * §4.1 のとおり戦闘は自動なので、**ここがこの作品で唯一の意思決定**。
+ * 持ち物を行で並べると倉庫の在庫表になり、「誰に何を着けているか」が消える。
+ * 主人公を中央に置き、枠をその体の位置に配る。
+ * **武器は靴なので、枠は足元に置く。** 手元に置いた時点で設定と噛み合わなくなる。 */
+.doll {
+  position: relative;
+  height: 258px;
+  flex: none;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round);
+  background: var(--card);
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .22);
+  /* **切り取らない。** 枠の名札は縁の外へ少し出る。 */
+  overflow: visible;
+}
+.doll::after {
+  content: ""; position: absolute; inset: 5px;
+  border: 1px dashed rgba(46, 42, 56, .18);
+  border-radius: 13px; pointer-events: none;
+}
+.doll .figure {
+  position: absolute; left: 50%; bottom: 52px;
+  width: 132px; margin-left: -66px;
+  filter: drop-shadow(0 3px 0 rgba(46, 42, 56, .28));
+}
+.doll .floor {
+  position: absolute; left: 50%; bottom: 54px;
+  width: 104px; height: 14px; margin-left: -52px;
+  background: radial-gradient(ellipse at center, rgba(46,42,56,.28), rgba(46,42,56,0) 70%);
+}
+
+.slot {
+  position: absolute;
+  width: 58px; height: 58px; margin: -29px 0 0 -29px;
+  display: grid; place-items: center;
+  background: var(--card);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--round-s);
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .45);
+  color: var(--accent);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+}
+.slot:active { transform: translateY(2px); box-shadow: 0 0 0; }
+/* 空きは点線。**枠ごと消さない。** 消すと、そこに着けられることが分からない。 */
+.slot.empty { border-style: dashed; color: rgba(46, 42, 56, .3); background: transparent; box-shadow: none; }
+/* 選んでいる枠。下の持ち物一覧がどれの話かを示す。 */
+.slot.sel { border-width: 3px; box-shadow: 0 2px 0 rgba(46,42,56,.45), 0 0 0 3px var(--card), 0 0 0 5px var(--ink); }
+.slot .lv {
+  position: absolute; right: -6px; top: -6px;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 999px;
+  background: var(--vigor); color: #fff;
+  border: var(--stroke) solid var(--ink);
+  display: grid; place-items: center;
+  font-size: 10px; font-weight: 800;
+}
+.slot .tag {
+  position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%);
+  padding: 1px 7px 2px; white-space: nowrap;
+  background: var(--ink); color: var(--paper);
+  border-radius: 3px 8px 3px 8px;
+  font-size: 9px; font-weight: 800; letter-spacing: .08em;
+}
+
+/* 持ち物。1件を「札」として組み、判断に要る数だけ添える。 */
+.gear { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; }
+.gear + .gear { border-top: 1px dashed rgba(46, 42, 56, .25); }
+.gear .face {
+  flex: none; width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border: var(--stroke) solid var(--ink); border-radius: var(--round-s);
+  background: var(--paper); color: var(--accent);
+}
+.gear.on .face { background: var(--accent-fill); color: #fff; }
+.gear .name { font-size: 14px; font-weight: 800; }
+.gear .name b { color: var(--vigor); font-size: 12px; margin-left: 2px; }
+.gear .stat { font-size: 12px; color: var(--text-soft); font-variant-numeric: tabular-nums; }
+/* **差分は「装備すると何がどう変わるか」だけ出す。** 総合力の点数は出さない。 */
+.gear .delta { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.gear .delta .up { color: var(--vigor); }
+.gear .delta .down { color: var(--danger); }
+.gear .acts { margin-left: auto; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 
 /* 強化段階は数字ではなく**目盛り**で出す。あと何段階かが一目で分かる。 */
-.pips { display: flex; gap: 4px; }
+.pips { display: flex; gap: 4px; margin-top: 6px; }
 .pips i {
-  width: 15px; height: 11px;
+  width: 15px; height: 10px;
   border: var(--stroke) solid var(--ink); border-radius: 3px;
   background: transparent;
 }
 .pips i.on { background: var(--vigor); }
+
+/* 足りない時は「押せない」ではなく「あと幾つ足りない」を出す。 */
+.chip.short { color: var(--text-soft); border-color: rgba(46,42,56,.45); box-shadow: none; }
 
 /* ------------------------------------------------------------------ */
 /* 13. 道標・パス                                                      */

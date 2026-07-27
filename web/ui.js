@@ -805,48 +805,90 @@ function resultScreen(session) {
 /* 装備・強化                                                          */
 /* ------------------------------------------------------------------ */
 
-function equipScreen() {
-  const f = Game.fighter;
-  const slots = [
-    ['weapon', '武器 — 靴', 'この世界で武器になるのは踏み出す力——ウォーク力だけ。'],
-    ['armor', '防具', null],
-    ['accessory', '装飾', null],
-  ];
+const SLOT_GLYPH = { weapon: 'shoe', armor: 'cloak', accessory: 'charm' };
+const SLOT_NAME = { weapon: '靴', armor: '外套', accessory: '護符' };
+/** 枠を体のどこに置くか（%）。**靴は足元に置く。**
+ *  手元に置いた時点で「振るうのは足」という §1.1 の筋と噛み合わなくなる。 */
+const SLOT_POS = { armor: [15, 30], accessory: [85, 30], weapon: [50, 84] };
 
-  const sections = slots.map(([slot, name, note]) => {
-    const items = Game.state.equipment.filter((e) => e.slot === slot);
-    if (items.length === 0) return '';
-    return `<div class="panel">
-      <span class="plate">${name}</span>
-      ${note ? `<div class="caption" style="margin-top:6px">${note}</div>` : ''}
-      <div style="margin-top:10px">${items.map(equipRow).join('')}</div>
-    </div>`;
+/** 装備・強化（画面 #4）。**§4.1 のとおり、ここがこの作品で唯一の意思決定。** */
+function equipScreen(slot = 'weapon') {
+  const f = Game.fighter;
+  const items = Game.state.equipment.filter((e) => e.slot === slot);
+
+  const slots = ['armor', 'accessory', 'weapon'].map((s) => {
+    const worn = Game.state.equipment.find((e) => e.slot === s && e.isEquipped);
+    const [x, y] = SLOT_POS[s];
+    return `<button class="slot ${worn ? '' : 'empty'} ${s === slot ? 'sel' : ''}"
+              style="left:${x}%;top:${y}%" data-slot="${s}">
+      ${icon(SLOT_GLYPH[s], 30)}
+      ${worn && worn.enhanceLevel > 0 ? `<span class="lv">+${worn.enhanceLevel}</span>` : ''}
+      <span class="tag">${SLOT_NAME[s]}</span>
+    </button>`;
   }).join('');
 
-  const empty = `<div class="panel" style="text-align:center;padding:28px">
-    <div style="color:var(--text-soft)">${icon('cube', 34)}</div>
-    <div style="font-weight:800;margin-top:8px">まだ装備がありません</div>
-    <div class="caption" style="margin-top:4px">各章のノード 2・4・6 を討伐すると手に入ります。</div>
-  </div>`;
-
   const el = make('screen sheet', header('装備・強化', counter('cube', Game.dregs)) + `<div class="body">
+    <div class="doll">
+      <div class="floor"></div>
+      <img class="figure" src="${artOf('hero')}" alt="主人公">
+      ${slots}
+    </div>
+
     <div class="tile-row">
       <div class="tile"><span class="k">${icon('heart', 11)}HP</span><span class="v">${f.maxHP}</span></div>
       <div class="tile vigor"><span class="k">${icon('flame', 11)}ATK</span><span class="v">${f.atk}</span></div>
       <div class="tile accent"><span class="k">${icon('shield', 11)}DEF</span><span class="v">${f.def}</span></div>
     </div>
-    ${Game.state.equipment.length === 0 ? empty : sections}
+
+    <div class="panel">
+      <span class="plate">${SLOT_NAME[slot]}</span>
+      ${slot === 'weapon'
+        ? '<div class="caption" style="margin-top:6px">この世界で武器になるのは踏み出す力——ウォーク力だけ。</div>'
+        : ''}
+      ${items.length === 0
+        ? `<div class="caption" style="margin-top:10px">まだ持っていない。各章のノード 2・4・6 を討伐すると手に入る。</div>`
+        : `<div style="margin-top:6px">${items.map((i) => gearRow(i, slot)).join('')}</div>`}
+    </div>
   </div>`);
 
+  // 枠を選ぶと、下の一覧がその枠の話に変わる。
+  $$(el, '[data-slot]').forEach((b) => b.addEventListener('click', () => {
+    Sound.play('tap');
+    Nav.rebuild(() => equipScreen(b.dataset.slot));
+  }));
   // 着脱と強化はその場で数字に反映する。**シートは開き直さない。**
   // 自動戦闘なので、ここで手応えを返せないと唯一の意思決定が空虚になる。
-  $$(el, '[data-equip]').forEach((b) => b.addEventListener('click', () => { Game.toggleEquip(b.dataset.equip); Nav.refresh(); }));
-  $$(el, '[data-enhance]').forEach((b) => b.addEventListener('click', () => { if (Game.enhance(b.dataset.enhance)) Nav.refresh(); }));
-  el._build = equipScreen;
+  $$(el, '[data-equip]').forEach((b) => b.addEventListener('click', () => {
+    Game.toggleEquip(b.dataset.equip);
+    Nav.rebuild(() => equipScreen(slot));
+  }));
+  $$(el, '[data-enhance]').forEach((b) => b.addEventListener('click', () => {
+    if (Game.enhance(b.dataset.enhance)) {
+      Sound.play('gain');
+      Nav.rebuild(() => equipScreen(slot));
+    }
+  }));
+
+  el._build = () => equipScreen(slot);
   return el;
 }
 
-function equipRow(item) {
+/** 実効値の差。表示に使う分だけ。 */
+function statDiff(after, before) {
+  return { hp: after.hp - before.hp, atk: after.atk - before.atk, def: after.def - before.def };
+}
+
+const ZERO_STATS = { hp: 0, atk: 0, def: 0 };
+
+/** 差分を「+9 ATK」の形に。**0 は書かない。** 変わらない値を並べると読む所が増えるだけ。 */
+function diffText(d) {
+  return [['HP', d.hp], ['ATK', d.atk], ['DEF', d.def]]
+    .filter(([, v]) => v !== 0)
+    .map(([k, v]) => `<span class="${v > 0 ? 'up' : 'down'}">${v > 0 ? '+' : ''}${v} ${k}</span>`)
+    .join(' ');
+}
+
+function gearRow(item, slot) {
   const e = BattleEngine.effective(item);
   const cost = Balance.enhanceCost(item.enhanceLevel);
   const maxed = item.enhanceLevel >= Balance.maxEnhanceLevel;
@@ -855,24 +897,34 @@ function equipRow(item) {
     e.atk > 0 ? `ATK +${e.atk}` : null,
     e.def > 0 ? `DEF +${e.def}` : null,
   ].filter(Boolean).join(' / ');
-  const glyph = { weapon: 'shoe', armor: 'cloak', accessory: 'charm' }[item.slot];
 
-  return `<div class="equip-item">
-    <div class="row">
-      ${icon(glyph, 22)}
-      <div>
-        <div class="ename">${item.name}${item.enhanceLevel > 0 ? ` <span class="plus">+${item.enhanceLevel}</span>` : ''}</div>
-        <div class="caption">${stats}</div>
-      </div>
-      <div class="grow"></div>
-      <button class="chip ${item.isEquipped ? 'on' : ''}" data-equip="${item.id}">${item.isEquipped ? '装備中' : '装備'}</button>
-    </div>
-    <div class="row">
+  // 「装備すると何がどう変わるか」。いま着けている物との差だけを出す。
+  const worn = Game.state.equipment.find((x) => x.slot === slot && x.isEquipped);
+  const swap = item.isEquipped ? null
+    : diffText(statDiff(e, worn ? BattleEngine.effective(worn) : ZERO_STATS));
+
+  // 「強化すると何が増えるか」。段階を上げた後の実効値との差。
+  const nextGain = maxed ? null
+    : diffText(statDiff(BattleEngine.effective({ ...item, enhanceLevel: item.enhanceLevel + 1 }), e));
+
+  const short = !Game.canEnhance(item) && !maxed;
+
+  return `<div class="gear ${item.isEquipped ? 'on' : ''}">
+    <span class="face">${icon(SLOT_GLYPH[slot], 26)}</span>
+    <div>
+      <div class="name">${item.name}${item.enhanceLevel > 0 ? `<b>+${item.enhanceLevel}</b>` : ''}</div>
+      <div class="stat">${stats}</div>
+      ${swap ? `<div class="delta">装備すると ${swap}</div>` : ''}
+      ${nextGain ? `<div class="delta" style="opacity:.75">強化すると ${nextGain}</div>` : ''}
       <div class="pips">${[...Array(Balance.maxEnhanceLevel)].map((_, i) => `<i class="${i < item.enhanceLevel ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="grow"></div>
+    </div>
+    <div class="acts">
+      <button class="chip ${item.isEquipped ? 'on' : ''}" data-equip="${item.id}">${item.isEquipped ? '装備中' : '装備'}</button>
       ${maxed
         ? '<span class="caption">最大</span>'
-        : `<button class="chip" data-enhance="${item.id}" ${Game.canEnhance(item) ? '' : 'disabled'}>${icon('hammer', 12)}${cost}</button>`}
+        : `<button class="chip ${short ? 'short' : ''}" data-enhance="${item.id}" ${short ? 'disabled' : ''}>
+             ${icon('hammer', 12)}${short ? `あと ${cost - Game.dregs}` : cost}
+           </button>`}
     </div>
   </div>`;
 }
