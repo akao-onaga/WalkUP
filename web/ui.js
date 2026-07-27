@@ -820,46 +820,23 @@ function chapterDoorScreen(chapter) {
       <div class="door-frame">
         <div class="door-art" style="background-image:url('${doorOf(chapter)}')"></div>
       </div>
-      <div class="door-lines">${Master.doorLines(chapter).map(sceneLine).join('')}</div>
+      <div class="door-lines"></div>
       <div class="door-hint">画面を触って進む</div>
     </div>`);
 
-  // 送る。扉で足を止めさせるのは、ここで読ませたいからで、
-  // 読ませたい文章を一度に出すと読まれない。
-  const lines = Master.doorLines(chapter);
-  const paragraphs = $$(el, '.door-lines p');
-  const targets = $$(el, '.door-lines [data-t]');
-  let typing = null;
-  let skipped = false;
-  let done = false;
-
-  paragraphs.forEach((p) => p.classList.add('waiting'));
-
-  (async () => {
-    await sleep(1100);
-    for (let i = 0; i < targets.length; i++) {
-      paragraphs[i].classList.remove('waiting');
-      if (skipped) { targets[i].textContent = sceneText(lines[i]); continue; }
-      typing = typeInto(targets[i], sceneText(lines[i]), { speed: 46 });
-      await typing;
-      await sleep(300);
-    }
-    done = true;
-  })();
+  // 扉も**1行ずつ踏む。** ここで足を止めさせるのは読ませたいからで、
+  // 3行を一度に置くと、読むか読まないかを選ばれる。
+  const player = linePlayer($(el, '.door-lines'), Master.doorLines(chapter), () => {
+    $(el, '.door-hint').textContent = '画面を触って進む';
+  });
 
   el.addEventListener('click', () => {
-    // 一度目の接触は「最後まで出す」、二度目で進む。**読み終える前に閉じさせない。**
-    if (!done && !skipped) {
-      skipped = true;
-      typing?.stop();
-      targets.forEach((t, i) => { paragraphs[i].classList.remove('waiting'); t.textContent = sceneText(lines[i]); });
-      done = true;
-      return;
-    }
+    if (!player.finished) { player.tap(); return; }
     Game.markDoorSeen(chapter);
     Sound.play('page');
     Nav.pop();
   });
+  player.start(1100);
 
   Sound.play('transition');
   return el;
@@ -892,6 +869,73 @@ function sceneLine(line) {
 
 /** 送る対象の文字列。セリフは鉤括弧を組版側で付ける（データに括弧を書かせない）。 */
 const sceneText = (line) => (typeof line === 'string' ? line : line.text);
+const sceneKind = (line) => (typeof line === 'string' ? 'n' : line.kind);
+
+/** 一行ずつ送って、触るたびに次へ進める。
+ *
+ * **積み上げない。** 全部を1つの札に足していくと、読み終わる頃には6行の塊になり、
+ * 場面ではなく記録に見える。1行ずつ置き換えて、**踏むたびに次が来る**形にする。
+ *
+ * 触った時の挙動は2段。送っている途中なら**その行を最後まで出す**、
+ * 出し終わっていれば**次の行へ**。読み終える前に飛ばされないようにする。
+ *
+ * @param box   行を差し込む器（中身は毎回入れ替える）
+ * @param lines 場面の行
+ * @param onEnd 最後の行を出し終えた時に一度だけ呼ぶ
+ */
+function linePlayer(box, lines, onEnd) {
+  let index = -1;
+  let typing = null;
+  let typed = true;
+
+  const player = { finished: false, tap };
+
+  const mark = () => {
+    // 次を促す印。**待っている間だけ出す。** 出しっぱなしだと、
+    // 送っている最中にも「押せる」と読めてしまう。
+    box.classList.add('waiting-tap');
+  };
+
+  const show = (n) => {
+    const line = lines[n];
+    box.classList.remove('waiting-tap');
+    box.innerHTML = sceneLine(line);
+    const target = $(box, '[data-t]');
+
+    // **システムメッセージは送らない。** 読み上げる言葉ではないので、
+    // 一文字ずつ出すと、機械の報告に芝居をさせているように見える。
+    if (sceneKind(line) === 'sys') {
+      target.textContent = sceneText(line);
+      Sound.play('gain');
+      typed = true;
+      finishOrMark();
+      return;
+    }
+    typed = false;
+    typing = typeInto(target, sceneText(line));
+    typing.then(() => { typed = true; finishOrMark(); });
+  };
+
+  const finishOrMark = () => {
+    if (index >= lines.length - 1) {
+      player.finished = true;
+      onEnd();
+    } else {
+      mark();
+    }
+  };
+
+  function tap() {
+    if (player.finished) return;
+    if (!typed) { typing?.stop(); return; }   // 送っている途中 → その行を最後まで
+    show(++index);                            // 出し終わっている → 次の行へ
+  }
+
+  return Object.assign(player, {
+    /** 最初の一行を出す。少し置いてから始める（画面が出た瞬間に文字が走らない）。 */
+    start(delay = 420) { setTimeout(() => show(++index), delay); },
+  });
+}
 
 function sceneScreen(stage, onDone) {
   const chapter = stage.chapter ?? 1;
@@ -910,68 +954,33 @@ function sceneScreen(stage, onDone) {
         ${crest(Game.level, Game.levelProgress)}
         <div class="scene-steps"><span class="num" data-steps>0</span><span class="unit">歩</span></div>
       </div>` : ''}
-      <div class="night scene-text">${stage.lines.map(sceneLine).join('')}</div>
+      <div class="night scene-text"></div>
       ${stage.facility ? `<div class="scene-open" hidden>
         <span class="disc">${icon(stage.facility.glyph, 20)}</span>
         <span><b>${stage.facility.name}</b>が開いた<br><span class="lead">${stage.facility.lead}</span></span>
       </div>` : ''}
-      <div class="scene-hint">画面を触ると最後まで送る</div>
       <button class="btn go scene-go" style="visibility:hidden">
         ${stage.action === 'equip' ? '装備を開く' : '進む'}
       </button>
     </div>`);
 
-  const paragraphs = $$(el, '.scene-text p');
-  const targets = $$(el, '.scene-text [data-t]');
+  const box = $(el, '.scene-text');
   const button = $(el, '.scene-go');
-  let typing = null;
-  let skipped = false;
-  let finished = false;
-
-  // 話者名は、その行の番が来るまで伏せる。**先に全員の名前が並ぶと、誰が出るかが割れる。**
-  paragraphs.forEach((p) => p.classList.add('waiting'));
-  const openLine = (i) => paragraphs[i].classList.remove('waiting');
-
-  const reveal = () => {
-    finished = true;
-    $(el, '.scene-hint')?.remove();
-    // 施設が開いたことは**文章を読み終えてから**出す。同時に出すと、
-    // 読んでいる途中で下に札が生えて、行が動く。
+  let player;
+  player = linePlayer(box, stage.lines, () => {
+    // 施設が開いたことは**読み終えてから**出す。途中で下に札が生えると、行が動く。
     const open = $(el, '.scene-open');
     if (open) { open.hidden = false; Sound.play('levelup'); }
     button.style.visibility = 'visible';
-  };
+  });
 
-  (async () => {
-    await sleep(420);
-    for (let i = 0; i < targets.length; i++) {
-      const line = stage.lines[i];
-      if (skipped) { openLine(i); targets[i].textContent = sceneText(line); continue; }
-      openLine(i);
-      // **システムメッセージは送らない。** 読み上げる言葉ではないので、
-      // 一文字ずつ出すと、機械の報告に芝居をさせているように見える。
-      if (line.kind === 'sys') {
-        targets[i].textContent = line.text;
-        Sound.play('gain');
-        await sleep(620);
-        continue;
-      }
-      typing = typeInto(targets[i], sceneText(line));
-      await typing;
-      await sleep(240);
-    }
-    reveal();
-  })();
-
-  // **待たされる文章は読まれない。** 触れば全部出る（章の扉と同じ作法）。
   el.addEventListener('click', (event) => {
     if (event.target.closest('.btn')) return;
-    if (finished || skipped) return;
-    skipped = true;
-    typing?.stop();
-    targets.forEach((t, i) => { openLine(i); t.textContent = sceneText(stage.lines[i]); });
-    reveal();
+    // 読み終えていれば、画面を触っても進む手と同じ扱いにする。
+    if (player.finished) { onDone(); return; }
+    player.tap();
   });
+  player.start();
 
   // 歩いた分を、この場面の中で入れる。**数と紋章を同じ瞬間に動かす。**
   if (isWalk) {

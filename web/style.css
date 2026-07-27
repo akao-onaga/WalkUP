@@ -899,12 +899,21 @@ img { display: block; }
 }
 /* 複数行を送る。**行ごとに場所を先に空けておく**（min-height）。
    出るたびに下の物が押し下がると、読んでいる行が動く。 */
+/* 扉も1行ずつ。**2行ぶんの高さを確保**して、行の長さで題字と絵が動かないようにする。 */
 .door-lines {
-  margin-top: 26px; max-width: 320px; min-height: 7.6em;
+  position: relative;
+  margin-top: 26px; max-width: 320px; min-height: 4.2em;
+  display: flex; align-items: center;
   font-size: 14px; line-height: 1.95;
   text-shadow: 0 2px 6px rgba(0, 0, 0, .95);
 }
-.door-lines p + p { margin-top: 8px; }
+.door-lines > p { width: 100%; }
+.door-lines.waiting-tap::after {
+  content: "▼";
+  position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%);
+  font-size: 9px; color: rgba(226, 180, 134, .85);
+  animation: tap-bob .9s ease-in-out infinite alternate;
+}
 /* 扉は中央寄せ。**セリフの行も中央に揃える。**
    地の文だけ中央でセリフが左だと、同じ面の中で組み方が二つになる。 */
 .door-lines .l-n { text-align: center; }
@@ -977,13 +986,27 @@ img { display: block; }
   100% { transform: scale(1); }
 }
 
+/* **高さを固定する。** 1行ずつ入れ替えるので、行の長さで札が伸び縮みすると
+   踏むたびに画面が跳ねる。2行ぶん入る高さを最初から確保しておく。 */
 .scene-text {
-  margin-top: 18px; padding: 15px 17px;
+  position: relative;
+  margin-top: 18px; padding: 15px 17px 22px;
   width: 100%;
-  min-height: 5.6em;
+  min-height: 5.4em;
+  display: flex; align-items: center;
   font-size: 13.5px; line-height: 1.95;
 }
-.scene-text p + p { margin-top: 7px; }
+.scene-text > p { width: 100%; }
+
+/* 次を促す印。**待っている間だけ出す。**
+   出しっぱなしだと、送っている最中にも押せると読めてしまう。 */
+.scene-text.waiting-tap::after {
+  content: "▼";
+  position: absolute; right: 12px; bottom: 6px;
+  font-size: 9px; color: rgba(226, 180, 134, .85);
+  animation: tap-bob .9s ease-in-out infinite alternate;
+}
+@keyframes tap-bob { from { transform: translateY(-1px); opacity: .45; } to { transform: translateY(2px); opacity: 1; } }
 
 /* --- 3種の書き分け -------------------------------------------------
    全部を同じ白文字で出すと、地の文もセリフも仕様の説明も同じ声に聞こえる。
@@ -1022,13 +1045,6 @@ img { display: block; }
 }
 
 /* 番が来るまで名札を伏せる。**場所は空けたまま**にして、行が飛び跳ねないようにする。 */
-p.waiting .who,
-p.waiting.l-sys { visibility: hidden; }
-.scene-hint {
-  margin-top: 12px; text-align: center;
-  font-size: 10px; letter-spacing: .16em; color: rgba(255,255,255,.5);
-  animation: hint-fade 2s ease-in-out infinite alternate;
-}
 /* 送り終わるまで場所だけ空けておく。出た瞬間に他が動くと、読んでいる行がずれる。 */
 .scene-go { margin-top: 12px; }
 
