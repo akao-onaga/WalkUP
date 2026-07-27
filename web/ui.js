@@ -1157,8 +1157,8 @@ const SLOT_NAME = { weapon: '靴', armor: '外套', accessory: '護符' };
  *  絵が無い物（まだ生成していない物）は記号で代替し、**画面が壊れないようにする。** */
 const itemArt = (id, size) => `<img class="item-art" src="${itemOf(id)}" alt="" style="width:${size}px;height:${size}px">`;
 
-/** 素材・携行品の絵の名前。engine 側の ID と対応させる。 */
-const MATERIAL_ART = { dregs: 'mat_dregs', core: 'mat_core', core_shard: 'mat_shard', salve: 'item_salve' };
+/** 素材の絵の名前。engine 側の ID と対応させる。 */
+const MATERIAL_ART = { dregs: 'mat_dregs', core: 'mat_core', core_shard: 'mat_shard' };
 /** 枠を体のどこに置くか（%）。**靴は足元に置く。**
  *  手元に置いた時点で「振るうのは足」という §1.1 の筋と噛み合わなくなる。 */
 const SLOT_POS = { armor: [15, 30], accessory: [85, 30], weapon: [50, 84] };
@@ -1449,9 +1449,8 @@ function milestoneScreen(finds) {
   const things = new Map();
   for (const f of finds.filter((f) => f.kind !== 'lore')) {
     const key = f.title;
-    // 目撃は「情報」なので記号、かけらと携行品は「物」なので絵。
-    const art = f.kind === 'sighting' ? icon('eye', 28)
-      : itemArt(MATERIAL_ART[f.kind === 'shard' ? 'core_shard' : 'salve'], 36);
+    // 目撃は「情報」なので記号、かけらは「物」なので絵。
+    const art = f.kind === 'sighting' ? icon('eye', 28) : itemArt(MATERIAL_ART.core_shard, 36);
     things.set(key, { art, count: (things.get(key)?.count ?? 0) + 1 });
   }
 

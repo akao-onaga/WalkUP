@@ -58,8 +58,6 @@ enum MilestoneOpener {
         case lore(id: String, text: String)
         /// ダルモンの目撃。図鑑に影として載る。
         case sighting(darumonId: String, name: String)
-        /// 携行品。
-        case consumable(id: String, name: String)
         /// 核のかけら。
         case coreShard
 
@@ -67,7 +65,6 @@ enum MilestoneOpener {
             switch self {
             case .lore(let id, _): return "lore-\(id)"
             case .sighting(let id, _): return "sight-\(id)"
-            case .consumable(let id, _): return "item-\(id)"
             case .coreShard: return "shard-\(UUID().uuidString)"
             }
         }
@@ -76,7 +73,6 @@ enum MilestoneOpener {
             switch self {
             case .lore: return "世界の記述"
             case .sighting(_, let name): return "\(name) の目撃情報"
-            case .consumable(_, let name): return name
             case .coreShard: return "怠惰の核のかけら"
             }
         }
@@ -85,52 +81,71 @@ enum MilestoneOpener {
             switch self {
             case .lore: return "book.closed"
             case .sighting: return "eye"
-            case .consumable: return "leaf"
             case .coreShard: return "diamond"
             }
         }
     }
 
     /// §18.4 の抽選表。合計100。
+    ///
+    /// **携行品は廃止した（2026-07-27）。** 戦闘は毎回全快で始まる設計（§4.1）なので、
+    /// 「戦闘前に使える回復」は効果量をいくつにしても何も起きない。
+    /// 一時強化に読み替える手もあったが、道具の管理という層を1つ増やすだけで、
+    /// §2 の「1セッション3分」に対して割に合わない。
     private static let weights: [(kind: Int, weight: Int)] = [
-        (0, 45),  // 世界の記述
-        (1, 25),  // 目撃情報
-        (2, 20),  // 携行品
-        (3, 10),  // 核のかけら
+        (0, 65),  // 世界の記述
+        (1, 10),  // 目撃情報
+        (2, 25),  // 核のかけら
     ]
 
     /// 道標を `count` 個まとめて開封する。
     ///
     /// **一括開封にすること**（§18.2）。1つずつ開けさせると §2 の「1セッション3分」が壊れる。
+    ///
+    /// - Parameter alreadySighted: 目撃済み・討伐済みのダルモンID。
+    ///   **未発見の個体からしか引かない**ため必要。既に見た相手を引いても図鑑は動かず、
+    ///   開封の演出だけが1枚増える。
     static func open(
         count: Int,
         unlockedChapter: Int,
         alreadyUnlockedLore: Set<String>,
+        alreadySighted: Set<String>,
         using generator: inout some RandomNumberGenerator
     ) -> [Find] {
         guard count > 0 else { return [] }
         var finds: [Find] = []
         var usedLore = alreadyUnlockedLore
+        var sighted = alreadySighted
 
+        // 既に解放済みのものを引いたら、次の未解放へ回す（§18.6）。
+        func takeLore() -> Find? {
+            guard let entry = LoreCatalog.nextUnlocked(excluding: usedLore, chapter: unlockedChapter)
+            else { return nil }
+            usedLore.insert(entry.id)
+            return .lore(id: entry.id, text: entry.text)
+        }
+
+        // 開放済みの章すべてが対象（同じ役割が2体いる章でも、4体とも出る）。
+        func takeSighting() -> Find? {
+            var pool: [MasterData.Enemy] = []
+            for chapter in 1...max(1, unlockedChapter) {
+                for species in MasterData.species(chapter: chapter) where !sighted.contains(species.id) {
+                    pool.append(MasterData.zako(chapter: chapter, role: species.role, species: species))
+                }
+            }
+            guard let enemy = pool.randomElement(using: &generator) else { return nil }
+            sighted.insert(enemy.id)
+            return .sighting(darumonId: enemy.id, name: enemy.name)
+        }
+
+        // 引き切った時の逃がし先は**もう一方の読み物側**にする。
+        // かけらへ直行させると、記述22本を読み終えた数日後から核が跳ね上がり、
+        // §18.4 の「核1つに約3.3日」という補助経路の前提が崩れる。
         for _ in 0..<count {
             switch pick(using: &generator) {
-            case 0:
-                // 既に解放済みのものを引いたら、次の未解放へ回す（§18.6）。
-                if let entry = LoreCatalog.nextUnlocked(excluding: usedLore, chapter: unlockedChapter) {
-                    usedLore.insert(entry.id)
-                    finds.append(.lore(id: entry.id, text: entry.text))
-                } else {
-                    // 記述を引き切ったら、無駄撃ちにせず かけら に振り替える。
-                    finds.append(.coreShard)
-                }
-            case 1:
-                let role = MasterData.Role.allCases.randomElement(using: &generator)!
-                let enemy = MasterData.zako(chapter: unlockedChapter, role: role)
-                finds.append(.sighting(darumonId: enemy.id, name: enemy.name))
-            case 2:
-                finds.append(.consumable(id: ConsumableID.salve, name: "気付けの塗り薬"))
-            default:
-                finds.append(.coreShard)
+            case 0: finds.append(takeLore() ?? takeSighting() ?? .coreShard)
+            case 1: finds.append(takeSighting() ?? takeLore() ?? .coreShard)
+            default: finds.append(.coreShard)
             }
         }
         return finds
@@ -145,11 +160,6 @@ enum MilestoneOpener {
         }
         return weights[0].kind
     }
-}
-
-enum ConsumableID {
-    /// 戦闘前に使うと HP を回復する（§18.6 で数値は未確定）。
-    static let salve = "salve"
 }
 
 /// 「世界の記述」の文面（§18.4）。

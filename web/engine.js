@@ -90,9 +90,14 @@ const Rewards = {
   },
 };
 
-/** 道標の開封（§18.4）。抽選表は 世界の記述45 / 目撃25 / 携行品20 / かけら10。 */
+/** 道標の開封（§18.4）。抽選表は 世界の記述65 / 目撃10 / かけら25。
+ *
+ * **携行品は廃止した（2026-07-27）。** 戦闘は毎回全快で始まる設計（§4.1）なので、
+ * 「戦闘前に使える回復」は効果量をいくつにしても何も起きない。
+ * 一時強化に読み替える手もあったが、道具の管理という層を1つ増やすだけで、
+ * §2 の「1セッション3分」に対して割に合わない。 */
 const Milestones = {
-  weights: [['lore', 45], ['sighting', 25], ['consumable', 20], ['shard', 10]],
+  weights: [['lore', 65], ['sighting', 10], ['shard', 25]],
 
   pick() {
     let roll = Math.random() * 100;
@@ -104,35 +109,44 @@ const Milestones = {
   },
 
   /** **一括で開ける**（§18.2）。1つずつ開けさせると1セッション3分が壊れる。 */
-  open(count, unlockedChapter, alreadyUnlocked) {
+  open(count, unlockedChapter, alreadyUnlocked, alreadySighted) {
     const finds = [];
     const used = new Set(alreadyUnlocked);
+    const sighted = new Set(alreadySighted);
 
+    // 引き当て済みなら次の未解放へ回す。読み物として途中が抜けないようにする（§18.6）。
+    const takeLore = () => {
+      const entry = LORE.find((l) => l.chapter <= Math.max(1, unlockedChapter) && !used.has(l.id));
+      if (!entry) return null;
+      used.add(entry.id);
+      return { kind: 'lore', id: entry.id, title: '世界の記述', text: entry.text };
+    };
+
+    // **未発見の個体からしか引かない。** 既に見た相手を引いても図鑑は動かず、
+    // 開封の演出だけが1枚増える。開放済みの章すべてが対象（その章の4体とも出る）。
+    const takeSighting = () => {
+      const pool = [];
+      for (let chapter = 1; chapter <= Math.max(1, unlockedChapter); chapter++) {
+        for (const s of Master.species(chapter)) {
+          if (!sighted.has(s.id)) pool.push(Master.zako(chapter, s.role, s));
+        }
+      }
+      if (!pool.length) return null;
+      const enemy = pool[Math.floor(Math.random() * pool.length)];
+      sighted.add(enemy.id);
+      return { kind: 'sighting', id: enemy.id, title: `${enemy.name} の目撃情報` };
+    };
+
+    const shard = () => ({ kind: 'shard', title: '怠惰の核のかけら' });
+
+    // 引き切った時の逃がし先は**もう一方の読み物側**にする。
+    // かけらへ直行させると、記述22本を読み終えた数日後から核が跳ね上がり、
+    // §18.4 の「核1つに約8.3日」という補助経路の前提が崩れる。
     for (let i = 0; i < count; i++) {
       switch (Milestones.pick()) {
-        case 'lore': {
-          // 引き当て済みなら次の未解放へ回す。読み物として途中が抜けないようにする（§18.6）。
-          const entry = LORE.find((l) => l.chapter <= Math.max(1, unlockedChapter) && !used.has(l.id));
-          if (entry) {
-            used.add(entry.id);
-            finds.push({ kind: 'lore', id: entry.id, title: '世界の記述', text: entry.text });
-          } else {
-            finds.push({ kind: 'shard', title: '怠惰の核のかけら' });
-          }
-          break;
-        }
-        case 'sighting': {
-          const roles = ['standard', 'tough', 'swift'];
-          const role = roles[Math.floor(Math.random() * roles.length)];
-          const enemy = Master.zako(unlockedChapter, role);
-          finds.push({ kind: 'sighting', id: enemy.id, title: `${enemy.name} の目撃情報` });
-          break;
-        }
-        case 'consumable':
-          finds.push({ kind: 'consumable', id: 'salve', title: '気付けの塗り薬' });
-          break;
-        default:
-          finds.push({ kind: 'shard', title: '怠惰の核のかけら' });
+        case 'lore': finds.push(takeLore() ?? takeSighting() ?? shard()); break;
+        case 'sighting': finds.push(takeSighting() ?? takeLore() ?? shard()); break;
+        default: finds.push(shard());
       }
     }
     return finds;
@@ -152,7 +166,6 @@ const emptyState = () => ({
   regions: [],
   bestiary: [],
   materials: { dregs: 0, core: 0, core_shard: 0 },
-  consumables: {},
   unlockedLore: [],
   pendingMilestones: 0,
   hasPass: false,
@@ -184,6 +197,8 @@ const Game = {
       const raw = localStorage.getItem(SAVE_KEY);
       if (raw) Game.state = { ...emptyState(), ...JSON.parse(raw) };
     } catch (_) { /* 壊れた保存データは捨てて初期状態で始める */ }
+    // 廃止した携行品。**保存済みの側はコードを直しても消えない**ので、読み込みで落とす。
+    delete Game.state.consumables;
     return Game.state;
   },
   save() {
@@ -337,11 +352,11 @@ const Game = {
     const count = Game.state.pendingMilestones;
     if (count <= 0) return [];
 
-    const finds = Milestones.open(count, Game.unlockedChapter, Game.state.unlockedLore);
+    const sighted = Game.state.bestiary.filter((e) => e.isSighted).map((e) => e.darumonId);
+    const finds = Milestones.open(count, Game.unlockedChapter, Game.state.unlockedLore, sighted);
     for (const find of finds) {
       if (find.kind === 'lore') Game.state.unlockedLore.push(find.id);
       if (find.kind === 'sighting') Game.markSighted(find.id);
-      if (find.kind === 'consumable') Game.state.consumables[find.id] = (Game.state.consumables[find.id] ?? 0) + 1;
       if (find.kind === 'shard') Game.state.materials.core_shard += 1;
     }
 

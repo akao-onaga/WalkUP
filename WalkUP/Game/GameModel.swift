@@ -192,6 +192,7 @@ final class GameModel {
             count: count,
             unlockedChapter: unlockedChapter,
             alreadyUnlockedLore: Set(state.unlockedLore),
+            alreadySighted: Set(state.bestiary.filter(\.isSighted).map(\.darumonId)),
             using: &generator
         )
 
@@ -201,8 +202,6 @@ final class GameModel {
                 state.unlockedLore.append(id)
             case .sighting(let darumonId, _):
                 markSighted(darumonId)
-            case .consumable(let id, _):
-                state.consumables[id, default: 0] += 1
             case .coreShard:
                 state.materials[MaterialID.coreShard, default: 0] += 1
             }

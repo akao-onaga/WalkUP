@@ -16,9 +16,6 @@ struct GameState: Codable, Equatable {
     /// 素材ID → 所持数（§17.5）。`MaterialID` を参照。
     var materials: [String: Int] = [:]
 
-    /// 携行品ID → 所持数（§18.5）。
-    var consumables: [String: Int] = [:]
-
     /// 解放済みの「世界の記述」ID（§18.4）。
     var unlockedLore: [String] = []
 
@@ -205,7 +202,7 @@ struct BestiaryEntry: Codable, Equatable {
     var isShadowOnly: Bool { isSighted && defeatedCount == 0 }
 }
 
-// MARK: - 素材・携行品の識別子
+// MARK: - 素材の識別子
 
 enum MaterialID {
     /// 怠惰の澱。全ダルモンがドロップし、装備強化に使う（§17.5）。

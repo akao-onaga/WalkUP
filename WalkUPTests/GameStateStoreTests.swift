@@ -35,7 +35,7 @@ struct GameStateStoreTests {
         state.player.todayCreditedSteps = 3_456
         state.player.milestoneCreditedToday = 6
         state.materials[MaterialID.dregs] = 42
-        state.consumables["potion"] = 2
+        state.materials[MaterialID.coreShard] = 4
         state.unlockedLore = ["lore_001", "lore_002"]
         state.equipment = [MasterData.equipment(chapter: 1, slot: .weapon)]
         state.chapters = [ChapterProgress(chapterId: 1, nodeIndex: 3)]
