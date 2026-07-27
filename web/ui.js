@@ -820,23 +820,27 @@ function chapterDoorScreen(chapter) {
       <div class="door-frame">
         <div class="door-art" style="background-image:url('${doorOf(chapter)}')"></div>
       </div>
-      <div class="door-lines">${Master.doorLines(chapter).map(() => '<p class="door-line"></p>').join('')}</div>
+      <div class="door-lines">${Master.doorLines(chapter).map(sceneLine).join('')}</div>
       <div class="door-hint">画面を触って進む</div>
     </div>`);
 
   // 送る。扉で足を止めさせるのは、ここで読ませたいからで、
   // 読ませたい文章を一度に出すと読まれない。
   const lines = Master.doorLines(chapter);
-  const paragraphs = $$(el, '.door-line');
+  const paragraphs = $$(el, '.door-lines p');
+  const targets = $$(el, '.door-lines [data-t]');
   let typing = null;
   let skipped = false;
   let done = false;
 
+  paragraphs.forEach((p) => p.classList.add('waiting'));
+
   (async () => {
     await sleep(1100);
-    for (let i = 0; i < paragraphs.length; i++) {
-      if (skipped) { paragraphs[i].textContent = lines[i]; continue; }
-      typing = typeInto(paragraphs[i], lines[i], { speed: 46 });
+    for (let i = 0; i < targets.length; i++) {
+      paragraphs[i].classList.remove('waiting');
+      if (skipped) { targets[i].textContent = sceneText(lines[i]); continue; }
+      typing = typeInto(targets[i], sceneText(lines[i]), { speed: 46 });
       await typing;
       await sleep(300);
     }
@@ -848,7 +852,7 @@ function chapterDoorScreen(chapter) {
     if (!done && !skipped) {
       skipped = true;
       typing?.stop();
-      paragraphs.forEach((p, i) => { p.textContent = lines[i]; });
+      targets.forEach((t, i) => { paragraphs[i].classList.remove('waiting'); t.textContent = sceneText(lines[i]); });
       done = true;
       return;
     }
@@ -870,6 +874,25 @@ function chapterDoorScreen(chapter) {
  * 紙面で読ませると読み物になる。物語は「その場所で起きていること」なので、
  * 地はその街のアートのままにして、文字だけを暗い札に載せる。
  * 章の扉（`chapterDoorScreen`）と同じ作りを、複数行と後始末が要る場面向けに広げたもの。 */
+/** 場面の一行を組む。**3種類を見た目で分ける。**
+ *
+ * 全部を同じ白文字の段落で出すと、地の文もセリフも仕様の説明も同じ声に聞こえる。
+ * 話者は墨の小札、システムは琥珀の細い帯にして、**読む前に種類が分かる**ようにする。
+ * 文字列がそのまま来たら地の文として扱う（古い書き方を黙って壊さない）。 */
+function sceneLine(line) {
+  const l = typeof line === 'string' ? { kind: 'n', text: line } : line;
+  if (l.kind === 'sys') return `<p class="l-sys"><span data-t></span></p>`;
+  if (l.kind === 's') {
+    return `<p class="l-say ${l.who === HERO ? 'me' : ''}">
+      <b class="who">${l.who}</b><span class="say" data-t></span>
+    </p>`;
+  }
+  return `<p class="l-n"><span data-t></span></p>`;
+}
+
+/** 送る対象の文字列。セリフは鉤括弧を組版側で付ける（データに括弧を書かせない）。 */
+const sceneText = (line) => (typeof line === 'string' ? line : line.text);
+
 function sceneScreen(stage, onDone) {
   const chapter = stage.chapter ?? 1;
   const life = Game.vitality(chapter) / Balance.vitalityMax;
@@ -887,7 +910,7 @@ function sceneScreen(stage, onDone) {
         ${crest(Game.level, Game.levelProgress)}
         <div class="scene-steps"><span class="num" data-steps>0</span><span class="unit">歩</span></div>
       </div>` : ''}
-      <div class="night scene-text">${stage.lines.map(() => '<p></p>').join('')}</div>
+      <div class="night scene-text">${stage.lines.map(sceneLine).join('')}</div>
       ${stage.facility ? `<div class="scene-open" hidden>
         <span class="disc">${icon(stage.facility.glyph, 20)}</span>
         <span><b>${stage.facility.name}</b>が開いた<br><span class="lead">${stage.facility.lead}</span></span>
@@ -899,10 +922,15 @@ function sceneScreen(stage, onDone) {
     </div>`);
 
   const paragraphs = $$(el, '.scene-text p');
+  const targets = $$(el, '.scene-text [data-t]');
   const button = $(el, '.scene-go');
   let typing = null;
   let skipped = false;
   let finished = false;
+
+  // 話者名は、その行の番が来るまで伏せる。**先に全員の名前が並ぶと、誰が出るかが割れる。**
+  paragraphs.forEach((p) => p.classList.add('waiting'));
+  const openLine = (i) => paragraphs[i].classList.remove('waiting');
 
   const reveal = () => {
     finished = true;
@@ -916,9 +944,19 @@ function sceneScreen(stage, onDone) {
 
   (async () => {
     await sleep(420);
-    for (let i = 0; i < paragraphs.length; i++) {
-      if (skipped) { paragraphs[i].textContent = stage.lines[i]; continue; }
-      typing = typeInto(paragraphs[i], stage.lines[i]);
+    for (let i = 0; i < targets.length; i++) {
+      const line = stage.lines[i];
+      if (skipped) { openLine(i); targets[i].textContent = sceneText(line); continue; }
+      openLine(i);
+      // **システムメッセージは送らない。** 読み上げる言葉ではないので、
+      // 一文字ずつ出すと、機械の報告に芝居をさせているように見える。
+      if (line.kind === 'sys') {
+        targets[i].textContent = line.text;
+        Sound.play('gain');
+        await sleep(620);
+        continue;
+      }
+      typing = typeInto(targets[i], sceneText(line));
       await typing;
       await sleep(240);
     }
@@ -931,7 +969,7 @@ function sceneScreen(stage, onDone) {
     if (finished || skipped) return;
     skipped = true;
     typing?.stop();
-    paragraphs.forEach((p, i) => { p.textContent = stage.lines[i]; });
+    targets.forEach((t, i) => { openLine(i); t.textContent = sceneText(stage.lines[i]); });
     reveal();
   });
 
@@ -2145,8 +2183,16 @@ function bindTray() {
     updateTray();
   }));
   $(tray, '[data-act="next-day"]').addEventListener('click', () => { Game.nextDay(); renderHome(); updateTray(); });
+  // **消したらタイトルへ戻す。** 消すだけだとホームに残り、
+  // 導入もチュートリアルも出てこない（`maybeInterlude` は画面を閉じた時にしか動かない）。
+  // 「最初から」を押した人が見たいのは、初回起動そのものである。
   $(tray, '[data-act="reset"]').addEventListener('click', () => {
-    if (confirm('進行状況を消して最初から始めますか？')) { Game.reset(); renderHome(); updateTray(); }
+    if (!confirm('進行状況を消して最初から始めますか？')) return;
+    Game.reset();
+    while (layers.length) { const l = layers.pop(); l.remove(); }
+    renderHome();
+    updateTray();
+    Nav.push(titleScreen());
   });
   $(tray, '[data-act="fold"]').addEventListener('click', () => tray.classList.toggle('folded'));
 

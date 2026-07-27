@@ -899,13 +899,24 @@ img { display: block; }
 }
 /* 複数行を送る。**行ごとに場所を先に空けておく**（min-height）。
    出るたびに下の物が押し下がると、読んでいる行が動く。 */
-.door-lines { margin-top: 26px; max-width: 310px; min-height: 7.2em; }
+.door-lines {
+  margin-top: 26px; max-width: 320px; min-height: 7.6em;
+  font-size: 14px; line-height: 1.95;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .95);
+}
+.door-lines p + p { margin-top: 8px; }
+/* 扉は中央寄せ。**セリフの行も中央に揃える。**
+   地の文だけ中央でセリフが左だと、同じ面の中で組み方が二つになる。 */
+.door-lines .l-n { text-align: center; }
+.door-lines .l-say { justify-content: center; }
+.door-lines .l-sys { margin-top: 12px; }
+
+/* 完結の一行は従来どおり（3種の書き分けを使っていない）。 */
 .door-line {
   text-align: center;
   font-size: 14px; line-height: 1.95;
-  text-shadow: 0 2px 6px rgba(0,0,0,.95);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .95);
 }
-.door-line + .door-line { margin-top: 8px; }
 
 /* 完結の「まだ戻っていない場所」。**数字の隣に、次に開く物を置く。**
    進捗だけを見せると、何をすれば戻るのかが分からないまま終わる。 */
@@ -972,7 +983,47 @@ img { display: block; }
   min-height: 5.6em;
   font-size: 13.5px; line-height: 1.95;
 }
-.scene-text p + p { margin-top: 4px; }
+.scene-text p + p { margin-top: 7px; }
+
+/* --- 3種の書き分け -------------------------------------------------
+   全部を同じ白文字で出すと、地の文もセリフも仕様の説明も同じ声に聞こえる。
+   **読む前に種類が分かること**が要件で、色と組み方だけで分ける。 */
+
+/* 地の文。基準。 */
+.l-n { color: rgba(255, 255, 255, .9); }
+
+/* セリフ。話者は墨の小札で行頭に置き、本文は鉤括弧で括る。
+   **名札を四角い箱にしない。** 標準の会話ウィンドウの顔になる。 */
+.l-say { display: flex; gap: 9px; align-items: baseline; }
+.l-say .who {
+  flex: none;
+  padding: 2px 7px;
+  background: rgba(232, 228, 220, .9);
+  color: #2E2A38;
+  border-radius: 8px 2px 8px 2px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
+  white-space: nowrap;
+}
+.l-say .say { color: #fff; }
+.l-say .say::before { content: "「"; }
+.l-say .say::after { content: "」"; }
+/* 本人のセリフだけ札を暖色にする。**誰が喋ったかを色でも分ける。** */
+.l-say.me .who { background: var(--vigor); color: #fff; }
+
+/* システム。**世界の言葉にできない事実だけ。** 中央寄せの細い帯。 */
+.l-sys {
+  margin-top: 9px; padding: 7px 10px;
+  text-align: center;
+  background: rgba(154, 111, 74, .3);
+  border-top: 1px solid rgba(226, 180, 134, .45);
+  border-bottom: 1px solid rgba(226, 180, 134, .45);
+  color: #E2B486;
+  font-size: 11.5px; font-weight: 800; letter-spacing: .05em;
+}
+
+/* 番が来るまで名札を伏せる。**場所は空けたまま**にして、行が飛び跳ねないようにする。 */
+p.waiting .who,
+p.waiting.l-sys { visibility: hidden; }
 .scene-hint {
   margin-top: 12px; text-align: center;
   font-size: 10px; letter-spacing: .16em; color: rgba(255,255,255,.5);

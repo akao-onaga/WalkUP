@@ -657,10 +657,16 @@ const Game = {
 
   // ---- チュートリアル（§11-1） ----
 
-  /** いまチュートリアルの何段目か。終わっていれば null。 */
+  /** いまチュートリアルの何段目か。終わっていれば null。
+   *
+   * **段が範囲外なら終わったことにする。** 保存データが古くて段だけ進んでいると、
+   * `seenTutorial` が false のまま毎回黙って素通りし、
+   * 「チュートリアルが出ない」原因が状態のどこにも書かれていない状態になる。 */
   get tutorialStage() {
     if (Game.state.seenTutorial) return null;
-    return TUTORIAL[Game.state.tutorialStep] ?? null;
+    const stage = TUTORIAL[Game.state.tutorialStep];
+    if (!stage) { Game.state.seenTutorial = true; Game.save(); return null; }
+    return stage;
   },
 
   /** 一段進める。最後まで来たら終わりにする。 */
