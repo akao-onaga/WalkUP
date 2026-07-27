@@ -964,6 +964,109 @@ img { display: block; }
 /* 送り終わるまで場所だけ空けておく。出た瞬間に他が動くと、読んでいる行がずれる。 */
 .scene-go { margin-top: 12px; }
 
+/* 施設が開いた札。**読み終えてから**出す（規則は ui.js の reveal に書いてある）。 */
+.scene-open {
+  display: flex; align-items: center; gap: 11px;
+  margin-top: 10px; padding: 11px 13px;
+  background: rgba(154, 111, 74, .82);
+  border: var(--stroke) solid rgba(232, 228, 220, .9);
+  border-radius: var(--round);
+  box-shadow: 0 var(--depth) 0 rgba(0, 0, 0, .45);
+  color: #fff; font-size: 12.5px; line-height: 1.6;
+  animation: open-in .42s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.scene-open .disc {
+  width: 34px; height: 34px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(18, 16, 24, .45); border-radius: 50%;
+}
+.scene-open .lead { opacity: .82; font-size: 11.5px; }
+@keyframes open-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------------ */
+/* 7b. 施設（§6.2）                                                     */
+/* ------------------------------------------------------------------ */
+
+/* 施設は地図の上に建つ。**標（ノード）とは形を変える。**
+   同じ丸だと「もう一つの敵」に見え、押す前に何かが分からない。 */
+.pin.facility {
+  width: 46px; height: 46px;
+  border-radius: 12px 4px 12px 4px;
+  background: rgba(154, 111, 74, .92);
+  border-color: rgba(232, 228, 220, .92);
+  color: #fff;
+}
+.pin.facility .fname {
+  position: absolute; left: 50%; top: 100%;
+  transform: translateX(-50%); margin-top: 5px;
+  white-space: nowrap;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
+  color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+/* ウォークの軌跡 — 直近7日の歩き方 */
+.trace-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px dashed rgba(46, 42, 56, .18);
+  font-size: 12px;
+}
+.trace-row:last-child { border-bottom: 0; }
+.trace-row .tn { font-weight: 800; min-width: 5.2em; }
+.trace-row .tv { flex: 1; font-variant-numeric: tabular-nums; color: var(--text-soft); }
+.trace-row .tg { font-size: 10.5px; color: var(--text-soft); }
+/* 届いた行だけ色を持たせる。**全部同じ濃さだと、どれが効いているか読めない。** */
+.trace-row.ok .tn, .trace-row.ok .tv { color: var(--vigor); }
+.trace-row.ok .tg { color: var(--vigor); font-weight: 800; }
+
+.mark-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.mark {
+  display: inline-flex; flex-direction: column; gap: 1px;
+  padding: 6px 10px;
+  background: var(--paper);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 10px 3px 10px 3px;
+  font-size: 11.5px; font-weight: 800;
+}
+.mark i { font-style: normal; font-size: 10px; color: var(--vigor); }
+
+/* 市 — 交換 */
+.trade.short { opacity: .62; }
+.trade-item { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; }
+.trade-item b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.trade-item i { font-style: normal; font-size: 9.5px; color: var(--text-soft); }
+.arrow-to { font-size: 17px; color: var(--vigor); font-weight: 800; }
+
+/* 掲示板 — 貼り紙。**一覧の行にしない。** 紙が1枚貼ってある形に留める。 */
+.note {
+  position: relative;
+  padding: 16px 14px 14px;
+  background: #F3EFE4;
+  border: var(--stroke) solid var(--ink);
+  /* 四隅を不揃いにして、切った紙に見せる。定規で引いた角丸は UI 部品の顔。 */
+  border-radius: 3px 14px 4px 12px;
+  box-shadow: 0 var(--depth) 0 rgba(46, 42, 56, .28);
+  transform: rotate(-.7deg);
+}
+.note:nth-child(2) { transform: rotate(.9deg); }
+.note.done { opacity: .55; }
+.note-pin {
+  position: absolute; left: 50%; top: -7px; transform: translateX(-50%);
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--danger);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(46, 42, 56, .3);
+}
+.note-head {
+  text-align: center; font-size: 12.5px; font-weight: 800; letter-spacing: .05em;
+  padding-bottom: 8px; border-bottom: 1px dashed rgba(46, 42, 56, .28);
+}
+.note .face {
+  width: 42px; height: 42px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.note .face img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
 /* ------------------------------------------------------------------ */
 /* 7. 討伐 — 地図                                                      */
 /* ------------------------------------------------------------------ */

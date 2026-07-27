@@ -37,7 +37,15 @@
     <button data-act="title">タイトルへ</button>
     <button data-act="sound">音: ON</button>
   </div>
+  <!-- 歩き方（§6.2）。ブラウザには歩行データが無いので手で入れる。
+       本編ではヘルスケアの 時間帯別歩数・階数・距離 から導く。 -->
+  <div class="tray-row">
+    <button data-how="morning">朝に 3,000 歩</button>
+    <button data-how="hill">坂を 3,000 歩（+15階）</button>
+    <button data-how="far">遠くまで 3,000 歩（10km）</button>
+  </div>
   <div class="tray-hint">第1章は 20,000 歩、第2章は 60,000 歩、第3章は 120,000 歩で解放。1日の加算上限は 30,000 歩。</div>
+  <div class="tray-hint">歩き方は「ウォークの軌跡」（第1章の活気45%）が直近7日ぶんを読む。</div>
 </div>
 
 <script src="data.js"></script>

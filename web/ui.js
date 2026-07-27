@@ -541,6 +541,13 @@ function maybeInterlude() {
   if (Tutorial.active && Tutorial.run()) return;
   const door = Game.pendingDoor;
   if (door !== null) { Nav.push(chapterDoorScreen(door)); return; }
+  // 活気の節目（§6.1）。**扉の後、完結の前。** 街が戻っていく話は本編の進行より下の層。
+  const step = Game.pendingVitalityScene;
+  if (step) {
+    Nav.push(sceneScreen({ kind: 'scene', chapter: step.chapter, lines: step.lines, facility: step.step === 45 ? FACILITIES[step.chapter] : null },
+      () => { Game.markVitalityScene(step.key); Nav.pop(); }));
+    return;
+  }
   if (Game.isFinished && !Game.state.seenEnding) { Nav.push(endingScreen()); }
 }
 
@@ -797,6 +804,10 @@ function sceneScreen(stage, onDone) {
         <div class="scene-steps"><span class="num" data-steps>0</span><span class="unit">歩</span></div>
       </div>` : ''}
       <div class="night scene-text">${stage.lines.map(() => '<p></p>').join('')}</div>
+      ${stage.facility ? `<div class="scene-open" hidden>
+        <span class="disc">${icon(stage.facility.glyph, 20)}</span>
+        <span><b>${stage.facility.name}</b>が開いた<br><span class="lead">${stage.facility.lead}</span></span>
+      </div>` : ''}
       <div class="scene-hint">画面を触ると最後まで送る</div>
       <button class="btn go scene-go" style="visibility:hidden">
         ${stage.action === 'equip' ? '装備を開く' : '進む'}
@@ -812,6 +823,10 @@ function sceneScreen(stage, onDone) {
   const reveal = () => {
     finished = true;
     $(el, '.scene-hint')?.remove();
+    // 施設が開いたことは**文章を読み終えてから**出す。同時に出すと、
+    // 読んでいる途中で下に札が生えて、行が動く。
+    const open = $(el, '.scene-open');
+    if (open) { open.hidden = false; Sound.play('levelup'); }
     button.style.visibility = 'visible';
   };
 
@@ -977,6 +992,13 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
           ${done > 0 ? `<polyline class="road-done" vector-effect="non-scaling-stroke" points="${path(0, done)}"/>` : ''}
         </svg>
         ${pins}
+        <!-- **施設は地図の上に建てる。** 帳面にすると街から切り離され、
+             ホームの衛星ボタンを増やすと、選ぶ場所が6つになって選べなくなる。 -->
+        ${Game.facilityStage(chapter) >= 1 ? `<button class="pin facility"
+            style="left:${FACILITY_SPOT[0]}%; top:${FACILITY_SPOT[1]}%" data-facility="${chapter}">
+            ${icon(FACILITIES[chapter].glyph, 20)}
+            <span class="fname">${FACILITIES[chapter].name}</span>
+          </button>` : ''}
       </div>` : '<div class="grow"></div>'}
 
       ${isOpen ? selectionPlate(chapter, selected) : `
@@ -997,6 +1019,10 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
   }));
   $$(el, '[data-chapter]').forEach((btn) => btn.addEventListener('click', () => {
     Nav.rebuild(() => mapScreen(Number(btn.dataset.chapter)));
+  }));
+  $$(el, '[data-facility]').forEach((btn) => btn.addEventListener('click', () => {
+    Sound.play('page');
+    Nav.push(facilityScreen(Number(btn.dataset.facility)));
   }));
   const go = $(el, '[data-go]');
   if (go) go.addEventListener('click', () => startBattle(chapter, Number(go.dataset.go)));
@@ -1060,6 +1086,167 @@ function selectionPlate(chapter, selected) {
       ${affordable ? '挑む' : `活力が足りない（必要 ${e.apCost}）`}
     </button>
   </div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 施設（§6.2）                                                        */
+/* ------------------------------------------------------------------ */
+
+/** 地図の標から開く。中身は地域ごとに違う。
+ *
+ * **帳面（紙）で開く。** 施設は建物の中なので、外（世界）から中へ入る対比が要る。
+ * 地図の上に建てておいて中も暗いままだと、押した手応えが返らない。 */
+function facilityScreen(chapter) {
+  const f = FACILITIES[chapter];
+  const stage = Game.facilityStage(chapter);
+  const body = { trace: traceBody, market: marketBody, board: boardBody }[f.id](stage);
+
+  const el = make('screen sheet', header(f.name) + `<div class="body">${body}</div>`);
+  wireFacility(el, chapter, f.id);
+  el._build = () => facilityScreen(chapter);
+  return el;
+}
+
+/** ウォークの軌跡 — 歩いた癖を靴に刻む（§6.2）。 */
+function traceBody(stage) {
+  const found = Game.availableEngraving;
+  const shoe = Game.state.equipment.find((e) => e.slot === 'weapon' && e.isEquipped);
+  const profile = Game.walkProfile;
+  const marks = (shoe?.engravings ?? []).map((id) => ENGRAVINGS[id]).filter(Boolean);
+
+  // **届いていない条件も出す。** 何をすれば刻めるのかが分からないと、
+  // ここは「押せない画面」になる（規則 11d）。
+  const rows = ENGRAVING_RULES.map((rule) => {
+    const value = rule.read(profile);
+    const ok = value >= rule.need;
+    return `<div class="trace-row ${ok ? 'ok' : ''}">
+      <span class="tn">${ENGRAVINGS[rule.id].name}</span>
+      <span class="tv">${rule.unit(value)}</span>
+      <span class="tg">${ok ? '届いた' : rule.unit(rule.need) + ' で'}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="stack">
+    <span class="plate" style="align-self:flex-start">直近7日の歩き方</span>
+    <div class="panel" style="padding:12px 14px">${rows}</div>
+    <div class="caption">歩いた癖がそのまま靴に残る。核を1つ使う。</div>
+  </div>
+
+  <div class="stack">
+    <span class="plate" style="align-self:flex-start">いま履いている靴</span>
+    <div class="panel" style="padding:14px">
+      ${shoe ? `<div class="row" style="gap:10px;align-items:center">
+        ${itemArt(shoe.id, 40, 'shoe')}
+        <span style="flex:1;text-align:left">
+          <b>${shoe.name}</b>
+          <div class="caption">刻印 ${marks.length} / ${Game.engravingSlots}</div>
+        </span>
+      </div>
+      ${marks.length ? `<div class="mark-row">${marks.map((m) => `<span class="mark">${m.name}
+        <i>${[m.hp ? `HP+${m.hp}` : '', m.atk ? `ATK+${m.atk}` : '', m.def ? `DEF+${m.def}` : ''].filter(Boolean).join(' ')}</i>
+      </span>`).join('')}</div>` : '<div class="caption" style="margin-top:8px">まだ何も刻まれていない。</div>'}`
+      : '<div class="caption">靴を履いていない。</div>'}
+    </div>
+    <button class="btn go" data-engrave ${found && shoe && Game.cores >= 1 && !(shoe.engravings ?? []).includes(found.engraving.id) ? '' : 'disabled'}>
+      ${!shoe ? '靴を履いてから来る'
+        : !found ? 'まだ刻めるほど歩いていない'
+        : Game.cores < 1 ? `核が足りない（必要 1 / 所持 ${Game.cores}）`
+        : (shoe.engravings ?? []).includes(found.engraving.id) ? `${found.engraving.name} は既に入っている`
+        : `${found.engraving.name} を刻む`}
+    </button>
+    ${stage >= 2 ? '<div class="caption">この地は戻った。刻印は2つまで載る。</div>' : ''}
+  </div>`;
+}
+
+/** 市 — 素材を交換する（§6.2）。**核の使い道。** */
+function marketBody(stage) {
+  const label = { dregs: '怠惰の澱', core: '怠惰の核', core_shard: '核のかけら' };
+  const art = { dregs: 'mat_dregs', core: 'mat_core', core_shard: 'mat_shard' };
+  const line = (obj) => Object.entries(obj)
+    .map(([m, n]) => `<span class="trade-item">${itemArt(art[m], 30, 'sparkle')}<b>${n}</b><i>${label[m]}</i></span>`).join('');
+
+  // **同じ幅のボタンを縦に積まない**（規則3）。装備の行と同じく、札の右端に小さく置く。
+  // 全幅のボタンを2つ重ねると、交換所ではなくフォームの送信欄になる。
+  const rows = TRADES.map((t) => {
+    const gain = stage >= 2 ? t.after : t.get;
+    const ok = Game.canTrade(t);
+    return `<div class="panel trade ${ok ? '' : 'short'}" style="padding:13px 14px">
+      <div class="row" style="gap:10px">
+        <span class="row" style="flex:1;justify-content:center;gap:10px">
+          ${line(t.give)}<span class="arrow-to">→</span>${line(gain)}
+        </span>
+        <button class="chip" data-trade="${t.id}" ${ok ? '' : 'disabled'}>${ok ? '交換' : '不足'}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stack">
+    <span class="plate" style="align-self:flex-start">交　換</span>
+    ${rows}
+    <div class="caption">${stage >= 2
+      ? 'この地は戻った。以前より多く返ってくる。'
+      : 'この地の活気が満ちれば、返ってくる量が増える。'}</div>
+    <div class="caption">歩数は売れないし、買えない。</div>
+  </div>`;
+}
+
+/** 掲示板 — 日替わりの残党（§6.2）。
+ *  **依頼の一覧を作らない。** 縦に積むとデイリークエストの画面になる。 */
+function boardBody(stage) {
+  const bounties = Game.dailyBounty;
+  if (!bounties.length) return '<div class="caption">今日は何も貼られていない。</div>';
+
+  const notes = bounties.map((e) => {
+    const done = Game.isBountyDone(e.id);
+    const affordable = Game.player.ap >= e.apCost;
+    return `<div class="note ${done ? 'done' : ''}">
+      <div class="note-pin"></div>
+      <div class="note-head">まだ、うちの前にいる</div>
+      <div class="row" style="gap:10px;align-items:center;margin-top:8px">
+        <span class="face"><img src="${artOf(e.asset)}" alt=""></span>
+        <span style="flex:1;text-align:left">
+          <b>${e.name}</b>
+          <div class="caption">${Master.region(e.chapter).name}</div>
+        </span>
+        <span class="cost ${affordable ? '' : 'short'}">${icon('bolt', 13)}${e.apCost}</span>
+      </div>
+      <button class="btn go" data-bounty="${e.id}" ${done || !affordable ? 'disabled' : ''} style="margin-top:10px">
+        ${done ? '今日ぶんは済んだ' : affordable ? '引き受ける' : `活力が足りない（必要 ${e.apCost}）`}
+      </button>
+    </div>`;
+  }).join('');
+
+  return `<div class="stack">
+    ${notes}
+    <div class="caption">報酬は素材と活気が ${Balance.bountyMultiplier} 倍。活力は通常どおり要る。</div>
+    ${stage < 2 ? '<div class="caption">この地の活気が満ちれば、貼り紙は2枚になる。</div>' : ''}
+  </div>`;
+}
+
+function wireFacility(el, chapter, id) {
+  const engrave = $(el, '[data-engrave]');
+  if (engrave) engrave.addEventListener('click', () => {
+    const found = Game.availableEngraving;
+    const shoe = Game.state.equipment.find((e) => e.slot === 'weapon' && e.isEquipped);
+    if (Game.engrave(shoe.id)) {
+      Sound.play('levelup');
+      toast(`${found.engraving.name} を刻んだ`);
+      Nav.rebuild(() => facilityScreen(chapter));
+    }
+  });
+
+  $$(el, '[data-trade]').forEach((b) => b.addEventListener('click', () => {
+    if (Game.trade(b.dataset.trade)) {
+      Sound.play('gain');
+      Nav.rebuild(() => facilityScreen(chapter));
+    }
+  }));
+
+  $$(el, '[data-bounty]').forEach((b) => b.addEventListener('click', () => {
+    const session = Game.startBountyBattle(b.dataset.bounty);
+    if (session.error) { toast(session.error); return; }
+    Nav.curtainTo(() => Nav.replaceTop(battleScreen(session)));
+  }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -1829,6 +2016,18 @@ function bindTray() {
   const tray = document.getElementById('tray');
   $$(tray, '[data-walk]').forEach((b) => b.addEventListener('click', () => {
     Game.walk(Number(b.dataset.walk));
+    renderHome();
+    updateTray();
+  }));
+  // 歩き方（§6.2）。歩数と一緒に、どう歩いたかを積む。
+  const HOW = {
+    morning: { steps: 3000, morning: 3000 },
+    hill: { steps: 3000, floors: 15 },
+    far: { steps: 3000, distance: 10 },
+  };
+  $$(tray, '[data-how]').forEach((b) => b.addEventListener('click', () => {
+    const { steps, ...how } = HOW[b.dataset.how];
+    Game.walk(steps, how);
     renderHome();
     updateTray();
   }));

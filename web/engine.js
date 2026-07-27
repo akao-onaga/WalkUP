@@ -56,10 +56,19 @@ const BattleEngine = {
     return { turns, result: 'defeat', playerRemainingHP: Math.max(0, playerHP) };
   },
 
-  /** 強化を反映した実効値（§17.7）。 */
+  /** 強化と刻印を反映した実効値（§17.7 / §6.2）。
+   *
+   * **刻印は強化の倍率に乗せない。** 刻印は歩き方が形になった物で、
+   * 澱で打ち直した量とは出所が違う。掛けると出所の違いが数値の中で溶ける。 */
   effective(item) {
     const m = 1 + Balance.enhanceGainPerLevel * item.enhanceLevel;
-    return { hp: Math.floor(item.hp * m), atk: Math.floor(item.atk * m), def: Math.floor(item.def * m) };
+    const base = { hp: Math.floor(item.hp * m), atk: Math.floor(item.atk * m), def: Math.floor(item.def * m) };
+    for (const id of item.engravings ?? []) {
+      const e = ENGRAVINGS[id];
+      if (!e) continue;
+      base.hp += e.hp; base.atk += e.atk; base.def += e.def;
+    }
+    return base;
   },
 
   playerFighter(level, equipment) {
@@ -174,7 +183,12 @@ const Milestones = {
 const SAVE_KEY = 'walkup.web.v1';
 
 const emptyState = () => ({
-  player: { cumulativeSteps: 0, ap: 0, todayCreditedSteps: 0, milestoneCreditedToday: 0, day: 1 },
+  // 当日の歩き方（morning=早朝の歩数 / floors=上った階数 / distance=最長距離km）。
+  // 本編ではヘルスケアから引く。ブラウザ版は開発用トレイから入れる。
+  player: {
+    cumulativeSteps: 0, ap: 0, todayCreditedSteps: 0, milestoneCreditedToday: 0, day: 1,
+    morning: 0, floors: 0, distance: 0,
+  },
   equipment: [],
   chapters: [1, 2, 3].map((chapterId) => ({ chapterId, nodeIndex: 0, isCleared: false })),
   regions: [],
@@ -188,8 +202,12 @@ const emptyState = () => ({
   seenDoors: [],
 
   /** 日別の歩数（新しい順）。設定画面の「直近7日」に出す。
-   *  本編ではヘルスケアから引くので保存しないが、ブラウザ版は自前で持つしかない。 */
+   *  本編ではヘルスケアから引くので保存しないが、ブラウザ版は自前で持つしかない。
+   *  歩き方（早朝の歩数・階数・距離）も併せて持つ。「ウォークの軌跡」が読む（§6.2）。 */
   history: [],
+
+  /** 見せ終えた活気の節目（`"1-45"` の形）。**一度見せたら二度出さない。** */
+  seenVitalityScenes: [],
 
   /** 歩数の取得を許したか。初回の導入画面で聞く（§11 の権限説明）。 */
   stepAccessGranted: false,
@@ -319,10 +337,18 @@ const Game = {
 
   // ---- 歩数（§3.1 / §3.4） ----
 
-  /** 歩数を入れる。当日分は差分だけ、上限 30,000 歩／日（§3.1 のチート対策）。 */
-  walk(steps) {
+  /** 歩数を入れる。当日分は差分だけ、上限 30,000 歩／日（§3.1 のチート対策）。
+   *
+   * `how` は歩き方（§6.2）。**歩数そのものとは別に積む。**
+   * 上限に当たって歩数が入らなかった日も、どう歩いたかは記録として残る。 */
+  walk(steps, how = {}) {
     const p = Game.state.player;
     const before = p.cumulativeSteps;
+
+    p.morning += how.morning ?? 0;
+    p.floors += how.floors ?? 0;
+    // 距離はその日の「最長」なので足さずに大きい方を採る。
+    p.distance = Math.max(p.distance, how.distance ?? steps * 0.0007);
 
     const capped = Math.min(Balance.dailyStepCap, p.todayCreditedSteps + steps);
     p.cumulativeSteps += Math.max(0, capped - p.todayCreditedSteps);
@@ -354,11 +380,16 @@ const Game = {
   /** 日付を進める。当日カウンタを畳むだけ（§3.4 の日跨ぎ処理に相当）。 */
   nextDay() {
     const p = Game.state.player;
-    // 畳む前に、その日の歩数を履歴へ移す。7日ぶんだけ持つ。
-    Game.state.history.unshift({ day: p.day, steps: p.todayCreditedSteps });
+    // 畳む前に、その日の歩数と歩き方を履歴へ移す。7日ぶんだけ持つ。
+    Game.state.history.unshift({
+      day: p.day, steps: p.todayCreditedSteps,
+      morning: p.morning, floors: p.floors, distance: p.distance,
+    });
     Game.state.history = Game.state.history.slice(0, 7);
     p.todayCreditedSteps = 0;
     p.milestoneCreditedToday = 0;
+    p.morning = 0; p.floors = 0; p.distance = 0;
+    p.bountyDoneToday = [];
     p.day += 1;
     Game.state.lastOutcome = null;
     Game.save();
@@ -433,6 +464,149 @@ const Game = {
 
     Game.applyReward(reward, chapter, index, log.result, node.enemy);
     return { chapter, nodeIndex: index, enemy: node.enemy, log, reward, player: fighter };
+  },
+
+  // ---- 活気の節目と施設（§6.1 / §6.2） ----
+
+  /** その地域の施設の段。0=まだ無い / 1=開いた（45%） / 2=伸びた（100%）。 */
+  facilityStage(chapter) {
+    const v = Game.vitality(chapter);
+    if (v >= 100) return 2;
+    if (v >= 45) return 1;
+    return 0;
+  },
+
+  /** 工房（靴の強化）はチュートリアルで開く。**活気には紐づけない**（§6.2）。
+   *  強化は開始直後から要る仕組みなので、周回でしか届かない値の後ろに置けない。 */
+  get forgeOpen() { return Game.state.seenTutorial; },
+
+  /** まだ見せていない、越え済みの節目。無ければ null。
+   *  小さい章・低い節目から順に出す（順番に読ませる）。 */
+  get pendingVitalityScene() {
+    for (const chapter of [1, 2, 3]) {
+      const v = Game.vitality(chapter);
+      for (const step of VITALITY_STEPS) {
+        const key = `${chapter}-${step}`;
+        if (v >= step && !Game.state.seenVitalityScenes.includes(key)) {
+          return { chapter, step, key, lines: VITALITY_SCENES[key] ?? [] };
+        }
+      }
+    }
+    return null;
+  },
+
+  markVitalityScene(key) {
+    if (!Game.state.seenVitalityScenes.includes(key)) Game.state.seenVitalityScenes.push(key);
+    Game.save();
+  },
+
+  // ---- ウォークの軌跡（第1章の施設・§6.2） ----
+
+  /** 直近7日の歩き方。**当日も含める**（今日そう歩いたのに反映されないと理由が分からない）。 */
+  get walkProfile() {
+    const p = Game.state.player;
+    const days = [{ steps: p.todayCreditedSteps, morning: p.morning, floors: p.floors, distance: p.distance },
+                  ...Game.state.history].slice(0, 7);
+    const steps = days.reduce((t, d) => t + (d.steps ?? 0), 0);
+    return {
+      morningRatio: steps > 0 ? days.reduce((t, d) => t + (d.morning ?? 0), 0) / steps : 0,
+      floors: days.reduce((t, d) => t + (d.floors ?? 0), 0),
+      maxDistance: days.reduce((t, d) => Math.max(t, d.distance ?? 0), 0),
+    };
+  },
+
+  /** いま刻める刻印。**最も強い傾向を1つだけ。** 届いていなければ null。 */
+  get availableEngraving() {
+    const profile = Game.walkProfile;
+    let best = null;
+    for (const rule of ENGRAVING_RULES) {
+      const value = rule.read(profile);
+      const score = value / rule.need;
+      if (score >= 1 && (!best || score > best.score)) {
+        best = { score, value, rule, engraving: ENGRAVINGS[rule.id] };
+      }
+    }
+    return best;
+  },
+
+  /** 刻める数。100% まで戻した地域では2つ載る。 */
+  get engravingSlots() { return Game.facilityStage(1) >= 2 ? 2 : 1; },
+
+  /** 装備に刻む。核を1つ使う。**同じ刻印は重ねない。** */
+  engrave(itemId) {
+    const item = Game.state.equipment.find((e) => e.id === itemId);
+    const found = Game.availableEngraving;
+    if (!item || !found || Game.cores < 1) return false;
+    item.engravings = item.engravings ?? [];
+    if (item.engravings.includes(found.engraving.id)) return false;
+
+    // 上限に達していたら、いちばん古い刻印を押し出す。
+    if (item.engravings.length >= Game.engravingSlots) item.engravings.shift();
+    item.engravings.push(found.engraving.id);
+    Game.state.materials.core -= 1;
+    Game.save();
+    return true;
+  },
+
+  // ---- 市（第2章の施設・§6.2） ----
+
+  /** その交換がいま成立するか。 */
+  canTrade(trade) {
+    return Object.entries(trade.give).every(([id, n]) => (Game.state.materials[id] ?? 0) >= n);
+  },
+
+  trade(id) {
+    const t = TRADES.find((x) => x.id === id);
+    if (!t || !Game.canTrade(t)) return false;
+    const gain = Game.facilityStage(2) >= 2 ? t.after : t.get;
+    for (const [m, n] of Object.entries(t.give)) Game.state.materials[m] -= n;
+    for (const [m, n] of Object.entries(gain)) Game.state.materials[m] = (Game.state.materials[m] ?? 0) + n;
+    Game.save();
+    return true;
+  },
+
+  // ---- 掲示板（第3章の施設・§6.2） ----
+
+  /** 今日の貼り紙。**日付を種にした決定的な選び方**にする（開き直しても変わらない）。 */
+  get dailyBounty() {
+    const stage = Game.facilityStage(3);
+    if (stage < 1) return [];
+    const pool = [];
+    for (let chapter = 1; chapter <= Game.unlockedChapter; chapter++) {
+      for (const s of Master.species(chapter)) pool.push(Master.zako(chapter, s.role, s));
+    }
+    const picked = [];
+    for (let i = 0; i < (stage >= 2 ? 2 : 1) && pool.length; i++) {
+      const index = (Game.state.player.day * 7919 + i * 104729) % pool.length;
+      picked.push(pool.splice(index, 1)[0]);
+    }
+    return picked;
+  },
+
+  isBountyDone: (id) => (Game.state.player.bountyDoneToday ?? []).includes(id),
+
+  /** 貼り紙の相手に挑む。**活力は通常どおり消費する**（無料にすると歩数の意味が薄れる）。 */
+  startBountyBattle(enemyId) {
+    const enemy = Game.dailyBounty.find((e) => e.id === enemyId);
+    if (!enemy) return { error: '貼り紙はもう剥がされています。' };
+    if (Game.isBountyDone(enemyId)) return { error: 'この依頼は今日ぶんを終えています。' };
+    if (Game.state.player.ap < enemy.apCost) {
+      return { error: `活力が足りません（必要 ${enemy.apCost} / 所持 ${Game.state.player.ap}）。` };
+    }
+    Game.state.player.ap -= enemy.apCost;
+
+    const fighter = Game.fighter;
+    const log = BattleEngine.resolve(fighter, BattleEngine.enemyFighter(enemy));
+    const reward = Rewards.forBattle(enemy, log.result, Game.state.hasPass, null);
+    // 依頼は報酬が良い。**素材と活気だけ**に乗せる（歩数と EXP には決して乗せない・§2）。
+    reward.dregs = Math.ceil(reward.dregs * Balance.bountyMultiplier);
+    reward.vitality = Math.ceil(reward.vitality * Balance.bountyMultiplier);
+
+    if (log.result === 'victory') {
+      Game.state.player.bountyDoneToday = [...(Game.state.player.bountyDoneToday ?? []), enemyId];
+    }
+    Game.applyReward(reward, enemy.chapter, 0, log.result, enemy);
+    return { chapter: enemy.chapter, nodeIndex: 0, enemy, log, reward, player: fighter, bounty: true };
   },
 
   // ---- チュートリアル（§11-1） ----
