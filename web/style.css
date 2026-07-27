@@ -67,6 +67,11 @@
 body {
   font-family: var(--font);
   color: var(--text);
+  /* 日本語の詰め。**約物（、。・）の前後は既定だと空きすぎる。**
+     `palt` を入れるだけで一行が締まり、字間の設計が効くようになる。 */
+  font-feature-settings: "palt" 1;
+  /* 行末の禁則を厳密に。小書き文字や長音が行頭に落ちるのを防ぐ。 */
+  line-break: strict;
   background: #CFC9BF;
   display: flex;
   flex-direction: column;
@@ -319,6 +324,16 @@ img { display: block; }
 .chip:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
 .chip.on { background: var(--accent-fill); color: #fff; }
 .chip[disabled] { opacity: .45; pointer-events: none; }
+
+/* **見た目を変えずに当たり判定だけ広げる。**
+   小さな札は 33px 程度しかなく、指では外す。44px を最低線として確保する
+   （見えている枠を大きくすると意匠が崩れるので、透明な判定だけを重ねる）。 */
+.chip, .round-button, .arrow { position: relative; }
+.chip::before, .round-button::before, .arrow::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: max(100%, 44px); height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
 
 /* ------------------------------------------------------------------ */
 /* 5. 数値とゲージ                                                     */
@@ -629,15 +644,17 @@ img { display: block; }
 
 /* 主人公が立つ場。**画面の中で一番広い面積を絵に渡す。** */
 .stage { flex: 1; position: relative; min-height: 0; }
+/* 立ち絵は余白を切り落としてあるので、**下端がそのまま足の位置**になる。
+   余白付きの正方形を置くと、接地の影が足より下にずれて浮いて見える。 */
 .stage .hero {
   position: absolute; left: 50%; bottom: 0;
-  width: 196px; margin-left: -98px;
+  height: 172px; width: auto; margin-left: -28px;
   filter: drop-shadow(0 4px 3px rgba(0,0,0,.5));
 }
 .stage .ground {
-  position: absolute; left: 50%; bottom: 4px;
-  width: 150px; height: 22px; margin-left: -75px;
-  background: radial-gradient(ellipse at center, rgba(0,0,0,.6), rgba(0,0,0,0) 70%);
+  position: absolute; left: 50%; bottom: -2px;
+  width: 120px; height: 20px; margin-left: -60px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.62), rgba(0,0,0,0) 70%);
 }
 
 /* 次の標的。**帯（リボン）で出す。** 四角い箱に入れると予定表に戻る。 */
@@ -670,14 +687,21 @@ img { display: block; }
 
 /* 今日の歩数。**この作品の心臓なので、専用の計器を与える。** */
 .stepbar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 13px;
+  display: block;
+  padding: 9px 13px 10px;
   margin-bottom: 12px;
 }
 .stepbar .k { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: rgba(255,255,255,.65); flex: none; }
 .stepbar .v { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
 .stepbar .cap { font-size: 10px; color: rgba(255,255,255,.5); font-variant-numeric: tabular-nums; }
-.stepbar .meter { flex: 1; height: 12px; border-color: rgba(232,228,220,.75); background: rgba(255,255,255,.12); }
+.stepbar .meter { flex: 1; height: 13px; border-color: rgba(232,228,220,.75); background: rgba(255,255,255,.12); }
+.stepbar .to-ap {
+  flex: none; font-size: 11px; color: rgba(255,255,255,.72);
+  display: inline-flex; align-items: center; gap: 2px;
+}
+.stepbar .to-ap b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; color: #E2B486; }
+/* **単位は数値より小さく落とす。** 同じ大きさで並べると、どちらが主かが決まらない。 */
+.stepbar small, .tile small, .caption small { font-size: .78em; opacity: .8; margin-left: 1px; }
 
 /* レベルが上がった日だけ出す判。**毎回出すと祝いの意味が消える。** */
 @keyframes stamp {
@@ -692,7 +716,13 @@ img { display: block; }
   font-size: 10px; font-weight: 800; letter-spacing: .08em;
   animation: stamp .32s cubic-bezier(.2, 1.6, .4, 1) both;
 }
-.stepbar .meter::after { background: repeating-linear-gradient(to right, rgba(255,255,255,.28) 0 1px, transparent 1px 10%); }
+/* **目盛りは飾りではなく単位。** 太い刻みが 5,000歩、細い刻みが 1,000歩＝活力1。
+   等分しただけの目盛りは模様でしかなく、読んでも何も分からない。 */
+.meter.ticked::after {
+  background:
+    repeating-linear-gradient(to right, rgba(255,255,255,.55) 0 1px, transparent 1px calc(100% / 6)),
+    repeating-linear-gradient(to right, rgba(255,255,255,.2) 0 1px, transparent 1px calc(100% / 30));
+}
 
 /* 行動の並び。**同じ幅のボタンを縦に積まない。**
    主となる一手を大きく、残りを丸い衛星として並べる。 */
@@ -886,7 +916,17 @@ img { display: block; }
 }
 .pin.boss { width: 74px; height: 74px; margin: -37px 0 0 -37px; border-width: 3px; }
 .pin.boss img { width: 60px; height: 60px; }
-.pin.sel { border-color: #fff; transform: scale(1.08); }
+/* 選んだ標。**跳ねてから収まる。** 枠の色が変わるだけだと、選んだ手応えが返らない。 */
+@keyframes pin-pick {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  100% { transform: scale(1.08); }
+}
+.pin.sel { border-color: #fff; transform: scale(1.08); animation: pin-pick .3s cubic-bezier(.2, 1.4, .4, 1) both; }
+
+/* 選んだ標の札も、差し替わったことが分かるように滑り込ませる。 */
+@keyframes sel-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+.selection { animation: sel-in .24s cubic-bezier(.2, .9, .3, 1) both; }
 .pin .stamp {
   position: absolute; right: -4px; bottom: -4px;
   width: 22px; height: 22px; border-radius: 50%;
@@ -1319,14 +1359,14 @@ img { display: block; }
   border-radius: 13px; pointer-events: none;
 }
 .doll .figure {
-  position: absolute; left: 50%; bottom: 52px;
-  width: 132px; margin-left: -66px;
+  position: absolute; left: 50%; bottom: 56px;
+  height: 150px; width: auto; margin-left: -24px;
   filter: drop-shadow(0 3px 0 rgba(46, 42, 56, .28));
 }
 .doll .floor {
-  position: absolute; left: 50%; bottom: 54px;
-  width: 104px; height: 14px; margin-left: -52px;
-  background: radial-gradient(ellipse at center, rgba(46,42,56,.28), rgba(46,42,56,0) 70%);
+  position: absolute; left: 50%; bottom: 52px;
+  width: 96px; height: 14px; margin-left: -48px;
+  background: radial-gradient(ellipse at center, rgba(46,42,56,.3), rgba(46,42,56,0) 70%);
 }
 
 .slot {

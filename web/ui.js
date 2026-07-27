@@ -171,6 +171,8 @@ const Nav = {
     if (build) el._build = build;
     frame.appendChild(el);
     layers.push(el);
+    // 帳面は下へ払えば閉じる。戻り口を左上のボタンだけにしない。
+    if (el.classList.contains('sheet')) makeSwipeToClose(el);
     return el;
   },
   pop() {
@@ -226,6 +228,72 @@ const Nav = {
     w.classList.remove('on', 'open');
   },
 };
+
+/* ------------------------------------------------------------------ */
+/* 触り方                                                              */
+/* ------------------------------------------------------------------ */
+
+/** 下へ払って閉じる。
+ *
+ * **戻り口を左上のボタンだけにしない。** 帳面を下から上げた以上、
+ * 下へ払えば閉じるのが体に馴染む。指に付いてくることが要件で、
+ * 引いた分だけ動き、途中で放せば戻る。 */
+function makeSwipeToClose(el) {
+  const body = $(el, '.body');
+  let startY = 0;
+  let dragging = false;
+
+  el.addEventListener('pointerdown', (event) => {
+    // **中身が一番上まで戻っている時だけ受け付ける。**
+    // 途中で受けると、読んでいる最中に閉じてしまう。
+    if (body && body.scrollTop > 0) return;
+    if (event.target.closest('button, .chip, .pin')) return;
+    startY = event.clientY;
+    dragging = true;
+  });
+
+  el.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const dy = event.clientY - startY;
+    if (dy <= 0) { el.style.transform = ''; return; }
+    el.style.transition = 'none';
+    el.style.transform = `translateY(${dy * 0.85}px)`;
+  });
+
+  const release = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    const dy = event.clientY - startY;
+    el.style.transition = 'transform .22s cubic-bezier(.2,.8,.3,1)';
+    el.style.transform = '';
+    // 100px 引いたら閉じる。浅いと誤って閉じ、深いと払った気にならない。
+    if (dy > 100) { Sound.play('page'); Nav.pop(); }
+  };
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+}
+
+/** 横へ払って隣へ。地図の章送りに使う。 */
+function makeSwipeHorizontal(el, onLeft, onRight) {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  el.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button, .pin')) return;
+    startX = event.clientX;
+    startY = event.clientY;
+    tracking = true;
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = event.clientX - startX;
+    // 縦の動きが勝っている時は無視する（スクロールと取り合わない）。
+    if (Math.abs(dx) < 60 || Math.abs(event.clientY - startY) > Math.abs(dx)) return;
+    (dx > 0 ? onLeft : onRight)();
+  });
+}
 
 /** 画面の見出し。標準のナビゲーションバーの代わり。 */
 function header(title, trailing = '') {
@@ -388,17 +456,30 @@ function renderHome() {
 
       ${targetRibbon(next, gate)}
 
+      <!-- 今日の歩数。**目盛りは飾りではなく単位。**
+           太い刻みが 5,000歩、細い刻みが 1,000歩＝活力1。
+           「あと何歩で活力が1増えるか」を数字ではなく目盛りで読ませる。 -->
       <div class="night stepbar">
-        <span class="k">今日</span>
-        <span class="v" data-count="${s.player.todayCreditedSteps}">0</span>
-        <span class="cap">/ ${fmt(cap)}</span>
-        <div class="meter" data-step="${s.player.todayCreditedSteps / cap}"><i style="width:0"></i></div>
-        ${outcome && outcome.levelsGained > 0 ? '<span class="badge-up">Lv UP</span>' : ''}
+        <div class="row" style="gap:8px">
+          <span class="k">今日</span>
+          <span class="v" data-count="${s.player.todayCreditedSteps}">0</span>
+          <span class="cap">/ ${fmt(cap)}<small>歩</small></span>
+          <div class="grow"></div>
+          ${outcome && outcome.levelsGained > 0 ? '<span class="badge-up">Lv UP</span>' : ''}
+        </div>
+        <div class="row" style="gap:9px;margin-top:7px">
+          <div class="meter ticked" data-step="${s.player.todayCreditedSteps / cap}"><i style="width:0"></i></div>
+          <span class="to-ap">あと <b>${fmt(Balance.stepsPerAP - (s.player.cumulativeSteps % Balance.stepsPerAP))}</b><small>歩</small>${icon('bolt', 11)}</span>
+        </div>
       </div>
 
       <div class="dock">
+        <!-- **押せない時は、押せない理由を書く。**
+             薄くして黙らせると、壊れているのか条件が足りないのかが分からない。 -->
         <button class="btn go" data-act="map" ${Game.canBattle ? '' : 'disabled'}>
-          ${icon('map', 18)}${next ? '討伐に出る' : '周回して素材を集める'}
+          ${Game.canBattle
+            ? `${icon('map', 18)}${next ? '討伐に出る' : '周回して素材を集める'}`
+            : `${icon('lock', 16)}あと ${fmt(Master.chapterGate(1) - s.player.cumulativeSteps)} 歩で道が開く`}
         </button>
         <div class="satellites">
           <button class="sat" data-act="equip">
@@ -601,9 +682,11 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
     const node = Master.node(chapter, index);
     const isDone = Game.isNodeCleared(chapter, index);
     const unlocked = Game.isNodeUnlocked(chapter, index);
+    // **錠前も押せるようにする。** 押せない標を黙らせると、なぜ行けないのかが分からない。
+    // 押したら下の札に「何をすれば開くか」を出す。
     return `<button class="pin ${isDone ? 'cleared' : ''} ${unlocked ? '' : 'locked'}
               ${node.enemy.isBoss ? 'boss' : ''} ${index === nextIndex ? 'next' : ''} ${index === selected ? 'sel' : ''}"
-            style="left:${x}%; top:${y}%" data-pin="${index}" ${unlocked ? '' : 'disabled'}>
+            style="left:${x}%; top:${y}%" data-pin="${index}">
       ${unlocked ? `<img src="${artOf(node.enemy.asset)}" alt="">` : icon('lock', 18)}
       <span class="no">${index}</span>
       ${isDone ? `<span class="stamp">${icon('check', 11)}</span>` : ''}
@@ -669,6 +752,11 @@ function mapScreen(chapter = Game.nextNode?.chapter ?? Game.unlockedChapter, sel
   $$(el, '[data-gate]').forEach((m) => growMeter(m, Number(m.dataset.gate)));
   settleLife(el);
 
+  // 章は横へ払っても送れる。矢だけにすると、地図なのに歩けない。
+  makeSwipeHorizontal(el,
+    () => { if (chapter > 1) Nav.rebuild(() => mapScreen(chapter - 1)); },
+    () => { if (chapter < 3) Nav.rebuild(() => mapScreen(chapter + 1)); });
+
   el._build = () => mapScreen(chapter, selected);
   return el;
 }
@@ -684,6 +772,20 @@ function selectionPlate(chapter, selected) {
   const e = node.enemy;
   const affordable = Game.player.ap >= e.apCost;
   const isDone = Game.isNodeCleared(chapter, selected);
+
+  // まだ開いていない標。**何をすれば開くかを書く。**
+  if (!Game.isNodeUnlocked(chapter, selected)) {
+    const need = Game.progress(chapter).nodeIndex + 1;
+    return `<div class="selection" style="margin-bottom:14px">
+      <div class="ribbon" style="padding:12px 22px 12px 14px">
+        <span class="face">${icon('lock', 22)}</span>
+        <span style="text-align:left">
+          <span class="where" style="display:block">ノード ${selected}</span>
+          <span class="who" style="font-size:13px">ノード ${need} を討伐すると道が開く</span>
+        </span>
+      </div>
+    </div>`;
+  }
 
   return `<div class="selection" style="margin-bottom:14px">
     <div class="ribbon" style="margin-bottom:10px">
