@@ -178,8 +178,8 @@ open web/index.html
 
 | 層 | life が上がると |
 |---|---|
-| `.world-alive` | 復興後の背景が `opacity: life` で重なる（同構図でなければ意味がない → ART_PROMPTS §3.7.1） |
-| `.lamp` | 灯りが 12% / 45% / 75% の段階で1つずつ点く。**同時に点けると照明のスイッチに見える** |
+| `.world-alive` | 復興後の背景が `opacity: life` で重なる（`bg{n}_alive`。同構図でなければ意味がない → ART_PROMPTS §3.7.1） |
+| `.lamp` | 灯りが 12% / 45% / 75% の段階で1つずつ点く。**同時に点けると照明のスイッチに見える**。絵に灯りが描かれている今は光源ではなく「にじみ」なので濃さを 45% に落としてある |
 | `.mote` | 空気中の粒が増え、灰から暖色へ変わり、速く漂う |
 | `.distant` | 未討伐のダルモンが遠景にうずくまっている。討伐すると溶けて消える |
 | `.life-mark` | 地名の下の短い目盛り。**数値は書かない** |
@@ -241,6 +241,7 @@ open web/index.html
 | `data.js` | マスターデータと定数 | `MasterData.swift` / `BalanceRules.swift` |
 | `engine.js` | 戦闘・報酬・道標・状態 | `BattleEngine` / `RewardCalculator` / `MilestoneOpener` / `GameModel` |
 | `sound.js` | 合成音（試作） | 未実装 |
+| `../tools/aliveart/match.py` | 復興後の背景を元の絵の彩度に揃える後処理 | ビルドには不要（素材作成時のみ） |
 | `ui.js` | 画面と演出 | `WalkUP/UI/*.swift` |
 | `style.css` | **意匠（本体）** | `Theme.swift` |
 

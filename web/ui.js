@@ -202,7 +202,9 @@ const counter = (name, value, cls = '') => `<span class="counter ${cls}">${icon(
 const LAMP_SPOTS = {
   1: [[79, 55, 120], [17, 47, 90], [50, 46, 70]],
   2: [[13, 52, 110], [87, 50, 110], [50, 33, 80]],
-  3: [[50, 62, 130], [22, 57, 80], [78, 57, 80]],
+  // 第3章は荒野。**灯りが点く場所が無い。** ここの復興は空が開くことで示すので、
+  // 灯りを置くと、何も無い地面に光の玉が浮いているだけになる。
+  3: [],
 };
 
 /** 遠景のダルモンを置く位置（%）。
@@ -227,8 +229,13 @@ function worldLayers(chapter, life, { distant = 0 } = {}) {
 
   const lampOn = (i, value) => {
     // 段階的に点す。全部が同時に明るくなると照明のスイッチに見える。
+    //
+    // **絵そのものに灯りが描かれている以上、この層は光源ではなく「にじみ」。**
+    // 同じ強さで重ねると、窓の灯りの上にもう一つ丸い光が乗って二重に見える。
+    // 濃さを抑え、段階の合図としてだけ働かせる。
     const threshold = [0.12, 0.45, 0.75][i] ?? 0.9;
-    return value >= threshold ? Math.min(1, (value - threshold) / 0.25) : 0;
+    const raw = value >= threshold ? Math.min(1, (value - threshold) / 0.25) : 0;
+    return raw * (HAS_ALIVE_ART ? 0.45 : 1);
   };
 
   const lamps = (LAMP_SPOTS[chapter] ?? []).map(([x, y, size], i) => {

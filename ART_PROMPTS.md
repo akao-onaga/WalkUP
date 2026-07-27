@@ -406,12 +406,43 @@ oppressive sky.
 
 歩いた成果を数値ではなく風景で返すための素材で、この作品の主題そのものを担う。
 
+**3枚とも生成済み**（2026-07-27）。以下は作り直す時の手順。
+
 ### 生成方法の制約（守らないと使えない）
 
 **新規に文章から生成しないこと。** 必ず既存の `assets/generated/bg{1,2,3}.png` を
-入力にした画像編集（img2img / inpaint）で作る。構図・視点・建物の配置が1ピクセルでも
-ずれると、重ねたときに別の場所へ溶暗するだけの絵になり、「同じ街が戻ってきた」に
-見えない。**変えてよいのは光・色・そこに在る物だけ。**
+参照画像として渡す。構図・視点・建物の配置がずれると、重ねたときに別の場所へ
+溶暗するだけの絵になり、「同じ街が戻ってきた」に見えない。
+**変えてよいのは光・色・そこに在る物だけ。**
+
+### 実際に通った手順
+
+Codex CLI の組み込み `imagegen` に参照画像を渡す。ChatGPT ログインで動く。
+
+```bash
+codex exec -s read-only -i assets/generated/bg1.png \
+  'あなたの imagegen ツールで、添付した背景画像の「復興後」版を1枚作ってください。
+   ファイルの読み書きは不要です。生成したら絶対パスだけを報告してください。
+   （この下に EDIT INSTRUCTION を貼る）'
+```
+
+出力は `~/.codex/generated_images/<session>/call_*.png` に落ちる。
+`-s read-only` を付けるのは、画像生成のついでに作業ツリーを触らせないため。
+
+**構図は保たれるが、彩度と明度は毎回ばらつく。** 第2章では垂れ幕が完全に彩度の
+乗った赤と黄で出てきて、そのままでは別の画集の絵になった。生成のばらつきは
+プロンプトで抑えようとせず、後処理で吸収する（`artpipeline` と同じ方針）。
+
+```bash
+python3 tools/aliveart/match.py \
+  WalkUP/Assets.xcassets/Regions/bg2.imageset/bg2.png \
+  ~/.codex/generated_images/<session>/call_xxx.png \
+  WalkUP/Assets.xcassets/Regions/bg2_alive.imageset/bg2_alive.png
+```
+
+元画像の平均彩度に合わせ、明度だけ 16% 上げる。**`artpipeline --background` は使わない。**
+あちらは明度を 78 に「揃える」ので、明るくなったこと自体が打ち消され、
+活気を上げても風景が変わらなくなる。
 
 ```
 EDIT INSTRUCTION (apply to the existing background image, keep the composition
@@ -433,11 +464,16 @@ identical — same viewpoint, same buildings, same camera, same framing):
 ```
 
 出力先は `WalkUP/Assets.xcassets/Regions/bg{n}_alive.imageset/bg{n}_alive.png`。
-3枚が揃ったら `web/data.js` の `HAS_ALIVE_ART` を `true` にする。
-それまでは既存背景に暖色補正をかけた擬似版で機構だけ動いている（`.world-alive.faux`）。
+素の生成物は `assets/generated/bg{n}_alive.png`、後処理後は `assets/processed/` にも置く
+（後処理をやり直せるようにするため）。
 
-**後処理は背景用の設定で通すこと。** `artpipeline` の既定は立ち絵向け（透過・切り出し・
-70% 配置）なので、背景にそのまま掛けると壊れる。
+`web/data.js` の `HAS_ALIVE_ART` が切り替えスイッチ。`false` に戻すと、
+既存背景に暖色補正をかけた擬似版で動く（絵を差し替えている最中の退避用）。
+
+**第3章だけ作りが違う。** 荒野には灯りが点く場所が無いので、復興は
+「重い空が開いて地平に暖色が差す・地割れが浅くなる・裂け目に小さな芽が出る」で示した。
+`web/ui.js` の `LAMP_SPOTS[3]` を空にしてあるのはこのため（何も無い地面に光の玉が
+浮くだけになる）。
 
 ---
 

@@ -13,14 +13,13 @@ const artOf = (id) => `${ART}Darumon/${id}.imageset/${id}.png`;
 /** 地域の背景。戦闘・ホーム・地域一覧で共用する。 */
 const bgOf = (chapter) => `${ART}Regions/bg${chapter}.imageset/bg${chapter}.png`;
 
-/** 活気が満ちた後の背景（ART_PROMPTS.md §3.9）。
+/** 活気が満ちた後の背景（ART_PROMPTS.md §3.7.1）。
  *
- * **まだ生成していない。** 揃ったら `HAS_ALIVE_ART` を true にするだけで、
- * 活気に応じたクロスフェードが本物の絵に切り替わる。
- * それまでは既存の背景に暖色の補正をかけた擬似版で機構を動かしておく
- * （動きの設計を、絵の到着待ちで止めないため）。 */
+ * 元の背景を参照画像にした画像編集で作ってあり、**構図は元と一致している。**
+ * 活気 0〜100 に応じて元の上に重ね、透明度で溶かす。
+ * `false` に戻すと、既存背景に暖色補正をかけた擬似版に切り替わる（絵を差し替える時の退避）。 */
 const bgAliveOf = (chapter) => `${ART}Regions/bg${chapter}_alive.imageset/bg${chapter}_alive.png`;
-const HAS_ALIVE_ART = false;
+const HAS_ALIVE_ART = true;
 
 const Balance = {
   // 歩数の変換（§3.1）
