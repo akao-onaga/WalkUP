@@ -353,6 +353,23 @@ img { display: block; }
 .tile.accent .v { color: var(--accent); }
 .tile-row { display: flex; gap: 10px; margin-top: 12px; }
 
+/* 増減の吹き出し。**数字が変わった事実を、変わった場所の隣で言う。**
+   別の場所に通知を出すと、どの数が動いたのか目で追えない。 */
+.delta-pop {
+  position: absolute; right: 6px; top: 4px;
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  animation: delta-rise .9s cubic-bezier(.2, .8, .3, 1) both;
+}
+.delta-pop.up { color: var(--vigor); }
+.delta-pop.down { color: var(--danger); }
+@keyframes delta-rise {
+  0% { transform: translateY(6px) scale(.8); opacity: 0; }
+  20% { transform: translateY(0) scale(1.15); opacity: 1; }
+  70% { transform: translateY(-6px) scale(1); opacity: 1; }
+  100% { transform: translateY(-16px) scale(1); opacity: 0; }
+}
+
 /* ゲージ。**線の無い細いバーは OS 標準の部品にしか見えない。**
    輪郭線を引き、内側に目盛りを刻む。 */
 .meter {
@@ -559,6 +576,9 @@ img { display: block; }
   color: #fff;
 }
 .pill.vigor { color: #E2B486; border-color: rgba(226, 180, 134, .85); }
+/* 増減の吹き出しを札の上に出すため。 */
+.pill { position: relative; }
+.pill .delta-pop { right: -2px; top: -14px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 
 /* 道標の標。**カードにしない。** 世界に落ちている物として、絵の上に置く。 */
 .marker {
@@ -694,6 +714,17 @@ img { display: block; }
 .sat:active .disc { transform: translateY(var(--depth)); box-shadow: 0 0 0 rgba(0,0,0,.5); }
 .sat .lb { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 .sat.on .disc { background: var(--vigor); }
+.sat .disc { position: relative; }
+/* 「いま出来ることがある」印。**数を出さない。**
+   何件あるかではなく、行く理由があるかどうかだけ伝わればいい。 */
+.sat .dot {
+  position: absolute; top: -1px; right: -1px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--vigor);
+  border: var(--stroke) solid var(--ink);
+  animation: dot-breathe 1.8s ease-in-out infinite alternate;
+}
+@keyframes dot-breathe { from { transform: scale(.85); } to { transform: scale(1.1); } }
 
 /* 世界の上に置く主ボタン。塗りは暖色にして、唯一の「進む」手にする。 */
 .btn.go {

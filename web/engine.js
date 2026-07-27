@@ -392,6 +392,22 @@ const Game = {
     item.enhanceLevel < Balance.maxEnhanceLevel &&
     Game.dregs >= Balance.enhanceCost(item.enhanceLevel),
 
+  /** 装備画面に「いま出来ること」があるか。ホームの印に使う。
+   *
+   * **持っているだけでは印を出さない。** 強化できる澱が貯まった、または
+   * 着け替えれば強くなる物がある、という**行動可能な状態**のときだけ立てる。
+   * 常に点いている印は、数日で見えなくなる。 */
+  get hasEquipWork() {
+    return Game.state.equipment.some((item) => {
+      if (Game.canEnhance(item)) return true;
+      if (item.isEquipped) return false;
+      const worn = Game.state.equipment.find((x) => x.slot === item.slot && x.isEquipped);
+      const mine = BattleEngine.effective(item);
+      const theirs = worn ? BattleEngine.effective(worn) : { hp: 0, atk: 0, def: 0 };
+      return mine.hp + mine.atk * 3 + mine.def * 2 > theirs.hp + theirs.atk * 3 + theirs.def * 2;
+    });
+  },
+
   enhance(id) {
     const item = Game.state.equipment.find((e) => e.id === id);
     if (!item || !Game.canEnhance(item)) return false;

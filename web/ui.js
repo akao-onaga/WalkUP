@@ -102,6 +102,32 @@ function typeInto(el, text, { speed = 32 } = {}) {
   return done;
 }
 
+/** 変わった数を、変わったと分かるように置き換える。
+ *
+ * **黙って差し替えない。** 装備を替えて ATK が 47 から 53 になったとき、
+ * 数字だけ入れ替わると「変えた甲斐」がどこにも残らない。
+ * 前の値から回し、増減を短く浮かせる。 */
+function showChange(el, from, to) {
+  if (from === to || !Number.isFinite(from)) { el.textContent = fmt(to); return; }
+
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / 420);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmt(Math.round(from + (to - from) * eased));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+
+  const diff = to - from;
+  const bubble = document.createElement('span');
+  bubble.className = `delta-pop ${diff > 0 ? 'up' : 'down'}`;
+  bubble.textContent = `${diff > 0 ? '+' : ''}${diff}`;
+  el.parentElement.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 900);
+  Sound.play(diff > 0 ? 'gain' : 'tap');
+}
+
 /** 数を回して見せる。**完成値をいきなり置くと、同じ数でも受け取られ方がまるで違う。** */
 function countUp(el, target, duration = 700) {
   const start = performance.now();
@@ -339,8 +365,8 @@ function renderHome() {
         ${crest(Game.level, Game.levelProgress)}
         <div class="grow"></div>
         <div class="pills">
-          <span class="pill vigor">${icon('bolt', 13)}${fmt(s.player.ap)}</span>
-          <span class="pill">${icon('cube', 13)}${fmt(Game.dregs)}</span>
+          <span class="pill vigor">${icon('bolt', 13)}<span data-res="ap">${fmt(s.player.ap)}</span></span>
+          <span class="pill">${icon('cube', 13)}<span data-res="dregs">${fmt(Game.dregs)}</span></span>
         </div>
       </div>
 
@@ -374,7 +400,10 @@ function renderHome() {
           ${icon('map', 18)}${next ? '討伐に出る' : '周回して素材を集める'}
         </button>
         <div class="satellites">
-          <button class="sat" data-act="equip"><span class="disc">${icon('shield', 22)}</span><span class="lb">装備</span></button>
+          <button class="sat" data-act="equip">
+            <span class="disc">${icon('shield', 22)}${Game.hasEquipWork ? '<span class="dot"></span>' : ''}</span>
+            <span class="lb">装備</span>
+          </button>
           <button class="sat" data-act="bestiary"><span class="disc">${icon('book', 22)}</span><span class="lb">図鑑</span></button>
           <button class="sat" data-act="region"><span class="disc">${icon('map', 22)}</span><span class="lb">地域</span></button>
           <button class="sat ${s.hasPass ? 'on' : ''}" data-act="pass"><span class="disc">${icon('sparkle', 22)}</span><span class="lb">パス</span></button>
@@ -393,6 +422,12 @@ function renderHome() {
 
   // 生気（背景・灯り・気配の目盛り）を目標値へ動かす。
   settleLife(home);
+
+  // **持ち物の増減を、持ち物の札の上で言う。**
+  // 討伐から戻ったとき、澱の数が黙って差し替わると、何を持ち帰ったのか残らない。
+  const res = { ap: s.player.ap, dregs: Game.dregs };
+  $$(home, '[data-res]').forEach((v) => showChange(v, shownRes[v.dataset.res], res[v.dataset.res]));
+  Object.assign(shownRes, res);
 
   // 歩いて入ってきたら、待機の揺れに移る。
   const hero = $(home, '.hero');
@@ -835,9 +870,9 @@ function equipScreen(slot = 'weapon') {
     </div>
 
     <div class="tile-row">
-      <div class="tile"><span class="k">${icon('heart', 11)}HP</span><span class="v">${f.maxHP}</span></div>
-      <div class="tile vigor"><span class="k">${icon('flame', 11)}ATK</span><span class="v">${f.atk}</span></div>
-      <div class="tile accent"><span class="k">${icon('shield', 11)}DEF</span><span class="v">${f.def}</span></div>
+      <div class="tile"><span class="k">${icon('heart', 11)}HP</span><span class="v" data-stat="hp">${f.maxHP}</span></div>
+      <div class="tile vigor"><span class="k">${icon('flame', 11)}ATK</span><span class="v" data-stat="atk">${f.atk}</span></div>
+      <div class="tile accent"><span class="k">${icon('shield', 11)}DEF</span><span class="v" data-stat="def">${f.def}</span></div>
     </div>
 
     <div class="panel">
@@ -869,9 +904,20 @@ function equipScreen(slot = 'weapon') {
     }
   }));
 
+  // **着け替えの結果を数字で返す。** 前に見せた値から回して、増減を浮かせる。
+  const now = { hp: f.maxHP, atk: f.atk, def: f.def };
+  $$(el, '[data-stat]').forEach((v) => {
+    showChange(v, shownStats[v.dataset.stat], now[v.dataset.stat]);
+  });
+  Object.assign(shownStats, now);
+
   el._build = () => equipScreen(slot);
   return el;
 }
+
+/** 前に見せた実効値と持ち物。増減を出すために持つ（どちらも保存しない）。 */
+const shownStats = {};
+const shownRes = {};
 
 /** 実効値の差。表示に使う分だけ。 */
 function statDiff(after, before) {
