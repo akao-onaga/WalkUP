@@ -735,6 +735,118 @@ img { display: block; }
 }
 
 /* ------------------------------------------------------------------ */
+/* 6b. タイトル                                                        */
+/* ------------------------------------------------------------------ */
+
+.title { background: #0b0a0e; }
+.title .title-art {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center bottom;
+  /* ごく僅かに引く。止まった世界を、止まった画で出さない。 */
+  animation: title-drift 20s ease-in-out infinite alternate;
+}
+@keyframes title-drift { from { transform: scale(1.04); } to { transform: scale(1); } }
+.title .title-veil {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(10,9,13,.34) 0%, rgba(10,9,13,0) 46%, rgba(10,9,13,.5) 100%);
+}
+.title .title-inner {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 86px 24px 40px;
+}
+
+/* 題字。**生成に文字を描かせず、ここで組む。**
+   白抜きに太いインクの縁取りと硬い落ち影を重ね、看板として立てる。 */
+.title-mark {
+  display: flex; align-items: baseline; gap: .12em;
+  font-size: 52px; font-weight: 800; letter-spacing: .04em;
+  color: #F4EFE4;
+  -webkit-text-stroke: 7px #2E2A38;
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 rgba(46, 42, 56, .55);
+  animation: title-in 1s cubic-bezier(.2, .9, .3, 1) both;
+}
+.title-mark .tu { color: #E2B486; }
+@keyframes title-in {
+  from { opacity: 0; transform: translateY(-14px) scale(1.06); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.title-sub {
+  margin-top: 14px;
+  font-size: 12px; font-weight: 800; letter-spacing: .2em;
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 2px 6px rgba(0,0,0,.9);
+  animation: door-fade 1s ease-out .45s both;
+}
+.title-hint {
+  font-size: 11px; letter-spacing: .2em; color: rgba(255,255,255,.72);
+  text-shadow: 0 2px 6px rgba(0,0,0,.9);
+  animation: hint-fade 1.8s ease-in-out infinite alternate;
+}
+
+/* ------------------------------------------------------------------ */
+/* 6c. 章の扉                                                          */
+/* ------------------------------------------------------------------ */
+
+/* **章の解放を数字だけで伝えない。**
+   「第2章が解放されました」は進捗通知であって、新しい土地に着いたことではない。
+   絵を全面に出し、名前は木札に載せ、世界の側の一行を送る。 */
+.door { background: #100e14; }
+.door .door-inner {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center;
+  padding: 40px 20px 34px;
+  color: #fff;
+}
+/* 図版の額。線と硬い影で囲い、頁に貼られた図として見せる。 */
+.door-frame {
+  width: 100%; aspect-ratio: 16 / 9;
+  margin-top: 26px;
+  border: var(--stroke) solid rgba(232, 228, 220, .55);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .55);
+  overflow: hidden;
+  animation: door-fade 1.1s ease-out .35s both;
+}
+.door-art {
+  width: 100%; height: 100%;
+  background-size: cover; background-position: center;
+  /* ゆっくり寄る。静止画を静止させたまま出すと、ただの1枚絵になる。 */
+  animation: door-push 11s ease-out both;
+}
+@keyframes door-push { from { transform: scale(1.07); } to { transform: scale(1); } }
+.door-no {
+  font-size: 11px; font-weight: 800; letter-spacing: .42em;
+  color: rgba(255,255,255,.7);
+  text-shadow: 0 2px 5px rgba(0,0,0,.9);
+  animation: door-fade .9s ease-out both;
+}
+/* 地名は木札に載せる。夜色の札より、その世界に落ちている物の方が強い。 */
+.door-plaque { position: relative; margin-top: 12px; animation: door-fade 1s ease-out .2s both; }
+.door-plaque img { width: 250px; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); }
+.door-name {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 19px; font-weight: 800; letter-spacing: .12em;
+  color: #2A2530;
+  text-shadow: 0 1px 0 rgba(255,255,255,.28);
+}
+.door-line {
+  margin-top: 26px;
+  max-width: 300px; min-height: 3.4em;
+  text-align: center;
+  font-size: 14px; line-height: 1.95;
+  text-shadow: 0 2px 6px rgba(0,0,0,.95);
+}
+.door-hint {
+  margin-top: 30px;
+  font-size: 10px; letter-spacing: .16em; color: rgba(255,255,255,.5);
+  animation: hint-fade 2s ease-in-out infinite alternate;
+}
+@keyframes door-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ------------------------------------------------------------------ */
 /* 7. 討伐 — 地図                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -930,15 +1042,17 @@ img { display: block; }
 .fighter.melted img { transform: scale(1.25, .12); transform-origin: bottom center; opacity: 0; transition: transform .55s ease-in, opacity .55s ease-in; }
 .fighter.melted::after { opacity: 0; transition: opacity .5s ease-in; }
 
+/* 溶けた跡。**CSS の楕円をやめて描いた絵にした。**
+   消えた場所に何か残らないと、ただ消えたように見える。 */
 .puddle {
-  position: absolute; bottom: 12px; left: 50%; z-index: 0;
-  width: 40px; height: 8px; margin-left: -20px;
-  background: rgba(95, 91, 118, .55);
-  border-radius: 50%;
+  position: absolute; bottom: 4px; left: 50%; z-index: 0;
+  width: 60px; margin-left: -30px;
   opacity: 0;
-  transition: width .9s ease-out, height .9s ease-out, margin .9s ease-out, opacity .9s ease-out;
+  transform: scale(.35);
+  transform-origin: center bottom;
+  transition: transform .9s cubic-bezier(.2, .9, .3, 1), opacity .8s ease-out;
 }
-.fighter.melted .puddle { opacity: 1; width: 150px; height: 22px; margin-left: -75px; }
+.fighter.melted .puddle { opacity: .9; transform: scale(2.6); }
 
 /* ダメージ数値は立ち絵の**上端**に出す。中央だと顔に重なり、被弾フラッシュと
    合わさって頭が欠けたように見える。 */
@@ -970,20 +1084,18 @@ img { display: block; }
   from { transform: translate(0, 0) scale(.4); opacity: 1; }
   to { transform: translate(var(--dx), var(--dy)) scale(1.5); opacity: 0; }
 }
+/* 靴底の跡。**描いた絵を置く。** 角丸矩形に溝を2本引いただけでは厚底に見えない。
+   踏み抜いた瞬間に地面に残り、すぐ薄れる。 */
 .puff .sole {
-  position: absolute; left: -17px; bottom: 0;
-  width: 34px; height: 46px; border-radius: 15px;
-  background: rgba(140, 140, 140, .75);
+  position: absolute; left: -22px; bottom: -6px;
+  width: 44px;
   transform: rotate(-12deg);
-  animation: sole-fade .32s ease-out both;
+  animation: sole-fade .34s ease-out both;
 }
-.puff .sole::before, .puff .sole::after {
-  content: ""; position: absolute; left: 16%; width: 68%; height: 3px;
-  background: rgba(232, 228, 220, .6);
+@keyframes sole-fade {
+  from { opacity: .95; transform: rotate(-12deg) scale(.85); }
+  to { opacity: 0; transform: rotate(-12deg) scale(1.15); }
 }
-.puff .sole::before { top: 34%; }
-.puff .sole::after { top: 58%; }
-@keyframes sole-fade { from { opacity: .9; transform: rotate(-12deg) scale(.9); } to { opacity: 0; transform: rotate(-12deg) scale(1.1); } }
 
 .battle .hit-flash { position: absolute; inset: 0; background: var(--danger); opacity: 0; pointer-events: none; transition: opacity .18s ease-out; }
 

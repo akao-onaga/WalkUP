@@ -62,18 +62,49 @@ def chroma_key(img, key, tol):
     mask = mask.filter(ImageFilter.MinFilter(3))
     mask = mask.filter(ImageFilter.GaussianBlur(0.7))
 
-    out = rgba[..., :3].astype(np.uint8)
-    result = Image.fromarray(out, "RGB").convert("RGBA")
+    # **残る色被りは吸い出す。**
+    # 砂粒のように細かく淡い部分は、削ると形が消えるのに色被りだけが残る
+    # （足跡の砂に緑が 1% 残った）。形は触らず、キー色の成分だけを引き下げる。
+    rgb = despill(rgba[..., :3], key)
+
+    result = Image.fromarray(rgb.astype(np.uint8), "RGB").convert("RGBA")
     result.putalpha(mask)
     return result
 
 
-def place(img, canvas, ratio):
-    """中身の外接矩形で切り出し、正方形の中央へ既定の比率で置く。"""
+def despill(rgb, key):
+    """キー色の成分が他を上回っている画素から、その成分だけを削る。
+
+    緑キーなら「G が R と B の最大値を超えている画素」の G を抑える。
+    素材本来の色（砂の淡い灰、琥珀の赤）はこの条件に入らないので触られない。"""
+    out = rgb.astype(np.float64).copy()
+    r, g, b = out[..., 0], out[..., 1], out[..., 2]
+
+    if key == KEYS["green"]:
+        ceiling = np.maximum(r, b)
+        over = g > ceiling
+        g[over] = ceiling[over]
+    elif key == KEYS["magenta"]:
+        # マゼンタは R と B の両方が持ち上がる。G を超えている分だけ戻す。
+        ceiling = np.maximum(g, np.minimum(r, b))
+        for ch in (r, b):
+            over = ch > ceiling
+            ch[over] = ceiling[over] + (ch[over] - ceiling[over]) * 0.35
+    return out
+
+
+def place(img, canvas, ratio, tight=False):
+    """中身の外接矩形で切り出し、正方形の中央へ既定の比率で置く。
+
+    `tight` を立てると正方形に置かず、外接矩形のまま返す。
+    **横長の物（木札・帯）は正方形に入れると上下に大きな余白が焼き付く。**
+    その余白は画面上でそのまま隙間になり、詰めようとしても詰められない。"""
     bbox = img.getbbox()
     if bbox is None:
         raise SystemExit("中身が空です（キー色で全部抜けた可能性があります）")
     content = img.crop(bbox)
+    if tight:
+        return content
 
     target_h = int(canvas * ratio)
     scale = target_h / content.height
@@ -110,8 +141,9 @@ def main():
     if key_name != "none":
         img = chroma_key(img, KEYS[key_name], tol)
 
+    tight = "--tight" in sys.argv
     if not grid:
-        place(img, canvas, ratio).save(dst)
+        place(img, canvas, ratio, tight).save(dst)
         print(dst)
         return
 
@@ -130,7 +162,7 @@ def main():
                 continue
             path = out_dir / f"{name}.png"
             try:
-                place(cell, canvas, ratio).save(path)
+                place(cell, canvas, ratio, tight).save(path)
                 print(path)
             except SystemExit:
                 print(f"  (空: {name} は飛ばした)")

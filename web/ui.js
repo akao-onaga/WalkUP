@@ -180,6 +180,7 @@ const Nav = {
     setTimeout(() => el.remove(), 220);
     renderHome();
     Nav.refresh();
+    maybeShowDoor();
   },
   /** 今の階層を作り直す。**アニメーションは付けない**（同じ画面が開き直して見える）。 */
   rebuild(build) {
@@ -356,7 +357,7 @@ function renderHome() {
 
     ${s.pendingMilestones > 0 ? `
       <button class="marker" data-act="milestones" title="道標">
-        ${icon('post', 26)}
+        ${itemArt('prop_signpost', 40)}
         <span class="bubble">${s.pendingMilestones}</span>
       </button>` : ''}
 
@@ -440,6 +441,16 @@ function renderHome() {
 
   // レベルが上がった日だけ鳴らす。毎回鳴らすと祝いの意味が消える。
   if (outcome && outcome.levelsGained > 0) setTimeout(() => Sound.play('levelup'), 450);
+
+}
+
+/** 新しい章に届いていたら扉絵を挟む。
+ *
+ * **タイトルより先に出さない。** 起動直後は必ずタイトルが最前面なので、
+ * ここは「一番上の階層が無くなった時」——つまり戻ってきた時にだけ確かめる。 */
+function maybeShowDoor() {
+  const door = Game.pendingDoor;
+  if (door !== null && layers.length === 0) Nav.push(chapterDoorScreen(door));
 }
 
 /** 位の紋。**数値を四角い札に入れない。** 丸い紋章に環のゲージが回ると「格」に見える。 */
@@ -482,6 +493,84 @@ function targetRibbon(next, gate) {
   return `<div class="ribbon" style="padding:12px 22px 12px 14px">
     <span class="who">世界は動き出した</span>
   </div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* タイトル                                                            */
+/* ------------------------------------------------------------------ */
+
+/** タイトル画面。
+ *
+ * ホームから題字を外した代わりに、**アプリの顔をここに置く。**
+ * 一枚絵は生成したもの（文字は入っていない）。題字は組版で載せる——
+ * 生成に文字を描かせると綴りも字形も崩れる。 */
+function titleScreen() {
+  const started = Game.player.cumulativeSteps > 0;
+
+  const el = make('screen cover title', `
+    <div class="title-art" style="background-image:url('${TITLE_ART}')"></div>
+    <div class="title-veil"></div>
+    <div class="title-inner">
+      <div class="title-mark">
+        <span class="tw">Walk</span><span class="tu">UP!</span>
+      </div>
+      <div class="title-sub">歩いた分だけ、世界が目を覚ます</div>
+      <div class="grow"></div>
+      <div class="title-hint">${started ? '触れて つづける' : '触れて はじめる'}</div>
+    </div>`);
+
+  el.addEventListener('click', () => {
+    Sound.play('transition');
+    Nav.pop();
+  }, { once: true });
+
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
+/* 章の扉                                                              */
+/* ------------------------------------------------------------------ */
+
+/** 章に入る瞬間に一度だけ出す扉絵。
+ *
+ * **章の解放を数字だけで伝えない。** 「第2章が解放されました」と札を出すのは
+ * 進捗通知であって、新しい土地に着いたことではない。
+ * その場所の絵と、世界の側の一行を置く。名前は木札に載せる。 */
+function chapterDoorScreen(chapter) {
+  const region = Master.region(chapter);
+
+  const el = make('screen cover door', `
+    <div class="door-inner">
+      <div class="door-no">第 ${chapter} 章</div>
+      <div class="door-plaque">
+        <img src="${itemOf('prop_plaque')}" alt="">
+        <span class="door-name">${region.name}</span>
+      </div>
+      <!-- **16:9 で描いた絵を縦画面に敷き詰めない。**
+           cover で埋めると 2.4 倍に拡大され、小さく立たせた主人公が巨大になって
+           構図が壊れる。画集の図版のように帯で見せる。 -->
+      <div class="door-frame">
+        <div class="door-art" style="background-image:url('${doorOf(chapter)}')"></div>
+      </div>
+      <p class="door-line"></p>
+      <div class="door-hint">画面を触って進む</div>
+    </div>`);
+
+  // 一行は送る。扉で足を止めさせるのは、ここで読ませたいからで、
+  // 読ませたい文章を一度に出すと読まれない。
+  const line = $(el, '.door-line');
+  let typing = null;
+  setTimeout(() => { typing = typeInto(line, Master.doorLine(chapter), { speed: 46 }); }, 1100);
+
+  el.addEventListener('click', () => {
+    if (typing && line.textContent !== Master.doorLine(chapter)) { typing.stop(); return; }
+    Game.markDoorSeen(chapter);
+    Sound.play('page');
+    Nav.pop();
+  });
+
+  Sound.play('transition');
+  return el;
 }
 
 /* ------------------------------------------------------------------ */
@@ -649,7 +738,8 @@ function battleScreen(session) {
         <div class="fighter hero"><img src="${artOf('hero')}" alt="主人公"></div>
         <div class="fighter foe ${enemy.isBoss ? 'boss' : ''}">
           <img class="bob" src="${artOf(enemy.asset)}" alt="${enemy.name}">
-          <div class="puddle"></div>
+          <!-- 溶けた跡。撃破の後にここだけが残る。 -->
+          <img class="puddle" src="${itemOf('prop_puddle')}" alt="">
         </div>
       </div>
       <div class="gauge-plate">
@@ -761,7 +851,8 @@ function spawnDamage(target, amount, onPlayer) {
 function spawnPuff(target) {
   const puff = document.createElement('div');
   puff.className = 'puff';
-  let html = '<span class="sole"></span>';
+  // 靴底の跡は描いた絵を置く。CSS の角丸矩形では「厚底の溝」まで出せない。
+  let html = `<img class="sole" src="${itemOf('prop_footprint')}" alt="">`;
   for (let i = 0; i < 7; i++) {
     const angle = (i / 7) * Math.PI;
     const size = 16 + (i % 3) * 6;
@@ -1314,6 +1405,12 @@ function bindTray() {
     updateTray();
   });
 
+  $(tray, '[data-act="title"]').addEventListener('click', () => {
+    while (layers.length) { const l = layers.pop(); l.remove(); }
+    renderHome();
+    Nav.push(titleScreen());
+  });
+
   const soundButton = $(tray, '[data-act="sound"]');
   soundButton.addEventListener('click', () => {
     Sound.enabled = !Sound.enabled;
@@ -1332,3 +1429,7 @@ Game.load();
 renderHome();
 bindTray();
 updateTray();
+
+// **タイトルから始める。** ホームから題字を外したので、アプリの顔はここ。
+// 触れば即座に抜けられる（毎回見せられる画面なので、足止めにしない）。
+Nav.push(titleScreen());

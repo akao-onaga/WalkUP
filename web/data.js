@@ -28,6 +28,13 @@ const bgOf = (chapter) => `${ART}Regions/bg${chapter}.imageset/bg${chapter}.png`
 const bgAliveOf = (chapter) => `${ART}Regions/bg${chapter}_alive.imageset/bg${chapter}_alive.png`;
 const HAS_ALIVE_ART = true;
 
+/** 章の扉絵。章に入る瞬間に一度だけ全画面で出す（主人公の後ろ姿入り）。 */
+const doorOf = (chapter) => `${ART}Regions/door${chapter}.imageset/door${chapter}.png`;
+
+/** タイトルの一枚絵（縦 9:16）。**文字は入っていない。**
+ *  生成に文字を描かせると綴りも字形も崩れるので、題字は組版で載せる。 */
+const TITLE_ART = `${ART}Regions/title.imageset/title.png`;
+
 const Balance = {
   // 歩数の変換（§3.1）
   dailyStepCap: 30000,
@@ -172,6 +179,13 @@ const Master = {
       slot, hp, atk, def, enhanceLevel: 0, isEquipped: false,
     };
   },
+
+  /** 章の扉に添える一行。**説明しない。** 世界の側の言葉で、これから入る場所を言う。 */
+  doorLine: (chapter) => ({
+    1: '誰も歩かなくなった通りに、足音が一つ戻ってくる。',
+    2: '下りたシャッターの向こうに、まだ誰かがいる気がする。',
+    3: 'ここでは、歩くという発想そのものが失われている。',
+  }[chapter]),
 
   region: (chapter) => ({
     1: { id: 'region_ch1', name: '止まった住宅街' },

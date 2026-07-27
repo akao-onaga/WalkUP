@@ -156,6 +156,9 @@ const emptyState = () => ({
   unlockedLore: [],
   pendingMilestones: 0,
   hasPass: false,
+  /** 扉絵を見せ終えた章。**一度見せたら二度出さない。**
+   *  毎回出すと、開く度に足止めされる画面になる。 */
+  seenDoors: [],
   /** 直前の変換結果。ホームで「今回の増分」を出すために持つ。 */
   lastOutcome: null,
 });
@@ -214,6 +217,21 @@ const Game = {
       if (done < Master.nodesPerChapter) return { chapter, index: done + 1 };
     }
     return null;
+  },
+
+  /** まだ扉絵を見せていない、到達済みの章。無ければ null。
+   *  複数溜まっていたら小さい章から順に出す（順番に読ませる）。 */
+  get pendingDoor() {
+    for (const chapter of [1, 2, 3]) {
+      if (Game.state.player.cumulativeSteps < Master.chapterGate(chapter)) continue;
+      if (!Game.state.seenDoors.includes(chapter)) return chapter;
+    }
+    return null;
+  },
+
+  markDoorSeen(chapter) {
+    if (!Game.state.seenDoors.includes(chapter)) Game.state.seenDoors.push(chapter);
+    Game.save();
   },
 
   /** まだ届いていない章のゲート。届いていれば null。 */
