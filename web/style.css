@@ -1258,7 +1258,11 @@ img { display: block; }
   display: grid; place-items: center;
   border: var(--stroke) solid var(--ink); border-radius: var(--round-s);
   background: var(--paper); color: var(--accent);
+  overflow: hidden;
 }
+/* 持ち物の絵。**枠に合わせて縮める。** 生成物は 1024 角なので、
+   そのまま置くと枠を突き破る。 */
+.item-art { object-fit: contain; }
 .gear.on .face { background: var(--accent-fill); color: #fff; }
 .gear .name { font-size: 14px; font-weight: 800; }
 .gear .name b { color: var(--vigor); font-size: 12px; margin-left: 2px; }

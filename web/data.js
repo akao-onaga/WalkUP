@@ -8,8 +8,15 @@
 
 const ART = '../WalkUP/Assets.xcassets/';
 
-/** ダルモンの立ち絵。アセットカタログの imageset をそのまま参照する（複製しない）。 */
+/** ダルモンと主人公の立ち絵。アセットカタログの imageset をそのまま参照する（複製しない）。 */
 const artOf = (id) => `${ART}Darumon/${id}.imageset/${id}.png`;
+
+/** 持ち物の絵（装備・素材・携行品）。
+ *
+ * **概念は記号、世界に在る物は絵。** 活力・戻る・鍵は概念なので SVG の記号で描き、
+ * 靴・外套・護符・澱・核は「拾って持ち歩く物」なので絵にする。
+ * 記号で足りる所を絵にすると重くなるだけだが、物を記号にすると世界の手触りが消える。 */
+const itemOf = (id) => `${ART}Items/${id}.imageset/${id}.png`;
 /** 地域の背景。戦闘・ホーム・地域一覧で共用する。 */
 const bgOf = (chapter) => `${ART}Regions/bg${chapter}.imageset/bg${chapter}.png`;
 

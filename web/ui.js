@@ -429,10 +429,12 @@ function renderHome() {
   $$(home, '[data-res]').forEach((v) => showChange(v, shownRes[v.dataset.res], res[v.dataset.res]));
   Object.assign(shownRes, res);
 
-  // 歩いて入ってきたら、待機の揺れに移る。
+  // 歩いて入ってきたら、**立ち姿に持ち替えて**待機の揺れに移る。
+  // 走っている絵のまま上下に揺れると、その場で駆け足しているように見える。
   const hero = $(home, '.hero');
   hero.addEventListener('animationend', () => {
     hero.classList.remove('walk-in');
+    hero.src = artOf('hero_stand');
     hero.classList.add('bob');
   }, { once: true });
 
@@ -780,11 +782,12 @@ function resultScreen(session) {
   const won = session.log.result === 'victory';
   const r = session.reward;
   // 獲得物は**絵札**にする。「名前 …… ×3」の行で書くと納品書になる。
+  // 拾った物は絵、活気は概念なので記号のまま。
   const rows = [];
-  if (r.dregs > 0) rows.push(['cube', '怠惰の澱', `×${r.dregs}`]);
-  if (r.cores > 0) rows.push(['diamond', '怠惰の核', `×${r.cores}`]);
-  if (r.vitality > 0) rows.push(['sparkle', '地域の活気', `+${r.vitality}`]);
-  if (r.equipment) rows.push([{ weapon: 'shoe', armor: 'cloak', accessory: 'charm' }[r.equipment.slot], r.equipment.name, '入手']);
+  if (r.dregs > 0) rows.push([itemArt('mat_dregs', 38), '怠惰の澱', `×${r.dregs}`]);
+  if (r.cores > 0) rows.push([itemArt('mat_core', 38), '怠惰の核', `×${r.cores}`]);
+  if (r.vitality > 0) rows.push([icon('sparkle', 30), '地域の活気', `+${r.vitality}`]);
+  if (r.equipment) rows.push([itemArt(r.equipment.id, 38), r.equipment.name, '入手']);
 
   const turnCount = Math.ceil(session.log.turns.length / 2);
 
@@ -806,8 +809,8 @@ function resultScreen(session) {
       </div>
       ${rows.length === 0 ? '<div class="white" style="text-align:center;font-size:12px;opacity:.7">何も持ち帰れなかった</div>' : ''}
       <div class="loot-grid">
-        ${rows.map(([g, title, amount]) => `<div class="loot hidden">
-          ${icon(g, 30)}
+        ${rows.map(([art, title, amount]) => `<div class="loot hidden">
+          ${art}
           <span class="lnum">${amount}</span>
           <span class="lname">${title}</span>
         </div>`).join('')}
@@ -842,6 +845,13 @@ function resultScreen(session) {
 
 const SLOT_GLYPH = { weapon: 'shoe', armor: 'cloak', accessory: 'charm' };
 const SLOT_NAME = { weapon: '靴', armor: '外套', accessory: '護符' };
+
+/** 持ち物の絵札。`<img>` を枠いっぱいに置く。
+ *  絵が無い物（まだ生成していない物）は記号で代替し、**画面が壊れないようにする。** */
+const itemArt = (id, size) => `<img class="item-art" src="${itemOf(id)}" alt="" style="width:${size}px;height:${size}px">`;
+
+/** 素材・携行品の絵の名前。engine 側の ID と対応させる。 */
+const MATERIAL_ART = { dregs: 'mat_dregs', core: 'mat_core', core_shard: 'mat_shard', salve: 'item_salve' };
 /** 枠を体のどこに置くか（%）。**靴は足元に置く。**
  *  手元に置いた時点で「振るうのは足」という §1.1 の筋と噛み合わなくなる。 */
 const SLOT_POS = { armor: [15, 30], accessory: [85, 30], weapon: [50, 84] };
@@ -854,9 +864,10 @@ function equipScreen(slot = 'weapon') {
   const slots = ['armor', 'accessory', 'weapon'].map((s) => {
     const worn = Game.state.equipment.find((e) => e.slot === s && e.isEquipped);
     const [x, y] = SLOT_POS[s];
+    // 着けている物はその物の絵、空きは記号の影。**絵と記号を役割で分ける。**
     return `<button class="slot ${worn ? '' : 'empty'} ${s === slot ? 'sel' : ''}"
               style="left:${x}%;top:${y}%" data-slot="${s}">
-      ${icon(SLOT_GLYPH[s], 30)}
+      ${worn ? itemArt(worn.id, 46) : icon(SLOT_GLYPH[s], 30)}
       ${worn && worn.enhanceLevel > 0 ? `<span class="lv">+${worn.enhanceLevel}</span>` : ''}
       <span class="tag">${SLOT_NAME[s]}</span>
     </button>`;
@@ -865,7 +876,8 @@ function equipScreen(slot = 'weapon') {
   const el = make('screen sheet', header('装備・強化', counter('cube', Game.dregs)) + `<div class="body">
     <div class="doll">
       <div class="floor"></div>
-      <img class="figure" src="${artOf('hero')}" alt="主人公">
+      <!-- 人形は**立ち姿**を使う。走っている絵を置くと、装備を見ている場面と噛み合わない。 -->
+      <img class="figure" src="${artOf('hero_stand')}" alt="主人公">
       ${slots}
     </div>
 
@@ -956,9 +968,9 @@ function gearRow(item, slot) {
   const short = !Game.canEnhance(item) && !maxed;
 
   return `<div class="gear ${item.isEquipped ? 'on' : ''}">
-    <span class="face">${icon(SLOT_GLYPH[slot], 26)}</span>
+    <span class="face">${itemArt(item.id, 40)}</span>
     <div>
-      <div class="name">${item.name}${item.enhanceLevel > 0 ? `<b>+${item.enhanceLevel}</b>` : ''}</div>
+      <div class="name">${item.name}${item.enhanceLevel > 0 ? ` <b>+${item.enhanceLevel}</b>` : ''}</div>
       <div class="stat">${stats}</div>
       ${swap ? `<div class="delta">装備すると ${swap}</div>` : ''}
       ${nextGain ? `<div class="delta" style="opacity:.75">強化すると ${nextGain}</div>` : ''}
@@ -1130,12 +1142,14 @@ function milestoneScreen(finds) {
   const things = new Map();
   for (const f of finds.filter((f) => f.kind !== 'lore')) {
     const key = f.title;
-    const glyph = { sighting: 'eye', consumable: 'charm', shard: 'diamond' }[f.kind];
-    things.set(key, { glyph, count: (things.get(key)?.count ?? 0) + 1 });
+    // 目撃は「情報」なので記号、かけらと携行品は「物」なので絵。
+    const art = f.kind === 'sighting' ? icon('eye', 28)
+      : itemArt(MATERIAL_ART[f.kind === 'shard' ? 'core_shard' : 'salve'], 36);
+    things.set(key, { art, count: (things.get(key)?.count ?? 0) + 1 });
   }
 
   const tokens = [...things].map(([title, t]) => `<div class="loot hidden">
-    ${icon(t.glyph, 26)}<span class="lnum">×${t.count}</span><span class="lname">${title}</span>
+    ${t.art}<span class="lnum">×${t.count}</span><span class="lname">${title}</span>
   </div>`).join('');
 
   const el = make('screen sheet', header(`道標 ${finds.length}`) + `<div class="body">
