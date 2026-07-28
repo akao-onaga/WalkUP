@@ -921,6 +921,53 @@ function sceneLine(line) {
 const sceneText = (line) => (typeof line === 'string' ? line : line.text);
 const sceneKind = (line) => (typeof line === 'string' ? 'n' : line.kind);
 
+/** セリフの声色。**話者と記号から導く。データに感情を書かせない。**
+ *
+ * 直す前は、話者の札が変わるだけで、驚きも焦りも同じ見え方をしていた。
+ * かといって行ごとに感情を書かせると、35本に付ける手間がかかるうえ、
+ * **書き足すたびに指定を忘れて無表情に戻る。**
+ *
+ * 幸い、**感情はもう本文に書かれている。** 全35セリフを数えると：
+ *
+ * - ウォークは 19本中 18本が「！」で終わる（熱血・§文章の作法）
+ * - 街の人は「！」を一本も使わず、起き抜けの言い淀みは冒頭の「……」に出る
+ *
+ * つまり話者名と記号を読めば足りる。立ち絵の配役を `who` から引いたのと同じ作法で、
+ * **書き足した場面が黙って追従する。**
+ *
+ * **記号と感情は1対1ではない**ので、当て方は粗く保つ。細かく分岐させるほど、
+ * 外した時に「なぜここだけ変な動きをするのか」が読めなくなる。
+ *
+ * @returns {{speed:number, motion:string|null}} 送りの速さと、立ち絵の一拍
+ */
+function voiceOf(line) {
+  const plain = { speed: 32, motion: null };
+  if (sceneKind(line) !== 's') return plain;
+  const text = sceneText(line);
+
+  // ダルモン。**全編で一度だけ喋る。** 極端に遅くする——
+  // 街の人と同じ速さで送ると、ただの登場人物になる。
+  if (line.who === 'ダルモン') return { speed: 92, motion: 'loom' };
+
+  /* 熱血。**この作品で「！」を使うのはウォークだけ**（街の人は全16本で一度も使わない）
+   * なので、記号だけで一意に決まる。
+   *
+   * **末尾ではなく、どこかにあれば取る。** 末尾だけを見ると
+   * 「これ何に使えるんだ！？」が漏れる——勢いは「！」にあって、締めの「？」ではない。
+   *
+   * 「……なら、踏み越えていく！」のように冒頭が「……」でも、こちらを先に見る。
+   * 言い淀んで**から**踏み切る行なので、残るのは踏み切った側。 */
+  if (text.includes('！')) return { speed: 21, motion: 'fire' };
+
+  // 言い淀み。**冒頭の「……」は、言葉が出てこない時間そのもの。**
+  // 文中の「……」は間であって淀みではないので、冒頭だけを見る。
+  if (text.startsWith('……')) return { speed: 47, motion: 'falter' };
+
+  // 残りは平。**分け方は3つで止める。** 記号と感情は1対1ではないので、
+  // 増やすほど外した時の見え方が説明できなくなる。
+  return plain;
+}
+
 /** 一行ずつ送って、触るたびに次へ進める。
  *
  * **積み上げない。** 全部を1つの札に足していくと、読み終わる頃には6行の塊になり、
@@ -979,7 +1026,8 @@ function linePlayer(box, lines, onEnd, onLine) {
       return;
     }
     typed = false;
-    typing = typeInto(target, sceneText(line));
+    // 送りの速さは話者と記号から決まる（`voiceOf`）。**熱血は速く、言い淀みは遅く。**
+    typing = typeInto(target, sceneText(line), { speed: voiceOf(line).speed });
     typing.then(() => { typed = true; finishOrMark(); });
   };
 
@@ -1071,15 +1119,37 @@ function sceneScreen(stage, onDone) {
    * **その人が初めて喋る行で入ってくる。** 書き足した場面が黙って追従する。 */
   let onStage = null;   // いま立っている人（同時に1人まで）
 
+  /** 立ち絵の transform を握るクラス。**去らせる前に全部外す**（`dismiss`）。 */
+  const MOTIONS = ['say-fire', 'say-falter', 'say-loom'];
+
   /** 舞台から下ろす。歩いて来た人は歩いて去り、にじみ出た人はにじんで消える。 */
   const dismiss = (node) => {
     if (!node) return;
-    // **待機の揺れを外してから**去らせる。どちらも transform を握るので、
-    // 残したままだと去り際に上下へ跳ねる。
-    node.classList.remove('npc-in', 'npc-fade-in', 'bob', 'speaking', 'hushed');
+    // **transform を握る物は全部外してから**去らせる。待機の揺れも、喋る一拍も同じ。
+    // 特に喋る一拍は CSS で後に書いてあるので、残すと**去る動きの方が負けて、
+    // その場で消えたように見える**（「……頼んだよ」の直後がまさにこれだった）。
+    node.classList.remove('npc-in', 'npc-fade-in', 'bob', 'speaking', 'hushed', ...MOTIONS);
     node.classList.add(node.dataset.enter === 'walk' ? 'npc-out' : 'npc-fade-out');
     // アニメーションが終わってから外す。先に外すと、その場で消える。
     setTimeout(() => node.remove(), 520);
+  };
+
+  /** 喋る一拍。**表情差分を持たない代わりに、立ち絵そのものを動かす**（`voiceOf`）。
+   *
+   * 待機の揺れ（`bob`）と同じ transform を握るので、いったん外して、
+   * 動き終わったら揺れへ返す。ホームの主人公が `walk-in` から `bob` へ渡すのと同じ作法。
+   *
+   * **傾けない。** 立ち絵はどれも正面に近い直立なので、回すと倒れかけて見える
+   * （唯一の例外がダルモンで、あれは元から形を持たない）。 */
+  const playMotion = (node, motion) => {
+    if (!node || !motion) return;
+    node.classList.remove('bob', ...MOTIONS);
+    void node.offsetWidth;   // 同じ動きを続けて出す時に、再生し直させる
+    node.classList.add(`say-${motion}`);
+    node.addEventListener('animationend', function back() {
+      this.classList.remove(...MOTIONS);
+      this.classList.add('bob');
+    }, { once: true });
   };
 
   /** その行の話者に合わせて舞台を組み替える。 */
@@ -1089,6 +1159,10 @@ function sceneScreen(stage, onDone) {
 
     // 別の人が喋り出したら、先にいた人は去る。**入れ替わりを黙って差し替えない。**
     if (person && onStage?.dataset.who !== person.id) { dismiss(onStage); onStage = null; }
+
+    // **入ってくる行では一拍を出さない。** 登場そのものが既に動きなので、
+    // 重ねると入場が跳ねて見える。
+    const entering = person && !onStage;
 
     if (person && !onStage) {
       stageBox.insertAdjacentHTML('beforeend', personArt(person));
@@ -1118,6 +1192,8 @@ function sceneScreen(stage, onDone) {
     // 誰にも当たらない話者なら、**全員を落とさない。** 画面が黙って暗くなるだけになる。
     if (!speaking) return;
     figures.forEach((f) => f.classList.add(f === speaking ? 'speaking' : 'hushed'));
+
+    if (!entering) playMotion(speaking, voiceOf(line).motion);
   };
 
   /** 場面を出る。**人を残して画面だけ切り替えない。**
