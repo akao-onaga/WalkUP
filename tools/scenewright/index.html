@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walk UP! 台本 — 場面とセリフを書く</title>
+<style>
+/* ------------------------------------------------------------------
+   これは**道具**であってゲームの画面ではない。
+   web/README.md の意匠規則（世界／帳面）はここには適用しない。
+   ただし書いた文字がゲームでどう見えるかは掴めた方がいいので、
+   行の下見（.pv）だけは夜の札に寄せてある。
+------------------------------------------------------------------ */
+:root {
+  --paper: #EDE7DA;
+  --card: #F7F3EA;
+  --ink: #2E2A38;
+  --soft: #6B6478;
+  --line: #D5CCBA;
+  --accent: #9A6F4A;
+  --amber: #C08B4F;
+  --night: #17151d;
+  --danger: #9B4A4A;
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.7 "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  padding-bottom: 80px;
+}
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* ---- 骨格 ---- */
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(237,231,218,.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 18px;
+}
+.hrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 15px; margin: 0; letter-spacing: .04em; white-space: nowrap; }
+h1 small { color: var(--soft); font-weight: 400; font-size: 11px; margin-left: 8px; }
+#title {
+  flex: 1; min-width: 160px;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--card);
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 16px 18px; }
+.cols { display: grid; grid-template-columns: minmax(0,1fr) 380px; gap: 18px; align-items: start; }
+@media (max-width: 980px) { .cols { grid-template-columns: minmax(0,1fr); } }
+
+/* ---- 部品 ---- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.card > h2 {
+  font-size: 12px; letter-spacing: .12em; color: var(--soft);
+  margin: 0 0 10px; font-weight: 800;
+}
+.btn {
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--card);
+}
+.btn:hover { border-color: var(--accent); }
+.btn.go { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+.btn.go:hover { filter: brightness(1.08); }
+.btn.mini { padding: 2px 7px; font-size: 12px; line-height: 1.6; }
+.btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+label.f { display: block; font-size: 11px; color: var(--soft); margin-bottom: 3px; letter-spacing: .06em; }
+select, input[type=text], input[type=number], textarea {
+  width: 100%; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+textarea { resize: vertical; }
+.grid { display: grid; gap: 10px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 620px) { .g2, .g3 { grid-template-columns: 1fr; } }
+.hint { font-size: 11px; color: var(--soft); line-height: 1.6; }
+
+/* ---- 場面の切り替え ---- */
+#chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip {
+  padding: 5px 11px; border-radius: 999px; font-size: 12px;
+  border: 1px solid var(--line); background: var(--card); white-space: nowrap;
+}
+.chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.chip.battle { border-style: dashed; }
+
+/* ---- 行 ---- */
+.line {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: #fff; margin-bottom: 10px; overflow: hidden;
+}
+.line.hold { background: repeating-linear-gradient(45deg, #fff 0 8px, #FAF6EE 8px 16px); }
+.lhead {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+  background: #FBF8F2;
+}
+.idx {
+  flex: none; width: 26px; height: 26px; border-radius: 6px;
+  display: grid; place-items: center;
+  background: var(--ink); color: #fff; font-size: 11px; font-weight: 800;
+}
+.lhead select { width: auto; min-width: 118px; }
+.lhead .spacer { flex: 1; }
+.meta { font-size: 11px; color: var(--soft); white-space: nowrap; }
+.meta b { color: var(--accent); }
+.lbody { padding: 10px; display: grid; gap: 8px; }
+
+/* 行の下見。**夜の札に寄せる**——書いた文字がゲームでどう出るかを掴むため。 */
+.pv {
+  background: var(--night); border-radius: 8px; padding: 10px 12px;
+  color: #fff; font-size: 13px; line-height: 1.85; min-height: 42px;
+}
+.pv .who {
+  display: inline-block; background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 4px;
+  margin-right: 8px;
+}
+.pv.sys { background: none; border: 1px solid var(--amber); color: var(--accent); font-size: 12px; }
+.pv.empty { color: rgba(255,255,255,.35); }
+.pv.hold { background: none; border: 1px dashed var(--line); color: var(--soft); font-size: 12px; }
+
+.note-wrap { border-left: 3px solid var(--amber); padding-left: 9px; }
+.note-wrap label.f { color: var(--accent); font-weight: 800; }
+
+/* ---- 書き出し ---- */
+#side { position: sticky; top: 62px; }
+pre {
+  margin: 0; padding: 10px; max-height: 340px; overflow: auto;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap; word-break: break-all;
+}
+.tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.tab {
+  padding: 4px 10px; font-size: 12px; border-radius: 6px 6px 0 0;
+  border: 1px solid var(--line); background: var(--paper);
+}
+.tab.on { background: #fff; border-bottom-color: #fff; font-weight: 700; }
+.total { font-size: 12px; color: var(--soft); margin-top: 8px; }
+.total b { color: var(--ink); }
+.warn { color: var(--danger); font-weight: 700; }
+footer { text-align: center; color: var(--soft); font-size: 11px; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <h1>Walk UP! 台本<small>場面とセリフを書く</small></h1>
+    <input id="title" type="text" placeholder="台本の名前（例：チュートリアル）">
+    <button class="btn" id="btn-import">読み込み</button>
+    <button class="btn" id="btn-download">書き出す</button>
+  </div>
+  <div class="hrow" style="margin-top:8px">
+    <span class="meta" style="flex:none">場面</span>
+    <div id="chips"></div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="cols">
+
+  <div>
+    <div class="card" id="stage-card"></div>
+    <div class="card">
+      <h2>行</h2>
+      <div id="lines"></div>
+      <button class="btn go" id="btn-add" style="width:100%">＋ 行を足す</button>
+      <p class="hint" style="margin:10px 0 0">
+        1行＝1タップ。<b>間</b>だけは文字が出ず、タップも要らない（自分で次へ進む）。<br>
+        声色と送りの速さは<b>話者と記号から自動で決まる</b>ので、指定する欄は無い。
+      </p>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="card">
+      <h2>書き出し</h2>
+      <div class="tabs">
+        <button class="tab on" data-tab="md">台本（Claude へ渡す）</button>
+        <button class="tab" data-tab="js">data.js</button>
+        <button class="tab" data-tab="json">保存用</button>
+      </div>
+      <pre id="out"></pre>
+      <div class="hrow" style="margin-top:8px">
+        <button class="btn go" id="btn-copy">コピー</button>
+        <span class="meta" id="copied"></span>
+      </div>
+      <div class="total" id="total"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<footer>tools/scenewright — 書いた内容はこのブラウザに自動保存されます</footer>
+
+<script>
+/* ==================================================================
+   実装（web/data.js・web/ui.js）から写した定数と規則。
+   **ここを直したら向こうも直すこと**（逆も同じ）。
+================================================================== */
+
+/** 立ち絵を持つ街の人。ここに無い名前は札だけ出て姿は現れない（data.js の PEOPLE）。 */
+const PEOPLE = ['老女', '工房の主', '市の店主', '靴の老人', 'パン屋の主人', '男'];
+
+/** ダルモン（data.js の SPECIES ＋ ボス）。 */
+const FOES = [
+  ['', '（出さない）'],
+  ['darari', 'ダラリ（1章）'], ['nemuke', 'ネムケ（1章）'],
+  ['gorone', 'ゴロネ（1章）'], ['akubi', 'アクビ（1章）'],
+  ['uzukumari', 'ウズクマリ（2章）'], ['tadayoi', 'タダヨイ（2章）'],
+  ['nebari', 'ネバリ（2章）'], ['motare', 'モタレ（2章）'],
+  ['shizumi', 'シズミ（3章）'], ['kasumi', 'カスミ（3章）'],
+  ['omori', 'オモリ（3章）'], ['nukegara', 'ヌケガラ（3章）'],
+  ['madoromi', 'マドロミ（1章ボス）'], ['mukiryoku', 'ムキリョク（2章ボス）'],
+  ['darumon', 'ダルモン（3章ボス）'],
+];
+
+/** カメラ（style.css の shot-*）。 */
+const SHOTS = [
+  ['', '（指定しない）'],
+  ['close', '寄る — 一人に絞る場面'],
+  ['wide', '引く — 街ぐるみ・世界の話'],
+  ['tilt', '傾く — 場が傾いでいる（2章の対峙）'],
+  ['tremor', '揺れ続ける — 地鳴り（3章の対峙）'],
+  ['orbit', '回り込む — 歩いてきた場所を見渡す'],
+];
+
+/** 崩れた姿（style.css の slump-*）。**揺れていたら、もう動いている。** */
+const SLUMPS = [
+  ['', '（立っている）'],
+  ['sag', 'sag — だらりと崩れる（ダラリ）'],
+  ['unfold', 'unfold — 畳まれている（マドロミ）'],
+  ['lift', 'lift — 頭を垂れて沈む（ムキリョク）'],
+  ['loom', 'loom — 縮こまって待つ（ダルモン）'],
+];
+
+const LINE_TYPES = [
+  ['n', '地の文'],
+  ['hero', 'セリフ（ウォーク）'],
+  ['npc', 'セリフ（街の人）'],
+  ['darumon', 'セリフ（ダルモン）'],
+  ['sys', 'システム'],
+  ['hold', '間'],
+];
+
+/** 声色。**ui.js の voiceOf をそのまま写した。** データに感情を書かせない。 */
+function voiceOf(line) {
+  if (!isSay(line.type)) return { name: '—', speed: 32 };
+  if (line.type === 'darumon') return { name: 'ダルモン', speed: 92 };
+  if (line.text.includes('！')) return { name: '熱血', speed: 21 };
+  if (line.text.startsWith('……')) return { name: '言い淀み', speed: 47 };
+  return { name: '平', speed: 32 };
+}
+
+/** 送りにかかる時間。**ui.js の typeInto をそのまま写した。**
+ *  句読点の後だけ長く置く（読点6倍・句点10倍）。 */
+function typeMs(text, speed) {
+  let ms = 0;
+  for (const ch of text) {
+    ms += '、，'.includes(ch) ? speed * 6 : '。！？'.includes(ch) ? speed * 10 : speed;
+  }
+  return ms;
+}
+
+const isSay = (t) => t === 'hero' || t === 'npc' || t === 'darumon';
+
+/* ==================================================================
+   状態
+================================================================== */
+
+const KEY = 'walkup-scenewright-v1';
+
+const newLine = (type = 'n') => ({ type, who: PEOPLE[0], text: '', ms: 700, note: '' });
+
+const newStage = (kind = 'scene') => ({
+  kind, note: '', shot: '', foe: '', slump: '', stir: -1,
+  action: '', facility: false, steps: 2000, node: 1, hero: true,
+  lines: kind === 'scene' ? [newLine()] : [],
+});
+
+let script = load() || { title: '', stages: [newStage()] };
+let at = 0;
+let tab = 'md';
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return s && Array.isArray(s.stages) && s.stages.length ? s : null;
+  } catch { return null; }
+}
+
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(script)), 250);
+}
+
+const stage = () => script.stages[at];
+
+/* ==================================================================
+   描画
+================================================================== */
+
+const $ = (sel) => document.querySelector(sel);
+const el = (tag, cls, html) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html != null) n.innerHTML = html;
+  return n;
+};
+const opts = (list, cur) => list
+  .map(([v, label]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label}</option>`).join('');
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function renderChips() {
+  const box = $('#chips');
+  box.innerHTML = '';
+  script.stages.forEach((s, i) => {
+    const label = s.kind === 'battle' ? `戦闘 ${s.node}`
+      : s.kind === 'walk' ? `歩く`
+      : (s.note || `場面 ${i + 1}`);
+    const c = el('button', `chip ${i === at ? 'on' : ''} ${s.kind === 'battle' ? 'battle' : ''}`, esc(label));
+    c.onclick = () => { at = i; renderAll(); };
+    box.appendChild(c);
+  });
+  const add = el('button', 'chip', '＋ 場面');
+  add.onclick = () => { script.stages.splice(at + 1, 0, newStage()); at += 1; renderAll(); save(); };
+  box.appendChild(add);
+  const addB = el('button', 'chip battle', '＋ 戦闘');
+  addB.onclick = () => { script.stages.splice(at + 1, 0, newStage('battle')); at += 1; renderAll(); save(); };
+  box.appendChild(addB);
+}
+
+function renderStage() {
+  const s = stage();
+  const card = $('#stage-card');
+  card.innerHTML = '';
+  card.appendChild(el('h2', null, `場面の設定 <span style="color:var(--accent)">（${at + 1} / ${script.stages.length}）</span>`));
+
+  const kindRow = el('div', 'grid g3');
+  kindRow.innerHTML = `
+    <div><label class="f">種類</label>
+      <select data-k="kind">${opts([['scene', '場面（読む）'], ['walk', '歩く（歩数が入る）'], ['battle', '戦闘（差し込むだけ）']], s.kind)}</select></div>
+    <div style="grid-column: span 2"><label class="f">メモ（この場面の呼び名。書き出しに載る）</label>
+      <input type="text" data-k="note" value="${esc(s.note)}" placeholder="例：ダラリとの対峙"></div>`;
+  card.appendChild(kindRow);
+
+  if (s.kind === 'battle') {
+    const b = el('div', 'grid', `
+      <div style="max-width:200px"><label class="f">ノード</label>
+        <input type="number" min="1" max="8" data-k="node" value="${s.node}"></div>
+      <p class="hint">戦闘は文章を持たない。第1章のノードをそのまま使う（専用の敵は作らない）。</p>`);
+    card.appendChild(b);
+  } else {
+    const g = el('div', 'grid g3', `
+      <div><label class="f">カメラ</label><select data-k="shot">${opts(SHOTS, s.shot)}</select></div>
+      <div><label class="f">ダルモンを出す</label><select data-k="foe">${opts(FOES, s.foe)}</select></div>
+      <div><label class="f">その姿</label><select data-k="slump">${opts(SLUMPS, s.slump)}</select></div>`);
+    card.appendChild(g);
+
+    // 身じろぎする行。**番号を手で書かせない**——行を足すたびにずれる所なので、
+    // 行そのものを選ばせて、書き出す時に番号へ直す。
+    if (s.slump) {
+      const stirOpts = [['-1', '（身じろぎしない）']].concat(
+        s.lines.map((l, i) => [String(i), `${i}: ${l.type === 'hold' ? `間 ${l.ms}ms` : (l.text || '（空）').slice(0, 22)}`])
+      );
+      const stir = el('div', null, `<label class="f">身じろぎする行（stir）— 起き上がりはしない</label>
+        <select data-k="stir">${opts(stirOpts, String(s.stir))}</select>`);
+      card.appendChild(stir);
+    }
+
+    const g2 = el('div', 'grid g3', `
+      <div><label class="f">主人公</label><select data-k="hero">${opts([['true', '出す'], ['false', '出さない']], String(s.hero))}</select></div>
+      <div><label class="f">読み終えたら</label><select data-k="action">${opts([['', '進む'], ['equip', '装備を開く']], s.action)}</select></div>
+      ${s.kind === 'walk'
+        ? `<div><label class="f">入る歩数</label><input type="number" step="100" data-k="steps" value="${s.steps}"></div>`
+        : `<div><label class="f">施設の札</label><select data-k="facility">${opts([['false', '出さない'], ['true', '出す（工房など）']], String(s.facility))}</select></div>`}`);
+    card.appendChild(g2);
+  }
+
+  const tools = el('div', 'hrow', '');
+  tools.style.marginTop = '12px';
+  const mk = (label, cls, fn) => { const b = el('button', `btn mini ${cls || ''}`, label); b.onclick = fn; return b; };
+  tools.appendChild(mk('← 前へ移す', '', () => { if (at > 0) { const [x] = script.stages.splice(at, 1); script.stages.splice(--at, 0, x); renderAll(); save(); } }));
+  tools.appendChild(mk('後ろへ移す →', '', () => { if (at < script.stages.length - 1) { const [x] = script.stages.splice(at, 1); script.stages.splice(++at, 0, x); renderAll(); save(); } }));
+  tools.appendChild(mk('複製', '', () => { script.stages.splice(at + 1, 0, JSON.parse(JSON.stringify(stage()))); at += 1; renderAll(); save(); }));
+  tools.appendChild(mk('この場面を消す', 'danger', () => {
+    if (script.stages.length === 1) return;
+    if (!confirm('この場面を消しますか？')) return;
+    script.stages.splice(at, 1); at = Math.max(0, at - 1); renderAll(); save();
+  }));
+  card.appendChild(tools);
+
+  card.querySelectorAll('[data-k]').forEach((f) => {
+    f.oninput = () => {
+      const k = f.dataset.k;
+      let v = f.value;
+      if (k === 'node' || k === 'steps') v = Number(v);
+      if (k === 'stir') v = Number(v);
+      if (k === 'hero' || k === 'facility') v = (v === 'true');
+      stage()[k] = v;
+      save();
+      if (k === 'kind' || k === 'slump' || k === 'note') renderAll(); else renderOut();
+    };
+  });
+}
+
+function renderLines() {
+  const box = $('#lines');
+  box.innerHTML = '';
+  const s = stage();
+  if (s.kind === 'battle') {
+    box.appendChild(el('p', 'hint', '戦闘には文章がありません。上の「ノード」だけ決めてください。'));
+    $('#btn-add').style.display = 'none';
+    return;
+  }
+  $('#btn-add').style.display = '';
+  s.lines.forEach((line, i) => box.appendChild(lineEl(line, i)));
+}
+
+function lineEl(line, i) {
+  const s = stage();
+  const node = el('div', `line ${line.type === 'hold' ? 'hold' : ''}`);
+
+  const head = el('div', 'lhead');
+  head.appendChild(el('span', 'idx', String(i)));
+
+  const sel = el('select');
+  sel.innerHTML = opts(LINE_TYPES, line.type);
+  sel.style.width = 'auto';
+  head.appendChild(sel);
+
+  let whoSel = null;
+  if (line.type === 'npc') {
+    whoSel = el('select');
+    whoSel.innerHTML = opts(PEOPLE.map((p) => [p, p]), line.who);
+    whoSel.style.width = 'auto';
+    head.appendChild(whoSel);
+  }
+
+  head.appendChild(el('span', 'spacer'));
+  const meta = el('span', 'meta');
+  head.appendChild(meta);
+
+  const tools = el('span', null);
+  const mk = (label, cls, fn) => { const b = el('button', `btn mini ${cls || ''}`, label); b.onclick = fn; return b; };
+  tools.appendChild(mk('↑', '', () => { if (i > 0) { swap(i, i - 1); } }));
+  tools.appendChild(mk('↓', '', () => { if (i < s.lines.length - 1) { swap(i, i + 1); } }));
+  tools.appendChild(mk('＋', '', () => { s.lines.splice(i + 1, 0, newLine(line.type)); shiftStir(i); renderAll(); save(); }));
+  tools.appendChild(mk('×', 'danger', () => {
+    if (s.lines.length === 1) return;
+    s.lines.splice(i, 1);
+    if (s.stir === i) s.stir = -1; else if (s.stir > i) s.stir -= 1;
+    renderAll(); save();
+  }));
+  head.appendChild(tools);
+  node.appendChild(head);
+
+  const body = el('div', 'lbody');
+
+  // 本文（間はミリ秒）
+  const field = el('div');
+  if (line.type === 'hold') {
+    field.innerHTML = `<label class="f">待つ長さ（ミリ秒）— 返事が無いこと・名を呼ばれること。沈黙が意味を持つ所にだけ置く</label>`;
+    const n = el('input');
+    n.type = 'number'; n.step = '50'; n.value = line.ms; n.style.maxWidth = '160px';
+    n.oninput = () => { line.ms = Number(n.value); refresh(); };
+    field.appendChild(n);
+  } else {
+    field.innerHTML = `<label class="f">本文${line.type === 'n' ? '（主語を置かない・過去基調）' : isSay(line.type) ? '（鉤括弧は書かない。組版側で付く）' : ''}</label>`;
+    const t = el('textarea');
+    t.rows = 2; t.value = line.text;
+    t.placeholder = line.type === 'sys' ? '例：怠惰の澱を手に入れた' : '';
+    t.oninput = () => { line.text = t.value; refresh(); };
+    field.appendChild(t);
+  }
+  body.appendChild(field);
+
+  // 下見
+  const pv = el('div');
+  body.appendChild(pv);
+
+  // 演出メモ — **この道具の主目的。**
+  const nw = el('div', 'note-wrap');
+  nw.innerHTML = `<label class="f">演出メモ（この行で何を起こしたいか）</label>`;
+  const nt = el('textarea');
+  nt.rows = 2; nt.value = line.note;
+  nt.placeholder = '例：ここで初めて身じろぎ。起き上がらせない';
+  nt.oninput = () => { line.note = nt.value; save(); renderOut(); };
+  nw.appendChild(nt);
+  body.appendChild(nw);
+
+  node.appendChild(body);
+
+  sel.onchange = () => {
+    line.type = sel.value;
+    if (line.type === 'darumon') line.who = 'ダルモン';
+    else if (line.type === 'npc' && !PEOPLE.includes(line.who)) line.who = PEOPLE[0];
+    renderAll(); save();
+  };
+  if (whoSel) whoSel.onchange = () => { line.who = whoSel.value; refresh(); };
+
+  function refresh() { drawMeta(); drawPv(); save(); renderOut(); }
+
+  function drawMeta() {
+    if (line.type === 'hold') { meta.innerHTML = `間 <b>${(line.ms / 1000).toFixed(2)}秒</b>`; return; }
+    if (line.type === 'sys') { meta.innerHTML = `一度に出る（送らない）`; return; }
+    const v = voiceOf(line);
+    const ms = typeMs(line.text, v.speed);
+    meta.innerHTML = `${isSay(line.type) ? `声色 <b>${v.name}</b> ・ ` : ''}送り <b>${(ms / 1000).toFixed(1)}秒</b> ・ ${[...line.text].length}字`;
+  }
+
+  function drawPv() {
+    pv.className = 'pv';
+    if (line.type === 'hold') { pv.className = 'pv hold'; pv.textContent = `— ${line.ms}ms 黙って待つ（文字は出ない・タップも要らない）—`; return; }
+    if (!line.text) { pv.className = 'pv empty'; pv.textContent = '（まだ何も書かれていない）'; return; }
+    if (line.type === 'sys') { pv.className = 'pv sys'; pv.textContent = line.text; return; }
+    if (isSay(line.type)) {
+      const who = line.type === 'hero' ? 'ウォーク' : line.type === 'darumon' ? 'ダルモン' : line.who;
+      pv.innerHTML = `<span class="who">${esc(who)}</span>「${esc(line.text)}」`;
+      return;
+    }
+    pv.textContent = line.text;
+  }
+
+  drawMeta(); drawPv();
+  return node;
+
+  function swap(a, b) {
+    const t = s.lines[a]; s.lines[a] = s.lines[b]; s.lines[b] = t;
+    if (s.stir === a) s.stir = b; else if (s.stir === b) s.stir = a;
+    renderAll(); save();
+  }
+  function shiftStir(after) { if (s.stir > after) s.stir += 1; }
+}
+
+/* ==================================================================
+   書き出し
+================================================================== */
+
+const q = (s) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
+function stageHead(s) {
+  const parts = [`kind: ${q(s.kind === 'battle' ? 'battle' : s.kind)}`];
+  if (s.kind === 'battle') return `{ kind: 'battle', node: ${s.node} },`;
+  if (s.kind === 'walk') parts.push(`steps: ${s.steps}`);
+  if (s.foe) parts.push(`foe: ${q(s.foe)}`);
+  if (s.shot) parts.push(`shot: ${q(s.shot)}`);
+  if (s.slump) parts.push(`slump: ${q(s.slump)}`);
+  if (s.slump && s.stir >= 0) parts.push(`stir: ${s.stir}`);
+  if (s.action) parts.push(`action: ${q(s.action)}`);
+  if (s.facility) parts.push(`facility: FORGE`);
+  if (!s.hero) parts.push(`hero: false`);
+  return parts.join(', ');
+}
+
+function lineCode(l) {
+  if (l.type === 'hold') return `HOLD(${l.ms}),`;
+  if (l.type === 'sys') return `SYS(${q(l.text)}),`;
+  if (l.type === 'hero') return `S(HERO, ${q(l.text)}),`;
+  if (l.type === 'darumon') return `S('ダルモン', ${q(l.text)}),`;
+  if (l.type === 'npc') return `S(${q(l.who)}, ${q(l.text)}),`;
+  return `N(${q(l.text)}),`;
+}
+
+function buildJs() {
+  const out = [];
+  script.stages.forEach((s) => {
+    if (s.kind === 'battle') { out.push(stageHead(s)); return; }
+    out.push('{');
+    if (s.note) out.push(`  // ${s.note}`);
+    out.push(`  ${stageHead(s)},`);
+    out.push('  lines: [');
+    s.lines.forEach((l) => {
+      if (l.note) out.push(`    // ${l.note.replace(/\n/g, ' / ')}`);
+      out.push(`    ${lineCode(l)}`);
+    });
+    out.push('  ],');
+    out.push('},');
+  });
+  return out.join('\n');
+}
+
+const TYPE_LABEL = { n: '地の文', hero: 'セリフ（ウォーク）', npc: 'セリフ', darumon: 'セリフ（ダルモン）', sys: 'システム', hold: '間' };
+
+function buildMd() {
+  const out = [`# ${script.title || '（名前のない台本）'}`, ''];
+  script.stages.forEach((s, i) => {
+    if (s.kind === 'battle') { out.push(`## ${i + 1}. 戦闘（ノード ${s.node}）`, ''); return; }
+    out.push(`## ${i + 1}. ${s.note || '（メモなし）'}`);
+    const bits = [];
+    bits.push(s.kind === 'walk' ? `歩く（${s.steps}歩）` : '場面');
+    if (s.shot) bits.push(`カメラ: ${s.shot}`);
+    if (s.foe) bits.push(`ダルモン: ${s.foe}${s.slump ? `（${s.slump} で崩れたまま）` : ''}`);
+    if (s.slump && s.stir >= 0) bits.push(`身じろぎ: ${s.stir} 行目`);
+    if (s.action === 'equip') bits.push('読み終えたら装備画面へ');
+    if (s.facility) bits.push('施設の札を出す');
+    if (!s.hero) bits.push('主人公を出さない');
+    out.push(bits.join(' / '), '');
+
+    s.lines.forEach((l, n) => {
+      if (l.type === 'hold') {
+        out.push(`[${n}] 間 ${l.ms}ms`);
+      } else {
+        const who = l.type === 'hero' ? 'ウォーク' : l.type === 'darumon' ? 'ダルモン' : l.type === 'npc' ? l.who : '';
+        const v = voiceOf(l);
+        out.push(`[${n}] ${TYPE_LABEL[l.type]}${who ? `／${who}` : ''}${isSay(l.type) ? `／${v.name}` : ''}`);
+        out.push(`    ${l.text || '（空）'}`);
+      }
+      if (l.note) out.push(`    演出: ${l.note.replace(/\n/g, '\n          ')}`);
+    });
+    out.push('');
+  });
+  out.push('---', '', '## data.js', '', '```js', buildJs(), '```');
+  return out.join('\n');
+}
+
+function totals() {
+  let ms = 0, taps = 0, lines = 0;
+  script.stages.forEach((s) => {
+    if (s.kind === 'battle') return;
+    s.lines.forEach((l) => {
+      lines += 1;
+      if (l.type === 'hold') { ms += l.ms; return; }
+      taps += 1;
+      if (l.type === 'sys') return;
+      ms += typeMs(l.text, voiceOf(l).speed);
+    });
+  });
+  return { ms, taps, lines };
+}
+
+function renderOut() {
+  const text = tab === 'js' ? buildJs() : tab === 'json' ? JSON.stringify(script, null, 2) : buildMd();
+  $('#out').textContent = text;
+  const t = totals();
+  const over = t.ms > 60000;
+  $('#total').innerHTML = `送りの合計 <b>${(t.ms / 1000).toFixed(1)}秒</b>（タップ待ちは別）・ <b>${t.taps}</b> タップ・ <b>${t.lines}</b> 行`
+    + (over ? '<br><span class="warn">※ 1分を超えた。§2「1セッション3分」に効くので、周回で通る道なら削ること</span>' : '');
+}
+
+function renderAll() { renderChips(); renderStage(); renderLines(); renderOut(); }
+
+/* ==================================================================
+   仕掛け
+================================================================== */
+
+$('#title').value = script.title || '';
+$('#title').oninput = (e) => { script.title = e.target.value; save(); renderOut(); };
+
+$('#btn-add').onclick = () => {
+  const s = stage();
+  s.lines.push(newLine(s.lines.length ? s.lines[s.lines.length - 1].type : 'n'));
+  renderAll(); save();
+};
+
+document.querySelectorAll('.tab').forEach((b) => {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
+    renderOut();
+  };
+});
+
+$('#btn-copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('#out').textContent);
+    $('#copied').textContent = 'コピーした';
+  } catch {
+    const r = document.createRange();
+    r.selectNodeContents($('#out'));
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    $('#copied').textContent = '選択した（⌘C で写す）';
+  }
+  setTimeout(() => { $('#copied').textContent = ''; }, 2000);
+};
+
+$('#btn-download').onclick = () => {
+  const name = (script.title || '台本').replace(/[\\/:*?"<>|]/g, '_');
+  const blob = new Blob([buildMd()], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name}.md`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+$('#btn-import').onclick = () => {
+  const raw = prompt('「保存用」で写した中身を貼ってください（いまの台本は置き換わります）');
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.stages) || !s.stages.length) throw new Error('形が違う');
+    script = s; at = 0;
+    $('#title').value = script.title || '';
+    renderAll(); save();
+  } catch (e) { alert('読み込めませんでした：' + e.message); }
+};
+
+renderAll();
+</script>
+</body>
+</html>
