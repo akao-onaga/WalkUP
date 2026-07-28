@@ -161,7 +161,8 @@ footer { text-align: center; color: var(--soft); font-size: 11px; padding: 20px;
   <div class="hrow">
     <h1>Walk UP! 台本<small>場面とセリフを書く</small></h1>
     <input id="title" type="text" placeholder="台本の名前（例：チュートリアル）">
-    <button class="btn" id="btn-import">読み込み</button>
+    <button class="btn" id="btn-seed">いまの実装を読み込む</button>
+    <button class="btn" id="btn-import">貼り付けて読み込み</button>
     <button class="btn" id="btn-download">書き出す</button>
   </div>
   <div class="hrow" style="margin-top:8px">
@@ -293,7 +294,81 @@ const newStage = (kind = 'scene') => ({
   lines: kind === 'scene' ? [newLine()] : [],
 });
 
-let script = load() || { title: '', stages: [newStage()] };
+/* ==================================================================
+   いまの実装（web/data.js の TUTORIAL）をそのまま持ってきた種。
+
+   **正は data.js。ここは下書き場。** 直したいのはこちらで書いて、
+   出来上がってから実装へ移す。localStorage ではなく HTML に同梱してあるのは、
+   file:// で開いた時とサーバ越しで開いた時では localStorage が別物になるため。
+
+   演出メモには**いま実際に起きていること**を書いてある。
+   「※」で始まる行は、まだ手を付けていない気付き。
+================================================================== */
+
+const sl = (type, text, note, opt) => Object.assign(
+  { type, who: 'ウォーク', text: text || '', ms: 700, note: note || '' }, opt || {});
+
+const ss = (kind, note, opt, lines) => Object.assign(
+  newStage(kind), { note: note || '', lines: lines || [] }, opt || {});
+
+const SEED_TUTORIAL = () => ({
+  title: 'チュートリアル',
+  stages: [
+    ss('scene', 'ダラリとの対峙', { shot: 'close', foe: 'darari', slump: 'sag', stir: 5 }, [
+      sl('n', '道の真ん中で、何かがだらりと崩れていた。',
+        'ダラリは崩れた姿のまま置く。待機の揺れは与えない——揺れていたら、もう動いている'),
+      sl('n', '避けて通ろうとしたが、道いっぱいに広がっていて、隙間がない。'),
+      sl('hero', 'おい、どいてくれ！'),
+      sl('hold', '', '返事が無いことを、返事が無い長さで見せる。ここは間そのものが本文', { ms: 950 }),
+      sl('n', '返事はない。襲ってもこない。ただ、そこから動かない。'),
+      sl('hero', '……なら、踏み越えていく！',
+        'ここで初めて身じろぎする。気付いただけなので、起き上がらせない'),
+    ]),
+
+    ss('battle', 'ダラリ。必勝（残HP 22）', { node: 1 }),
+
+    ss('scene', '澱を拾う', { shot: 'close' }, [
+      sl('n', 'それは溶けて、地面に灰紫の澱を残した。',
+        '※いまは主人公と文字だけ。直前の戦闘で見せた溶けた跡を、同じ場所に置く余地がある'),
+      sl('hero', 'これ、あいつが人から抜き取ってたやつか……！'),
+      sl('n', '拾うと、掌の上でわずかに脈打った。'),
+      sl('sys', '怠惰の澱を手に入れた'),
+    ]),
+
+    ss('walk', '歩いて力になる', { kind: 'walk', shot: 'wide', steps: 2000 }, [
+      sl('n', '澱を拾って、また歩き出した。',
+        '900ms 後に歩数と紋章が回り始める ／ ※行に同期していないので、読む速さによってはこの行の途中でレベルアップが鳴る'),
+      sl('hero', 'よし、体が軽い！ 歩くほど力が湧いてくる！'),
+      sl('sys', '歩いた歩数が、そのまま力になる ／ レベルが上がった',
+        '※「／」で二つ教えている'),
+    ]),
+
+    ss('battle', 'ゴロネ。必勝（残HP 15）／ 装備は落とさない', { node: 2 }),
+
+    ss('scene', '工房', { shot: 'close', action: 'equip', facility: true }, [
+      sl('n', 'シャッターの隙間から、金槌の音がした。中で誰かが起きている。',
+        '工房の主はにじみ出て入る（戸の内側にいる人なので歩いて来ない） ／ ※シャッターは第2章の意匠で、第2章の扉と同じビートになっている'),
+      sl('npc', 'その靴、俺ならまだ鍛えられるぞ。……澱を持ってるな',
+        '喋っている者だけに光が足される', { who: '工房の主' }),
+      sl('hero', 'おっちゃん、これ何に使えるんだ！？'),
+      sl('npc', '叩き込むのさ。五つで一段。段は五つまで積める',
+        '説明は人に言わせる。地の文で書くと取扱説明書になる', { who: '工房の主' }),
+      sl('hero', '頼む、打ってくれ！',
+        '読み終えると施設の札「工房が開いた」が出て、ボタンで装備画面へ ／ ※強化せずに閉じても何も言われない'),
+    ]),
+
+    ss('battle', 'ネムケ。必勝（残HP 25）', { node: 3 }),
+
+    ss('scene', '締め', { shot: 'wide' }, [
+      sl('n', '三体を退けた。道の先は、まだ暗い。'),
+      sl('hero', '見てろよ。俺のウォーク力で、この世界を叩き起こしてやる！'),
+      sl('sys', 'ここから先へ進めるのは、実際に歩いた分だけ',
+        '導入画面の「実際に歩いた数だけ」を回収する行'),
+    ]),
+  ],
+});
+
+let script = load() || SEED_TUTORIAL();
 let at = 0;
 let tab = 'md';
 
@@ -327,7 +402,29 @@ const el = (tag, cls, html) => {
 };
 const opts = (list, cur) => list
   .map(([v, label]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label}</option>`).join('');
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** 選択肢に無い物を書くための逃がし口。
+ *
+ * **選択肢は「いま実装にある物」でしかない。** 新しいカメラや新しい姿を思い付いた時に、
+ * 一覧に無いという理由で書けないのでは、下書き場として役に立たない。
+ * 自由に書いた値はそのまま `data.js` の記法に載り、書き出しでは「※未実装」と印が付く
+ * ——**まだコードが無い指定だと、実装する側（私）に分かる必要がある。** */
+const CUSTOM = '__custom__';
+
+/** 一覧に無い値かどうか。空は「指定なし」なので数えない。 */
+const isNew = (list, v) => !!v && !list.some(([x]) => x === v);
+
+/** 選択肢＋自由記入の対。`data-k` が選択肢、`data-kc` が自由記入。 */
+function selectField(label, key, list, cur) {
+  const custom = isNew(list, cur);
+  return `<div>
+    <label class="f">${label}</label>
+    <select data-k="${key}">${opts(list.concat([[CUSTOM, '＋ カスタム…']]), custom ? CUSTOM : cur)}</select>
+    <input type="text" data-kc="${key}" value="${custom ? esc(cur) : ''}" placeholder="自由に書く"
+           style="margin-top:4px;${custom ? '' : 'display:none'}">
+  </div>`;
+}
 
 function renderChips() {
   const box = $('#chips');
@@ -369,22 +466,20 @@ function renderStage() {
       <p class="hint">戦闘は文章を持たない。第1章のノードをそのまま使う（専用の敵は作らない）。</p>`);
     card.appendChild(b);
   } else {
-    const g = el('div', 'grid g3', `
-      <div><label class="f">カメラ</label><select data-k="shot">${opts(SHOTS, s.shot)}</select></div>
-      <div><label class="f">ダルモンを出す</label><select data-k="foe">${opts(FOES, s.foe)}</select></div>
-      <div><label class="f">その姿</label><select data-k="slump">${opts(SLUMPS, s.slump)}</select></div>`);
+    const g = el('div', 'grid g3',
+      selectField('カメラ', 'shot', SHOTS, s.shot)
+      + selectField('ダルモンを出す', 'foe', FOES, s.foe)
+      + selectField('その姿', 'slump', SLUMPS, s.slump));
     card.appendChild(g);
 
     // 身じろぎする行。**番号を手で書かせない**——行を足すたびにずれる所なので、
     // 行そのものを選ばせて、書き出す時に番号へ直す。
-    if (s.slump) {
-      const stirOpts = [['-1', '（身じろぎしない）']].concat(
-        s.lines.map((l, i) => [String(i), `${i}: ${l.type === 'hold' ? `間 ${l.ms}ms` : (l.text || '（空）').slice(0, 22)}`])
-      );
-      const stir = el('div', null, `<label class="f">身じろぎする行（stir）— 起き上がりはしない</label>
-        <select data-k="stir">${opts(stirOpts, String(s.stir))}</select>`);
-      card.appendChild(stir);
-    }
+    const stirOpts = [['-1', '（身じろぎしない）']].concat(
+      s.lines.map((l, i) => [String(i), `${i}: ${l.type === 'hold' ? `間 ${l.ms}ms` : (l.text || '（空）').slice(0, 22)}`])
+    );
+    const stir = el('div', null, `<label class="f">身じろぎする行（stir）— 起き上がりはしない${s.slump ? '' : '　※「その姿」を決めた場面でだけ効く'}</label>
+      <select data-k="stir">${opts(stirOpts, String(s.stir))}</select>`);
+    card.appendChild(stir);
 
     const g2 = el('div', 'grid g3', `
       <div><label class="f">主人公</label><select data-k="hero">${opts([['true', '出す'], ['false', '出さない']], String(s.hero))}</select></div>
@@ -412,13 +507,30 @@ function renderStage() {
     f.oninput = () => {
       const k = f.dataset.k;
       let v = f.value;
+
+      // カスタムを選んだら、自由記入を開けてそこへ渡す。**ここで再描画しない**——
+      // 値がまだ空なので、描き直すと選択が先頭（指定なし）へ戻ってしまう。
+      if (v === CUSTOM) {
+        const inp = card.querySelector(`[data-kc="${k}"]`);
+        inp.style.display = '';
+        inp.focus();
+        stage()[k] = inp.value;
+        save(); renderOut();
+        return;
+      }
+      const inp = card.querySelector(`[data-kc="${k}"]`);
+      if (inp) { inp.style.display = 'none'; inp.value = ''; }
+
       if (k === 'node' || k === 'steps') v = Number(v);
       if (k === 'stir') v = Number(v);
       if (k === 'hero' || k === 'facility') v = (v === 'true');
       stage()[k] = v;
       save();
-      if (k === 'kind' || k === 'slump' || k === 'note') renderAll(); else renderOut();
+      if (k === 'kind' || k === 'note') renderAll(); else renderOut();
     };
+  });
+  card.querySelectorAll('[data-kc]').forEach((f) => {
+    f.oninput = () => { stage()[f.dataset.kc] = f.value; save(); renderOut(); };
   });
 }
 
@@ -447,12 +559,23 @@ function lineEl(line, i) {
   sel.style.width = 'auto';
   head.appendChild(sel);
 
-  let whoSel = null;
+  let whoSel = null, whoIn = null;
   if (line.type === 'npc') {
+    const known = PEOPLE.includes(line.who);
     whoSel = el('select');
-    whoSel.innerHTML = opts(PEOPLE.map((p) => [p, p]), line.who);
+    whoSel.innerHTML = opts(PEOPLE.map((p) => [p, p]).concat([[CUSTOM, '＋ カスタム…']]), known ? line.who : CUSTOM);
     whoSel.style.width = 'auto';
     head.appendChild(whoSel);
+
+    // **一覧に無い名前も書ける。** ただし立ち絵は `PEOPLE` からしか引けないので、
+    // 姿は出ず札だけになる（絵を作るかどうかは費用の話になる。§10.1.1）。
+    whoIn = el('input');
+    whoIn.type = 'text';
+    whoIn.placeholder = '話者名';
+    whoIn.value = known ? '' : line.who;
+    whoIn.style.width = '120px';
+    whoIn.style.display = known ? 'none' : '';
+    head.appendChild(whoIn);
   }
 
   head.appendChild(el('span', 'spacer'));
@@ -515,7 +638,12 @@ function lineEl(line, i) {
     else if (line.type === 'npc' && !PEOPLE.includes(line.who)) line.who = PEOPLE[0];
     renderAll(); save();
   };
-  if (whoSel) whoSel.onchange = () => { line.who = whoSel.value; refresh(); };
+  if (whoSel) whoSel.onchange = () => {
+    if (whoSel.value === CUSTOM) { whoIn.style.display = ''; whoIn.focus(); line.who = whoIn.value; refresh(); return; }
+    whoIn.style.display = 'none'; whoIn.value = '';
+    line.who = whoSel.value; refresh();
+  };
+  if (whoIn) whoIn.oninput = () => { line.who = whoIn.value; refresh(); };
 
   function refresh() { drawMeta(); drawPv(); save(); renderOut(); }
 
@@ -603,12 +731,16 @@ const TYPE_LABEL = { n: '地の文', hero: 'セリフ（ウォーク）', npc: '
 function buildMd() {
   const out = [`# ${script.title || '（名前のない台本）'}`, ''];
   script.stages.forEach((s, i) => {
-    if (s.kind === 'battle') { out.push(`## ${i + 1}. 戦闘（ノード ${s.node}）`, ''); return; }
+    if (s.kind === 'battle') {
+      out.push(`## ${i + 1}. 戦闘（ノード ${s.node}）${s.note ? ` — ${s.note}` : ''}`, '');
+      return;
+    }
     out.push(`## ${i + 1}. ${s.note || '（メモなし）'}`);
     const bits = [];
+    const mark = (list, v) => (isNew(list, v) ? ' ※未実装' : '');
     bits.push(s.kind === 'walk' ? `歩く（${s.steps}歩）` : '場面');
-    if (s.shot) bits.push(`カメラ: ${s.shot}`);
-    if (s.foe) bits.push(`ダルモン: ${s.foe}${s.slump ? `（${s.slump} で崩れたまま）` : ''}`);
+    if (s.shot) bits.push(`カメラ: ${s.shot}${mark(SHOTS, s.shot)}`);
+    if (s.foe) bits.push(`ダルモン: ${s.foe}${mark(FOES, s.foe)}${s.slump ? `（${s.slump}${mark(SLUMPS, s.slump)} で崩れたまま）` : ''}`);
     if (s.slump && s.stir >= 0) bits.push(`身じろぎ: ${s.stir} 行目`);
     if (s.action === 'equip') bits.push('読み終えたら装備画面へ');
     if (s.facility) bits.push('施設の札を出す');
@@ -621,7 +753,9 @@ function buildMd() {
       } else {
         const who = l.type === 'hero' ? 'ウォーク' : l.type === 'darumon' ? 'ダルモン' : l.type === 'npc' ? l.who : '';
         const v = voiceOf(l);
-        out.push(`[${n}] ${TYPE_LABEL[l.type]}${who ? `／${who}` : ''}${isSay(l.type) ? `／${v.name}` : ''}`);
+        // 立ち絵は PEOPLE からしか引けない。**姿の無い話者は、実装する側に分かる必要がある。**
+        const art = l.type === 'npc' && !PEOPLE.includes(l.who) ? '（※立ち絵なし）' : '';
+        out.push(`[${n}] ${TYPE_LABEL[l.type]}${who ? `／${who}${art}` : ''}${isSay(l.type) ? `／${v.name}` : ''}`);
         out.push(`    ${l.text || '（空）'}`);
       }
       if (l.note) out.push(`    演出: ${l.note.replace(/\n/g, '\n          ')}`);
@@ -700,6 +834,13 @@ $('#btn-download').onclick = () => {
   a.download = `${name}.md`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+$('#btn-seed').onclick = () => {
+  if (!confirm('いまの実装（data.js の TUTORIAL）を読み込みます。書きかけの内容は置き換わります。よろしいですか？')) return;
+  script = SEED_TUTORIAL(); at = 0;
+  $('#title').value = script.title;
+  renderAll(); save();
 };
 
 $('#btn-import').onclick = () => {
