@@ -1563,33 +1563,89 @@ img { display: block; }
 }
 @keyframes impact-flash { from { opacity: 1; } to { opacity: 0; } }
 
-/* ボスの名乗り。**雑魚と同じ入り方をすると、ボスがただの強い個体になる。**
-   暗幕を落として名前だけを大きく置き、字間が詰まりながら収まる。 */
-.boss-intro {
-  position: absolute; inset: 0; z-index: 40;
-  display: grid; place-items: center;
-  background: rgba(8, 7, 11, .82);
-  animation: boss-veil 1.75s ease-in-out both;
-  pointer-events: none;
+/* ボスの名乗り。**対峙の場でやる**（2026-07-28 に戦闘画面から移した）。
+   目の前にボスがいる所で起き上がり、そこで名乗る。暗転を挟んで戦闘画面に
+   入ってから改めて名前が出るのは、場所違いだった。
+
+   **暗幕は張らない。** 起き上がった姿を見せている最中なので、隠したら意味が無い。
+   字間が詰まりながら収まる動きだけを引き継ぎ、そのまま置いておく。 */
+.boss-name {
+  position: absolute; left: 0; right: 0; top: 33%;
+  /* **紙目より上に出す。** `.screen::before` の紙目は z-index 60 で乗算なので、
+     下に置くと名前まで一緒に沈み、白のはずの字が灰色に見える（実際にそうなった）。 */
+  z-index: 70;
+  text-align: center; pointer-events: none;
+  /* 空の上に字だけ置くと沈む。**背後を暗く落としてから乗せる。**
+     帯にはしない——横一文字の帯は画面分割の UI に見える（§場面転換と同じ理由）。 */
+  padding: 26px 0;
+  background: radial-gradient(60% 100% at 50% 50%, rgba(8,7,11,.72), rgba(8,7,11,0) 72%);
 }
-.boss-intro .bn {
+.boss-name .bn {
   color: #fff;
-  font-size: 34px; font-weight: 800;
-  text-shadow: 0 3px 10px rgba(0,0,0,.9);
-  animation: boss-name 1.75s cubic-bezier(.2, .8, .3, 1) both;
-}
-@keyframes boss-veil {
-  0% { opacity: 0; }
-  14% { opacity: 1; }
-  74% { opacity: 1; }
-  100% { opacity: 0; }
+  font-size: 32px; font-weight: 800;
+  text-shadow: 0 3px 12px rgba(0,0,0,.95), 0 0 26px rgba(0,0,0,.9);
+  animation: boss-name .9s cubic-bezier(.2, .8, .3, 1) both;
 }
 @keyframes boss-name {
   0% { letter-spacing: .9em; opacity: 0; transform: scale(1.25); }
-  22% { letter-spacing: .3em; opacity: 1; transform: scale(1); }
-  74% { letter-spacing: .3em; opacity: 1; transform: scale(1); }
-  100% { letter-spacing: .22em; opacity: 0; transform: scale(.97); }
+  100% { letter-spacing: .28em; opacity: 1; transform: scale(1); }
 }
+
+/* --- ボスが起き上がる（対峙 → 戦闘の橋）----------------------------
+   **対峙の場では、ボスはまだ動いていない。** 文章が「畳まれて置かれていた」
+   「動かずにいた」と書いているので、潰れた姿のまま立たせておく。
+   読み終えてから起き上がらせる——ここが対峙と戦闘のあいだの橋になる。
+
+   **原点は必ず足元。** 中心を原点にすると、潰れた時に地面へめり込み、
+   起き上がる時に浮き上がる。立ち絵は下端がそのまま接地面（§立ち絵の作法）。
+
+   潰れているあいだは待機の揺れを与えない。**揺れていたら、もう動いている。**
+   `animation: none` で `.scene-foe` の呼吸ごと止める。 */
+.scene-foe[class*="slump-"] {
+  animation: none;
+  transform-origin: 50% 100%;
+}
+/* マドロミ「横になる場所を差し出してくる」——畳まれた布団。低く、横に広い */
+.scene-foe.slump-unfold { transform: scaleY(.52) scaleX(1.18); }
+/* ムキリョク「頭を垂れすぎて、肩より下に沈んでしまった」——縦に沈む */
+.scene-foe.slump-lift { transform: scaleY(.74) scaleX(1.04) translateY(2px); }
+/* ダルモン「追ってはこない。ただ、待っている」——縮こまって待つ */
+.scene-foe.slump-loom { transform: scale(.86); }
+
+/* 起き上がり。潰れた姿から本来の姿へ。**終わったら待機の揺れへ引き渡す。**
+   `.scene-foe` の待機用 `animation-delay: .7s` を 0 に戻すこと
+   （そのままだと、起き上がるのが 0.7 秒遅れる）。 */
+.scene-foe[class*="rise-"] {
+  transform-origin: 50% 100%;
+  animation-delay: 0s;
+}
+
+/* 畳まれた物が広がって立つ。**先に横へ張ってから縦へ伸びる**——
+   いきなり縦に伸ばすと、布団ではなく棒が生える。 */
+@keyframes rise-unfold {
+  0%   { transform: scaleY(.52) scaleX(1.18); }
+  38%  { transform: scaleY(.72) scaleX(1.22); }
+  72%  { transform: scaleY(1.06) scaleX(.97); }
+  100% { transform: scaleY(1) scaleX(1); }
+}
+.scene-foe.rise-unfold { animation: rise-unfold 1.15s cubic-bezier(.3,.9,.3,1) both; }
+
+/* 沈んだ頭が上がる。**ゆっくり、途中で止まらずに。**
+   胴のくぼみが人の形をしている個体なので、重さを残す。 */
+@keyframes rise-lift {
+  0%   { transform: scaleY(.74) scaleX(1.04) translateY(2px); }
+  60%  { transform: scaleY(1.05) scaleX(.98) translateY(-2px); }
+  100% { transform: scaleY(1) scaleX(1) translateY(0); }
+}
+.scene-foe.rise-lift { animation: rise-lift 1.3s cubic-bezier(.35,.7,.3,1) both; }
+
+/* 縮こまっていた本体が膨らんで迫る。**跳ねない。**
+   「追ってはこない。ただ、待っている」ものなので、勢いを付けると別の生き物になる。 */
+@keyframes rise-loom {
+  0%   { transform: scale(.86); }
+  100% { transform: scale(1); }
+}
+.scene-foe.rise-loom { animation: rise-loom 1.45s cubic-bezier(.4,0,.35,1) both; }
 
 /* 画面ごと揺らす。個々の要素ではなく画面が動くと衝撃に見える。 */
 @keyframes shake-l { 0%{transform:translateX(0)} 25%{transform:translateX(9px)} 50%{transform:translateX(-6px)} 75%{transform:translateX(4px)} 100%{transform:translateX(0)} }

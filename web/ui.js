@@ -1082,15 +1082,26 @@ function sceneScreen(stage, onDone) {
    * 全場面を一律に動かすと、どの場面も同じ「動く絵」になって意味を失う。 */
   const shot = stage.shot ? ` shot-${stage.shot}` : '';
 
+  /* ボスとの対峙。**この場ではまだ動いていない。**
+   * 文章が「畳まれて置かれていた」「動かずにいた」と書いているので、
+   * 潰れた姿のまま立たせておき、読み終えてから起き上がらせる（`revealBoss`）。
+   * 潰れているあいだは待機の揺れを与えない——揺れていたら、もう動いている。 */
+  const rise = stage.boss ? BOSS_RISE[chapter] : null;
+  const foeClass = rise ? `scene-foe slump-${rise}` : 'scene-foe bob';
+
   const el = make(`screen cover world scene${shot}`, `
     ${worldLayers(chapter, life)}
+    <!-- 名乗りは world-inner の外に置く。あれは z-index 2 の重なり文脈を作るので、
+         中に入れると紙目（screen::before の 60）より上に出られず、
+         白のはずの字が灰色に沈む（実際にそうなった）。 -->
+    ${stage.boss ? `<div class="boss-name" hidden><span class="bn">${stage.boss.name}</span></div>` : ''}
     <div class="world-inner">
       <div class="grow"></div>
       <div class="scene-stage">
         <!-- **主人公を出さない場面がある。** プロローグの前半は
              「まだ誰も歩いていない世界」なので、立っていると筋が合わない。 -->
         ${stage.hero === false ? '' : `<img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">`}
-        ${stage.foe ? `<img class="scene-foe bob" src="${artOf(stage.foe)}" alt="">` : ''}
+        ${stage.foe ? `<img class="${foeClass}" src="${artOf(stage.foe)}" alt="">` : ''}
       </div>
       ${isWalk ? `<div class="scene-gain">
         ${crest(Game.level, Game.levelProgress)}
@@ -1102,7 +1113,7 @@ function sceneScreen(stage, onDone) {
         <span><b>${stage.facility.name}</b>が開いた<br><span class="lead">${stage.facility.lead}</span></span>
       </div>` : ''}
       <button class="btn go scene-go" style="visibility:hidden">
-        ${stage.action === 'equip' ? '装備を開く' : '進む'}
+        ${stage.action === 'equip' ? '装備を開く' : stage.boss ? '戦う' : '進む'}
       </button>
     </div>`);
 
@@ -1143,6 +1154,10 @@ function sceneScreen(stage, onDone) {
    * （唯一の例外がダルモンで、あれは元から形を持たない）。 */
   const playMotion = (node, motion) => {
     if (!node || !motion) return;
+    // **潰れているボスは動かさない。** 第3章のダルモンは対峙の場で喋るが、
+    // まだ「動かずにいた」ものなので、喋る一拍を与えると先に起き上がってしまう。
+    // 遅い送りと明るさだけで圧を出し、**動くのは起き上がる時まで取っておく。**
+    if (node.className.includes('slump-')) return;
     node.classList.remove('bob', ...MOTIONS);
     void node.offsetWidth;   // 同じ動きを続けて出す時に、再生し直させる
     node.classList.add(`say-${motion}`);
@@ -1206,18 +1221,68 @@ function sceneScreen(stage, onDone) {
     setTimeout(onDone, onStage ? 260 : 0);
   };
 
+  /* ---- ボスが起き上がる（対峙 → 戦闘の橋）-----------------------------
+   *
+   * 直す前は、対峙の場面から暗転を挟んで戦闘画面へ飛び、そこで初めて名前が出ていた。
+   * **目の前にいたものが動き出す瞬間がどこにも無く**、名乗りも場所違いだった。
+   *
+   * 読み終えたら、この場で：**街の人が下がる → ボスが起き上がる → 名乗る → 戦う。**
+   * 章ごとに起き上がり方を変える（`BOSS_RISE`）。図鑑の解説文がそれぞれ別の形を
+   * 書いているので、同じ動きで起こすとその書き分けが画面から消える。 */
+  let revealed = false;
+  const revealBoss = () => {
+    if (revealed) return;
+    revealed = true;
+
+    // **街の人は下がらせる。** 「……頼んだよ」と言った老女を、
+    // 起き上がるボスの隣に立たせたままにしない。
+    dismiss(onStage); onStage = null;
+
+    const foe = $(el, '.scene-foe');
+    const plate = $(el, '.boss-name');
+
+    // 潰れた姿から本来の姿へ。動き終えたら待機の揺れへ引き渡す。
+    foe.classList.remove(`slump-${rise}`, 'hushed', 'speaking');
+    foe.classList.add(`rise-${rise}`);
+    Sound.play('defeat');   // 低く落ちる音。歓迎ではなく、圧として鳴らす
+    foe.addEventListener('animationend', function settle() {
+      this.classList.remove(`rise-${rise}`);
+      this.classList.add('bob');
+    }, { once: true });
+
+    // 名乗りは**起き上がってから。** 潰れたままの物に名前が付くと、
+    // 名乗ったのが誰なのか画面の上で決まらない。
+    setTimeout(() => { plate.hidden = false; }, 900);
+    setTimeout(() => { button.style.visibility = 'visible'; }, 1800);
+  };
+
+  /** 起き上がりを最後まで飛ばす。**触れば飛ぶ**（文字送り・章の扉と同じ作法）。 */
+  const skipReveal = () => {
+    const foe = $(el, '.scene-foe');
+    foe.classList.remove(`slump-${rise}`, `rise-${rise}`);
+    foe.classList.add('bob');
+    $(el, '.boss-name').hidden = false;
+    button.style.visibility = 'visible';
+  };
+
   let player;
   player = linePlayer(box, stage.lines, () => {
     // 施設が開いたことは**読み終えてから**出す。途中で下に札が生えると、行が動く。
     const open = $(el, '.scene-open');
     if (open) { open.hidden = false; Sound.play('levelup'); }
+    if (rise) { revealBoss(); return; }   // ボス戦だけは、ここで起き上がりを挟む
     button.style.visibility = 'visible';
   }, cast);
 
   el.addEventListener('click', (event) => {
     if (event.target.closest('.btn')) return;
-    // 読み終えていれば、画面を触っても進む手と同じ扱いにする。
-    if (player.finished) { leave(); return; }
+    if (player.finished) {
+      // 起き上がりの最中に触られたら、**進まずに先へ飛ばす。**
+      // ここで場面を出てしまうと、橋そのものが見られない。
+      if (rise && button.style.visibility !== 'visible') { skipReveal(); return; }
+      leave();
+      return;
+    }
     player.tap();
   });
   player.start();
@@ -1640,12 +1705,15 @@ function startBattle(chapter, index) {
   // 挟むのは初回のみ。周回のたびに読ませると、二度目からは飛ばす画面になる。
   const intro = index === Master.nodesPerChapter ? Game.bossIntroScene(chapter) : null;
   if (intro) {
-    Nav.beat('move', () => Nav.push(sceneScreen({ kind: 'scene', chapter, lines: intro.lines, shot: SHOTS[intro.key], foe: Master.boss(chapter).asset }, () => {
+    const boss = Master.boss(chapter);
+    Nav.beat('move', () => Nav.push(sceneScreen({ kind: 'scene', chapter, lines: intro.lines, shot: SHOTS[intro.key], foe: boss.asset, boss }, () => {
       Game.markStory(intro.key);
       const session = Game.startBattle(chapter, index);
       // ここで挑めなかったら地図へ戻す。**場面だけ見せて放り出さない。**
       if (session.error) { toast(session.error); Nav.pop(); return; }
-      Nav.curtainTo(() => Nav.replaceTop(battleScreen(session)));
+      // 起き上がったボスへ向かうので `break`。**周回の討伐と同じ入り方をしない。**
+      // ここを通るのは章で一度きりなので、帯の長さは §2 の3分に響かない。
+      Nav.beat('break', () => Nav.replaceTop(battleScreen(session)));
     })));
     return;
   }
@@ -1659,7 +1727,6 @@ function battleScreen(session) {
   const el = make('screen cover battle', `
     <div class="bg" style="background-image:url('${bgOf(session.chapter)}')"></div>
     <div class="scrim"></div>
-    ${enemy.isBoss ? `<div class="boss-intro"><span class="bn">${enemy.name}</span></div>` : ''}
 
     <div class="inner">
       <div class="battle-tag" data-tag>第${session.chapter}章 ・ ノード ${session.nodeIndex}</div>
@@ -1704,12 +1771,16 @@ async function playBattle(el, session, meters) {
   // 1手あたりの間隔は手数から逆算して総時間を 3〜8秒に収める（§4.1）。
   const beat = Math.min(400, Math.max(130, 4500 / Math.max(1, log.turns.length)));
 
-  // ボスは名乗ってから始める。**雑魚と同じ入り方をすると、ボスがただの強い個体になる。**
-  if (enemy.isBoss) {
-    Sound.play('defeat');   // 低く落ちる音。歓迎ではなく、圧として鳴らす
-    await sleep(1750);
-    $(el, '.boss-intro')?.remove();
-  }
+  /* **名乗りは戦闘画面でやらない**（2026-07-28 に移した）。
+   *
+   * 以前はここで黒幕を下ろし、1.75 秒かけて名前を掲げていた。だが名乗るべきは
+   * **対峙の場**——目の前にボスがいる所で起き上がり、そこで名乗る（`revealBoss`）。
+   * 暗転を挟んで戦闘画面に入ってから改めて名前が出るのは、場所違いだった。
+   *
+   * 落とした分、**周回のボス戦は 1.75 秒早く始まる。** 名乗りは章で一度きりの物なので、
+   * 二度目から毎回掲げるのは、そもそも紹介ではなく足止めだった。
+   * 圧だけは残す——低く落ちる音を、幕なしで鳴らす。 */
+  if (enemy.isBoss) Sound.play('defeat');
 
   await sleep(320);
 
