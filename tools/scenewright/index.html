@@ -88,7 +88,8 @@ textarea { resize: vertical; }
 .hint { font-size: 11px; color: var(--soft); line-height: 1.6; }
 
 /* ---- 場面の切り替え ---- */
-#chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#chips, #books { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#books .chip { font-weight: 700; }
 .chip {
   padding: 5px 11px; border-radius: 999px; font-size: 12px;
   border: 1px solid var(--line); background: var(--card); white-space: nowrap;
@@ -161,11 +162,15 @@ footer { text-align: center; color: var(--soft); font-size: 11px; padding: 20px;
   <div class="hrow">
     <h1>Walk UP! 台本<small>場面とセリフを書く</small></h1>
     <input id="title" type="text" placeholder="台本の名前（例：チュートリアル）">
-    <button class="btn" id="btn-seed">いまの実装を読み込む</button>
+    <button class="btn" id="btn-seed">いまの実装に戻す</button>
     <button class="btn" id="btn-import">貼り付けて読み込み</button>
     <button class="btn" id="btn-download">書き出す</button>
   </div>
   <div class="hrow" style="margin-top:8px">
+    <span class="meta" style="flex:none">台本</span>
+    <div id="books"></div>
+  </div>
+  <div class="hrow" style="margin-top:6px">
     <span class="meta" style="flex:none">場面</span>
     <div id="chips"></div>
   </div>
@@ -284,91 +289,1347 @@ const isSay = (t) => t === 'hero' || t === 'npc' || t === 'darumon';
    状態
 ================================================================== */
 
-const KEY = 'walkup-scenewright-v1';
+const KEY = 'walkup-scenewright-v2';
 
 const newLine = (type = 'n') => ({ type, who: PEOPLE[0], text: '', ms: 700, note: '' });
 
 const newStage = (kind = 'scene') => ({
-  kind, note: '', shot: '', foe: '', slump: '', stir: -1,
-  action: '', facility: false, steps: 2000, node: 1, hero: true,
+  kind, note: '', key: '', chapter: '', shot: '', foe: '', slump: '', stir: -1,
+  action: '', facility: false, steps: 2000, node: 1, hero: true, extra: '',
   lines: kind === 'scene' ? [newLine()] : [],
 });
 
 /* ==================================================================
-   いまの実装（web/data.js の TUTORIAL）をそのまま持ってきた種。
+   いまの実装（web/data.js）から起こした種。
 
-   **正は data.js。ここは下書き場。** 直したいのはこちらで書いて、
-   出来上がってから実装へ移す。localStorage ではなく HTML に同梱してあるのは、
-   file:// で開いた時とサーバ越しで開いた時では localStorage が別物になるため。
+   **正は data.js。ここは下書き場。** 手で書き写すと31場面のどこかで必ず1字ずれるし、
+   ずれても誰も気付かない（下書きの文が実装と違っていても画面は壊れない）ので、
+   `build-seed.mjs` が data.js を実際に評価して組み立てている。
+   **data.js の文章を直したら `node tools/scenewright/build-seed.mjs` を回すこと。**
+
+   localStorage ではなくここに置いてあるのは、file:// で開いた時と
+   サーバ越しで開いた時では localStorage が別物になり、
+   入れたはずの台本が見えなくなるため。
 
    演出メモには**いま実際に起きていること**を書いてある。
    「※」で始まる行は、まだ手を付けていない気付き。
 ================================================================== */
 
-const sl = (type, text, note, opt) => Object.assign(
-  { type, who: 'ウォーク', text: text || '', ms: 700, note: note || '' }, opt || {});
+/* SEED:START */
+const SEED = () => JSON.parse(JSON.stringify(
+  {
+    "prologue": {
+      "title": "プロローグ",
+      "form": "stages",
+      "stages": [
+        {
+          "kind": "scene",
+          "note": "世界が止まっていく",
+          "key": "",
+          "chapter": "1",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": false,
+          "extra": "fall: [1.00, 0.72, 0.40, 0.18, 0.00], foes: [{ id: 'darari', at: 0 }, { id: 'motare', at: 1 }, { id: 'uzukumari', at: 1 }]",
+          "lines": [
+            {
+              "type": "n",
+              "text": "ある日、それは何の前触れもなく現れた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "まだ灯りは全部点いている。ここが世界のいちばん明るい所"
+            },
+            {
+              "type": "n",
+              "text": "人の背中にもたれ、肩に乗り、足元にうずくまった。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "「もたれ」＝モタレ、「うずくまった」＝ウズクマリ。文が名指しした物を画面にも出す"
+            },
+            {
+              "type": "n",
+              "text": "触れられた者から順に、動かなくなっていった。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "誰かがそれを、ダルモンと呼んだ。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "一年も経たずに、世界は歩くことをやめた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "生気が 0 になる。ここが本編の出発点"
+            }
+          ],
+          "memoStage": "街から活気が抜けていく（fall）。灯りが消え、粒が灰になり、色が抜ける。ダルモンは行ごとに増える"
+        },
+        {
+          "kind": "scene",
+          "note": "それでも、足は動いた",
+          "key": "",
+          "chapter": "1",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "heroWalk: true",
+          "lines": [
+            {
+              "type": "n",
+              "text": "——それでも、足は動いた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "主人公が歩いて入る。「足は動いた」を絵の側でも動かす（走る絵→立ち姿へ持ち替え）"
+            },
+            {
+              "type": "n",
+              "text": "なぜ自分だけが平気なのか、分からなかった。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hold",
+              "ms": 750,
+              "who": "ウォーク",
+              "note": "答えの出ない問いなので、答えないまま置く",
+              "text": ""
+            },
+            {
+              "type": "hero",
+              "text": "理由なんて後でいい。俺はまだ歩ける！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "なら、この足で全部叩き起こしてやる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "靴の紐を締め直した。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "前の場面で引いた世界から、ただ一人へ絞り込む"
+        }
+      ]
+    },
+    "tutorial": {
+      "title": "チュートリアル",
+      "form": "stages",
+      "stages": [
+        {
+          "kind": "scene",
+          "note": "ダラリとの対峙",
+          "key": "",
+          "chapter": "",
+          "shot": "close",
+          "foe": "darari",
+          "slump": "sag",
+          "stir": 5,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "道の真ん中で、何かがだらりと崩れていた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "ダラリは崩れた姿のまま置く。待機の揺れは与えない——揺れていたら、もう動いている"
+            },
+            {
+              "type": "n",
+              "text": "避けて通ろうとしたが、道いっぱいに広がっていて、隙間がない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "おい、どいてくれ！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hold",
+              "ms": 950,
+              "who": "ウォーク",
+              "note": "返事が無いことを、返事が無い長さで見せる。ここは間そのものが本文",
+              "text": ""
+            },
+            {
+              "type": "n",
+              "text": "返事はない。襲ってもこない。ただ、そこから動かない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "……なら、踏み越えていく！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "ここで初めて身じろぎする。気付いただけなので、起き上がらせない"
+            }
+          ]
+        },
+        {
+          "kind": "battle",
+          "note": "ダラリ。必勝（残HP 22）",
+          "key": "",
+          "chapter": "",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": []
+        },
+        {
+          "kind": "scene",
+          "note": "澱を拾う",
+          "key": "",
+          "chapter": "",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "それは溶けて、地面に灰紫の澱を残した。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "※いまは主人公と文字だけ。直前の戦闘で見せた溶けた跡を、同じ場所に置く余地がある"
+            },
+            {
+              "type": "hero",
+              "text": "これ、あいつが人から抜き取ってたやつか……！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "拾うと、掌の上でわずかに脈打った。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "怠惰の澱を手に入れた",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "walk",
+          "note": "歩いて力になる",
+          "key": "",
+          "chapter": "",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "澱を拾って、また歩き出した。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "900ms 後に歩数と紋章が回り始める ／ ※行に同期していないので、読む速さによってはこの行の途中でレベルアップが鳴る"
+            },
+            {
+              "type": "hero",
+              "text": "よし、体が軽い！ 歩くほど力が湧いてくる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "歩いた歩数が、そのまま力になる ／ レベルが上がった",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "※「／」で二つ教えている"
+            }
+          ]
+        },
+        {
+          "kind": "battle",
+          "note": "ゴロネ。必勝（残HP 15）／ 装備は落とさない",
+          "key": "",
+          "chapter": "",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 2,
+          "hero": true,
+          "extra": "",
+          "lines": []
+        },
+        {
+          "kind": "scene",
+          "note": "工房",
+          "key": "",
+          "chapter": "",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "equip",
+          "facility": true,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "シャッターの隙間から、金槌の音がした。中で誰かが起きている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "工房の主はにじみ出て入る（戸の内側にいる人なので歩いて来ない） ／ ※シャッターは第2章の意匠で、第2章の扉と同じビートになっている"
+            },
+            {
+              "type": "npc",
+              "who": "工房の主",
+              "text": "その靴、俺ならまだ鍛えられるぞ。……澱を持ってるな",
+              "ms": 700,
+              "note": "喋っている者だけに光が足される"
+            },
+            {
+              "type": "hero",
+              "text": "おっちゃん、これ何に使えるんだ！？",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "工房の主",
+              "text": "叩き込むのさ。五つで一段。段は五つまで積める",
+              "ms": 700,
+              "note": "説明は人に言わせる。地の文で書くと取扱説明書になる"
+            },
+            {
+              "type": "hero",
+              "text": "頼む、打ってくれ！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "読み終えると施設の札「工房が開いた」が出て、ボタンで装備画面へ ／ ※強化せずに閉じても何も言われない"
+            }
+          ]
+        },
+        {
+          "kind": "battle",
+          "note": "ネムケ。必勝（残HP 25）",
+          "key": "",
+          "chapter": "",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 3,
+          "hero": true,
+          "extra": "",
+          "lines": []
+        },
+        {
+          "kind": "scene",
+          "note": "締め",
+          "key": "",
+          "chapter": "",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "三体を退けた。道の先は、まだ暗い。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "見てろよ。俺のウォーク力で、この世界を叩き起こしてやる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "ここから先へ進めるのは、実際に歩いた分だけ",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": "導入画面の「実際に歩いた数だけ」を回収する行"
+            }
+          ]
+        }
+      ]
+    },
+    "doors": {
+      "title": "章の扉",
+      "form": "keyed",
+      "stages": [
+        {
+          "kind": "scene",
+          "note": "第1章の扉",
+          "key": "1",
+          "chapter": "1",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "誰も歩かない通りに、自分の足音だけが響いた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "その音を聞きつけて、二階の窓が細く開いた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hold",
+              "ms": 700,
+              "who": "ウォーク",
+              "note": "名が明かされる唯一の瞬間。呼ばれる前に間を置く",
+              "text": ""
+            },
+            {
+              "type": "npc",
+              "who": "老女",
+              "text": "……ウォークかい。まだ歩いてるのか、あんたは",
+              "ms": 700,
+              "note": "老女が二階の窓から。**画面の名札で先に出さず、誰かに呼ばせる**"
+            }
+          ],
+          "memoStage": "※チュートリアルの3戦を終えた後に出る。「初めて着いた」文なのに、着く前ではなく後"
+        },
+        {
+          "kind": "scene",
+          "note": "第2章の扉",
+          "key": "2",
+          "chapter": "2",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "下りたシャッターの向こうに、まだ誰かがいる気がする。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "通りの端から端まで、明かりは一つも点いていない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "シャッターの向こうに、まだ人がいるんだろ。……起こしに行くぞ！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "第3章の扉",
+          "key": "3",
+          "chapter": "3",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "足跡が一つも無い。風が吹いても、灰は動かない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "ここでは誰も歩かない。歩けるということを、誰も覚えていない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "足跡が無いなら、俺が最初につけてやる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    "boss": {
+      "title": "ボスの前後",
+      "form": "keyed",
+      "stages": [
+        {
+          "kind": "scene",
+          "note": "第1章 ボス前 — 畳まれた布団の前で対峙する",
+          "key": "boss-1-before",
+          "chapter": "1",
+          "shot": "close",
+          "foe": "madoromi",
+          "slump": "unfold",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "一番奥の家の前に、それは畳まれて置かれていた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "布団のような形をしている。折り目の間に、人の輪郭が沈んでいる。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "老女",
+              "text": "パン屋の旦那だよ。三日前から、あのまんま",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "任せろ、ばあちゃん。剥がして叩き起こしてやる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "老女",
+              "text": "……頼んだよ",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "マドロミは畳まれた布団のまま置く（slump-unfold）。読み終えてから起き上がって名乗る"
+        },
+        {
+          "kind": "scene",
+          "note": "第1章 ボス後 — 一人が起き上がる",
+          "key": "boss-1-after",
+          "chapter": "1",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "折り目がほどけて、中から男が転がり出た。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "しばらく空を見て、それから自分の手を見た。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hold",
+              "ms": 900,
+              "who": "ウォーク",
+              "note": "",
+              "text": ""
+            },
+            {
+              "type": "npc",
+              "who": "パン屋の主人",
+              "text": "……こねかけの生地が、あった気がする",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "起き上がるのに、誰かの手は要らなかった。ただ、起こす者が要った。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "倒したその場ではなく、結果画面を閉じる所で出る"
+        },
+        {
+          "kind": "scene",
+          "note": "第2章 ボス前 — 通りの真ん中で頭を垂れている",
+          "key": "boss-2-before",
+          "chapter": "2",
+          "shot": "tilt",
+          "foe": "mukiryoku",
+          "slump": "lift",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "それは通りの真ん中で頭を垂れていた。肩より下に、顔が沈んでいる。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "胴にいくつも窪みがある。人の形をした窪みだ。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "工房の主",
+              "text": "店の連中だ。……一人ずつ吸われてる",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "一軒ずつ回ってたら間に合わない。……本体を叩く！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "ムキリョクは頭を垂れて沈んだまま（slump-lift）。カメラは傾いて入り、起き切らない"
+        },
+        {
+          "kind": "scene",
+          "note": "第2章 ボス後 — シャッターが一枚、また一枚と上がっていく",
+          "key": "boss-2-after",
+          "chapter": "2",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "窪みが順に埋まって、それは灰になって崩れた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "シャッターが一枚、また一枚と上がっていく。誰も号令はかけていない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "工房の主",
+              "text": "……一人起きると、その音で隣が起きるんだな",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "第3章 ボス前 — 窪地の底で向かい合う",
+          "key": "boss-3-before",
+          "chapter": "3",
+          "shot": "tremor",
+          "foe": "darumon",
+          "slump": "loom",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "それは窪地の底で、動かずにいた。追ってはこない。逃げもしない。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hold",
+              "ms": 1000,
+              "who": "ウォーク",
+              "note": "",
+              "text": ""
+            },
+            {
+              "type": "darumon",
+              "text": "歩いて、どこへ行く",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "決まってる。お前が奪ったもん、全部返してもらう！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "俺のウォーク力、なめるなよ！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "ダルモンは縮こまって待つ（slump-loom）。カメラは寄ったまま揺れ続ける（地鳴り）"
+        },
+        {
+          "kind": "scene",
+          "note": "第3章 ボス後 — 起こした人の数だけ灯りが点いている",
+          "key": "boss-3-after",
+          "chapter": "3",
+          "shot": "orbit",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "本体が崩れても、灰は残った。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "まだ終わりじゃない。灯りの点いてない場所が、こんなにある！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "起こした人の数だけ、街に灯りが点いている。まだ点いていない場所の方が、ずっと多い。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "本編を踏破した ／ ここからは、街を戻していく",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "横へ流れながら引く。歩いてきた場所を見渡す"
+        }
+      ]
+    },
+    "vitality": {
+      "title": "活気の節目",
+      "form": "keyed",
+      "stages": [
+        {
+          "kind": "scene",
+          "note": "止まった住宅街 12%",
+          "key": "1-12",
+          "chapter": "1",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "角の家の雨戸が、内側から開いた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "中の人がこちらを見て、それから空を見た。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "男",
+              "text": "……いま、何時だ",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "止まった住宅街 45%",
+          "key": "1-45",
+          "chapter": "1",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": true,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "潰れたままだった店の戸が、開いていた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "中では老人が、片方だけの靴を手に取って眺めている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "靴の老人",
+              "text": "あんた、よく歩くな。歩き方が靴に出とる",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "靴の老人",
+              "text": "置いていきな。刻んでやる",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "施設の札「ウォークの軌跡が開いた」が出る"
+        },
+        {
+          "kind": "scene",
+          "note": "止まった住宅街 75%",
+          "key": "1-75",
+          "chapter": "1",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "通りに子どもの声が戻ってきた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "走っているわけではない。ただ、外に出ている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "止まった住宅街 100%",
+          "key": "1-100",
+          "chapter": "1",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "街灯がすべて点いた。時計はまだ止まっているが、誰かが脚立を立てている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "老女",
+              "text": "直せる人が、まだいたんだねえ",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "止まった住宅街の活気が満ちた",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灯りの落ちた商店街 12%",
+          "key": "2-12",
+          "chapter": "2",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "シャッターが一枚だけ、腰の高さまで上がっている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "中から明かりが漏れている。誰かが在庫を数えている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灯りの落ちた商店街 45%",
+          "key": "2-45",
+          "chapter": "2",
+          "shot": "",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": true,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "通りの真ん中に、台がいくつか並べられていた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "売る物はまだ少ない。それでも値札は手で書かれている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "市の店主",
+              "text": "余った物があるなら置いていきな。要る物と替えてやる",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "施設の札「市が開いた」が出る"
+        },
+        {
+          "kind": "scene",
+          "note": "灯りの落ちた商店街 75%",
+          "key": "2-75",
+          "chapter": "2",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "半分のシャッターが上がった。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "市の店主",
+              "text": "残り半分も、そのうち開くさ。開ける理由ができたからな",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灯りの落ちた商店街 100%",
+          "key": "2-100",
+          "chapter": "2",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "端の街灯から順に、誰かが灯りを点けていく。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "もう灯りは落ちてないぞ！ 名前、変えたらどうだ！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "npc",
+              "who": "市の店主",
+              "text": "いいんだよ。忘れないように置いとくの",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "灯りの落ちた商店街の活気が満ちた",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灰の窪地 12%",
+          "key": "3-12",
+          "chapter": "3",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "灰の底で、何かが動いた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "ダルモンではない。灰をかき分けて、立ち上がろうとしている。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灰の窪地 45%",
+          "key": "3-45",
+          "chapter": "3",
+          "shot": "close",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": true,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "杭が一本、灰に打ち込まれていた。板が渡してある。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "紙が一枚、風で鳴っている。震えた字で「まだ、うちの前にいる」と書いてあった。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ],
+          "memoStage": "施設の札「掲示板が開いた」が出る"
+        },
+        {
+          "kind": "scene",
+          "note": "灰の窪地 75%",
+          "key": "3-75",
+          "chapter": "3",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "灰の上に、道ができていた。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "n",
+              "text": "誰かが同じ場所を、何度も歩いた跡だ。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "この足跡、俺のじゃない。……誰かがもう歩いてる！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "kind": "scene",
+          "note": "灰の窪地 100%",
+          "key": "3-100",
+          "chapter": "3",
+          "shot": "wide",
+          "foe": "",
+          "slump": "",
+          "stir": -1,
+          "action": "",
+          "facility": false,
+          "steps": 2000,
+          "node": 1,
+          "hero": true,
+          "extra": "",
+          "lines": [
+            {
+              "type": "n",
+              "text": "窪地の底に、風が通った。",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "hero",
+              "text": "ほらな！ ここでも歩けるじゃないか！",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            },
+            {
+              "type": "sys",
+              "text": "灰の窪地の活気が満ちた",
+              "who": "ウォーク",
+              "ms": 700,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    }
+  }
+));
+/* SEED:END */
 
-const ss = (kind, note, opt, lines) => Object.assign(
-  newStage(kind), { note: note || '', lines: lines || [] }, opt || {});
+/** 台本の束。切り替えても中身は同じ入れ物を指すので、書いた物はそのまま残る。 */
+let book = load() || SEED();
+let bookKey = Object.keys(book)[0];
+let script = book[bookKey];
 
-const SEED_TUTORIAL = () => ({
-  title: 'チュートリアル',
-  stages: [
-    ss('scene', 'ダラリとの対峙', { shot: 'close', foe: 'darari', slump: 'sag', stir: 5 }, [
-      sl('n', '道の真ん中で、何かがだらりと崩れていた。',
-        'ダラリは崩れた姿のまま置く。待機の揺れは与えない——揺れていたら、もう動いている'),
-      sl('n', '避けて通ろうとしたが、道いっぱいに広がっていて、隙間がない。'),
-      sl('hero', 'おい、どいてくれ！'),
-      sl('hold', '', '返事が無いことを、返事が無い長さで見せる。ここは間そのものが本文', { ms: 950 }),
-      sl('n', '返事はない。襲ってもこない。ただ、そこから動かない。'),
-      sl('hero', '……なら、踏み越えていく！',
-        'ここで初めて身じろぎする。気付いただけなので、起き上がらせない'),
-    ]),
-
-    ss('battle', 'ダラリ。必勝（残HP 22）', { node: 1 }),
-
-    ss('scene', '澱を拾う', { shot: 'close' }, [
-      sl('n', 'それは溶けて、地面に灰紫の澱を残した。',
-        '※いまは主人公と文字だけ。直前の戦闘で見せた溶けた跡を、同じ場所に置く余地がある'),
-      sl('hero', 'これ、あいつが人から抜き取ってたやつか……！'),
-      sl('n', '拾うと、掌の上でわずかに脈打った。'),
-      sl('sys', '怠惰の澱を手に入れた'),
-    ]),
-
-    ss('walk', '歩いて力になる', { kind: 'walk', shot: 'wide', steps: 2000 }, [
-      sl('n', '澱を拾って、また歩き出した。',
-        '900ms 後に歩数と紋章が回り始める ／ ※行に同期していないので、読む速さによってはこの行の途中でレベルアップが鳴る'),
-      sl('hero', 'よし、体が軽い！ 歩くほど力が湧いてくる！'),
-      sl('sys', '歩いた歩数が、そのまま力になる ／ レベルが上がった',
-        '※「／」で二つ教えている'),
-    ]),
-
-    ss('battle', 'ゴロネ。必勝（残HP 15）／ 装備は落とさない', { node: 2 }),
-
-    ss('scene', '工房', { shot: 'close', action: 'equip', facility: true }, [
-      sl('n', 'シャッターの隙間から、金槌の音がした。中で誰かが起きている。',
-        '工房の主はにじみ出て入る（戸の内側にいる人なので歩いて来ない） ／ ※シャッターは第2章の意匠で、第2章の扉と同じビートになっている'),
-      sl('npc', 'その靴、俺ならまだ鍛えられるぞ。……澱を持ってるな',
-        '喋っている者だけに光が足される', { who: '工房の主' }),
-      sl('hero', 'おっちゃん、これ何に使えるんだ！？'),
-      sl('npc', '叩き込むのさ。五つで一段。段は五つまで積める',
-        '説明は人に言わせる。地の文で書くと取扱説明書になる', { who: '工房の主' }),
-      sl('hero', '頼む、打ってくれ！',
-        '読み終えると施設の札「工房が開いた」が出て、ボタンで装備画面へ ／ ※強化せずに閉じても何も言われない'),
-    ]),
-
-    ss('battle', 'ネムケ。必勝（残HP 25）', { node: 3 }),
-
-    ss('scene', '締め', { shot: 'wide' }, [
-      sl('n', '三体を退けた。道の先は、まだ暗い。'),
-      sl('hero', '見てろよ。俺のウォーク力で、この世界を叩き起こしてやる！'),
-      sl('sys', 'ここから先へ進めるのは、実際に歩いた分だけ',
-        '導入画面の「実際に歩いた数だけ」を回収する行'),
-    ]),
-  ],
-});
-
-let script = load() || SEED_TUTORIAL();
 let at = 0;
 let tab = 'md';
 
@@ -376,18 +1637,24 @@ function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const s = JSON.parse(raw);
-    return s && Array.isArray(s.stages) && s.stages.length ? s : null;
+    const b = JSON.parse(raw);
+    // 台本が1つでも入っていれば受け取る。**壊れた保存で白紙にしない。**
+    const ok = b && typeof b === 'object' && Object.values(b).some((s) => s && Array.isArray(s.stages));
+    return ok ? b : null;
   } catch { return null; }
 }
 
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(script)), 250);
+  saveTimer = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(book)), 250);
 }
 
 const stage = () => script.stages[at];
+
+/** この台本の書き方。`stages` は場面の入れ物ごと（プロローグ・チュートリアル）、
+ *  `keyed` は鍵に行の配列をぶら下げる形（章の扉・ボスの前後・活気の節目）。 */
+const isKeyed = () => script.form === 'keyed';
 
 /* ==================================================================
    描画
@@ -426,6 +1693,18 @@ function selectField(label, key, list, cur) {
   </div>`;
 }
 
+function renderBooks() {
+  const box = $('#books');
+  box.innerHTML = '';
+  Object.entries(book).forEach(([k, s]) => {
+    const n = s.stages.filter((x) => x.kind !== 'battle').length;
+    const c = el('button', `chip ${k === bookKey ? 'on' : ''}`, `${esc(s.title || k)} <span style="opacity:.6">${n}</span>`);
+    // **切り替えても同じ入れ物を指す。** 書いた物はそのまま残る。
+    c.onclick = () => { bookKey = k; script = book[k]; at = 0; $('#title').value = script.title || ''; renderAll(); };
+    box.appendChild(c);
+  });
+}
+
 function renderChips() {
   const box = $('#chips');
   box.innerHTML = '';
@@ -459,6 +1738,16 @@ function renderStage() {
       <input type="text" data-k="note" value="${esc(s.note)}" placeholder="例：ダラリとの対峙"></div>`;
   card.appendChild(kindRow);
 
+  // 鍵で持つ台本（章の扉・ボスの前後・活気の節目）は、鍵そのものが差し込み場所を決める。
+  if (isKeyed()) {
+    const kr = el('div', 'grid g3', `
+      <div><label class="f">鍵（実装で引く名前）</label>
+        <input type="text" data-k="key" value="${esc(s.key)}" placeholder="例：boss-1-before"></div>
+      <div><label class="f">章（背景をどこから引くか）</label>
+        <select data-k="chapter">${opts([['', '（指定なし）'], ['1', '第1章'], ['2', '第2章'], ['3', '第3章']], s.chapter)}</select></div>`);
+    card.appendChild(kr);
+  }
+
   if (s.kind === 'battle') {
     const b = el('div', 'grid', `
       <div style="max-width:200px"><label class="f">ノード</label>
@@ -488,7 +1777,27 @@ function renderStage() {
         ? `<div><label class="f">入る歩数</label><input type="number" step="100" data-k="steps" value="${s.steps}"></div>`
         : `<div><label class="f">施設の札</label><select data-k="facility">${opts([['false', '出さない'], ['true', '出す（工房など）']], String(s.facility))}</select></div>`}`);
     card.appendChild(g2);
+
+    /* 欄を作るほどでもない指定の逃がし口。プロローグの `fall`（行ごとに世界が沈む）と
+       複数の `foes`（増えていくダルモン）はここにしか出てこないので、
+       専用の UI を作らず、**書いたものがそのままコードに載る**形にしてある。
+       新しい指定を思い付いた時もここに書ける。 */
+    const ex = el('div', null, `<label class="f">詳しい指定（書いたものがそのまま data.js に載る）</label>
+      <input type="text" data-k="extra" value="${esc(s.extra || '')}"
+             placeholder="例：fall: [1.00, 0.72, 0.40], heroWalk: true">`);
+    card.appendChild(ex);
   }
+
+  // 場面ぜんたいの演出メモ。行に紐づかない話（場の空気・転換の格）はここへ。
+  const sm = el('div', 'note-wrap');
+  sm.style.marginTop = '10px';
+  sm.innerHTML = `<label class="f">この場面の演出メモ</label>`;
+  const smt = el('textarea');
+  smt.rows = 2; smt.value = s.memoStage || '';
+  smt.placeholder = '例：ここは章の山場。転換は break で入る';
+  smt.oninput = () => { stage().memoStage = smt.value; save(); renderOut(); };
+  sm.appendChild(smt);
+  card.appendChild(sm);
 
   const tools = el('div', 'hrow', '');
   tools.style.marginTop = '12px';
@@ -696,6 +2005,10 @@ function stageHead(s) {
   if (s.action) parts.push(`action: ${q(s.action)}`);
   if (s.facility) parts.push(`facility: FORGE`);
   if (!s.hero) parts.push(`hero: false`);
+  if (s.chapter) parts.push(`chapter: ${s.chapter}`);
+  // 書いたものはそのまま載せる。**中身は検めない**——下書き場なので、
+  // 通らないコードが出るのは構わない（実装へ移す時に必ず目を通す）。
+  if (s.extra) parts.push(s.extra.trim().replace(/,\s*$/, ''));
   return parts.join(', ');
 }
 
@@ -711,15 +2024,31 @@ function lineCode(l) {
 function buildJs() {
   const out = [];
   script.stages.forEach((s) => {
+    const body = [];
+    s.lines.forEach((l) => {
+      if (l.note) body.push(`    // ${l.note.replace(/\n/g, ' / ')}`);
+      body.push(`    ${lineCode(l)}`);
+    });
+
+    /* 鍵で持つ台本（章の扉・ボスの前後・活気の節目）は、実装では
+       **場面の入れ物を持たず行の配列だけ**が鍵にぶら下がっている。
+       寄り引き（`shot`）は別表（`SHOTS`）に同じ鍵で置くので、そちらも併記する。 */
+    if (isKeyed()) {
+      if (s.memoStage) out.push(`// ${s.memoStage.replace(/\n/g, ' / ')}`);
+      out.push(`${q(s.key)}: [`);
+      out.push(...body);
+      out.push('],');
+      if (s.shot) out.push(`// SHOTS: ${q(s.key)}: ${q(s.shot)},`);
+      return;
+    }
+
     if (s.kind === 'battle') { out.push(stageHead(s)); return; }
     out.push('{');
     if (s.note) out.push(`  // ${s.note}`);
+    if (s.memoStage) out.push(`  // ${s.memoStage.replace(/\n/g, ' / ')}`);
     out.push(`  ${stageHead(s)},`);
     out.push('  lines: [');
-    s.lines.forEach((l) => {
-      if (l.note) out.push(`    // ${l.note.replace(/\n/g, ' / ')}`);
-      out.push(`    ${lineCode(l)}`);
-    });
+    out.push(...body);
     out.push('  ],');
     out.push('},');
   });
@@ -735,17 +2064,21 @@ function buildMd() {
       out.push(`## ${i + 1}. 戦闘（ノード ${s.node}）${s.note ? ` — ${s.note}` : ''}`, '');
       return;
     }
-    out.push(`## ${i + 1}. ${s.note || '（メモなし）'}`);
+    out.push(`## ${i + 1}. ${s.note || '（メモなし）'}${s.key ? `　〔${s.key}〕` : ''}`);
     const bits = [];
     const mark = (list, v) => (isNew(list, v) ? ' ※未実装' : '');
     bits.push(s.kind === 'walk' ? `歩く（${s.steps}歩）` : '場面');
+    if (s.chapter) bits.push(`第${s.chapter}章`);
+    if (s.extra) bits.push(`詳しい指定: ${s.extra}`);
     if (s.shot) bits.push(`カメラ: ${s.shot}${mark(SHOTS, s.shot)}`);
     if (s.foe) bits.push(`ダルモン: ${s.foe}${mark(FOES, s.foe)}${s.slump ? `（${s.slump}${mark(SLUMPS, s.slump)} で崩れたまま）` : ''}`);
     if (s.slump && s.stir >= 0) bits.push(`身じろぎ: ${s.stir} 行目`);
     if (s.action === 'equip') bits.push('読み終えたら装備画面へ');
     if (s.facility) bits.push('施設の札を出す');
     if (!s.hero) bits.push('主人公を出さない');
-    out.push(bits.join(' / '), '');
+    out.push(bits.join(' / '));
+    if (s.memoStage) out.push(`演出: ${s.memoStage}`);
+    out.push('');
 
     s.lines.forEach((l, n) => {
       if (l.type === 'hold') {
@@ -782,15 +2115,16 @@ function totals() {
 }
 
 function renderOut() {
-  const text = tab === 'js' ? buildJs() : tab === 'json' ? JSON.stringify(script, null, 2) : buildMd();
+  // **保存用だけは束ごと。** 台本1つを写して戻すと、残りが消える。
+  const text = tab === 'js' ? buildJs() : tab === 'json' ? JSON.stringify(book, null, 2) : buildMd();
   $('#out').textContent = text;
   const t = totals();
   const over = t.ms > 60000;
-  $('#total').innerHTML = `送りの合計 <b>${(t.ms / 1000).toFixed(1)}秒</b>（タップ待ちは別）・ <b>${t.taps}</b> タップ・ <b>${t.lines}</b> 行`
+  $('#total').innerHTML = `この台本：送りの合計 <b>${(t.ms / 1000).toFixed(1)}秒</b>（タップ待ちは別）・ <b>${t.taps}</b> タップ・ <b>${t.lines}</b> 行`
     + (over ? '<br><span class="warn">※ 1分を超えた。§2「1セッション3分」に効くので、周回で通る道なら削ること</span>' : '');
 }
 
-function renderAll() { renderChips(); renderStage(); renderLines(); renderOut(); }
+function renderAll() { renderBooks(); renderChips(); renderStage(); renderLines(); renderOut(); }
 
 /* ==================================================================
    仕掛け
@@ -826,30 +2160,37 @@ $('#btn-copy').onclick = async () => {
   setTimeout(() => { $('#copied').textContent = ''; }, 2000);
 };
 
+/** 書き出しは**束ごと**。台本を跨いで書き直すので、1つだけ持ち出すと繋がりが読めない。 */
 $('#btn-download').onclick = () => {
-  const name = (script.title || '台本').replace(/[\\/:*?"<>|]/g, '_');
-  const blob = new Blob([buildMd()], { type: 'text/markdown;charset=utf-8' });
+  const save = [bookKey, at];
+  const all = Object.entries(book).map(([k, s]) => {
+    bookKey = k; script = s; at = 0;
+    return buildMd();
+  }).join('\n\n\n');
+  [bookKey, at] = save; script = book[bookKey];
+  const blob = new Blob([all], { type: 'text/markdown;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${name}.md`;
+  a.download = 'WalkUP-台本.md';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 
 $('#btn-seed').onclick = () => {
-  if (!confirm('いまの実装（data.js の TUTORIAL）を読み込みます。書きかけの内容は置き換わります。よろしいですか？')) return;
-  script = SEED_TUTORIAL(); at = 0;
+  if (!confirm('いまの実装（web/data.js）から読み直します。書きかけの内容は全部の台本で置き換わります。よろしいですか？')) return;
+  book = SEED(); bookKey = Object.keys(book)[0]; script = book[bookKey]; at = 0;
   $('#title').value = script.title;
   renderAll(); save();
 };
 
 $('#btn-import').onclick = () => {
-  const raw = prompt('「保存用」で写した中身を貼ってください（いまの台本は置き換わります）');
+  const raw = prompt('「保存用」で写した中身を貼ってください（いまの内容は置き換わります）');
   if (!raw) return;
   try {
-    const s = JSON.parse(raw);
-    if (!s || !Array.isArray(s.stages) || !s.stages.length) throw new Error('形が違う');
-    script = s; at = 0;
+    const b = JSON.parse(raw);
+    const ok = b && typeof b === 'object' && Object.values(b).some((s) => s && Array.isArray(s.stages));
+    if (!ok) throw new Error('形が違う');
+    book = b; bookKey = Object.keys(book)[0]; script = book[bookKey]; at = 0;
     $('#title').value = script.title || '';
     renderAll(); save();
   } catch (e) { alert('読み込めませんでした：' + e.message); }
