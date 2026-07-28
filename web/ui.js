@@ -205,12 +205,52 @@ const Nav = {
     if (old) old.remove();
     Nav.push(el, build);
   },
-  /** 一拍暗くしてから次の場所を出す。**ここが無いと戦闘が「次の頁」に見える。** */
+  /** 一拍暗くしてから次の場所を出す。**ここが無いと戦闘が「次の頁」に見える。**
+   *
+   * 物語の転換は `beat` に移したが、**戦闘への入りはここに残してある。**
+   * 周回で毎日通る道なので、物語と同じ長さの溜めを毎回挟むと §2 の「1セッション3分」を
+   * 討伐の側から食い潰す。**同じ暗転でも、初めて見る場面と毎日見る画面では要る長さが違う。** */
   async curtainTo(build) {
     curtain.classList.add('on');
     await sleep(240);
     build();
     await sleep(60);
+    curtain.classList.remove('on');
+  },
+
+  /** 転換に**格**を付ける。
+   *
+   * 直す前は、28場面すべてが同じ 0.22 秒のクロスフェードで並んでいた。
+   * 「すぐ次」も「場所が変わった」も「章が終わった」も同じ見え方をするので、
+   * **転換そのものが何も言っていない**状態だった。間が無いのではなく、階調が無かった。
+   *
+   * | 格 | いつ | 見え方 |
+   * |---|---|---|
+   * | `cut`   | 同じ場所で、直後に続く | いまのまま速い |
+   * | `move`  | 時か場所が変わる | 黒へ落として、置いてから出す |
+   * | `break` | 章の境目・戦闘へ入る | 斜めの帯。溜めが一番長い |
+   *
+   * **道具は増やしていない。** 戦闘で使っていた暗転と、討伐で使っていた帯を、
+   * 場面の連結にも回しただけ。新しい見え方を足すと、既に覚えた合図と競合する。 */
+  async beat(grade, build) {
+    if (grade === 'cut' || !grade) { build(); return; }
+
+    /* **幕の裏で出した画面を、幕が上がる時にもう一度出させない。**
+     * `.cover` は 0.22 秒かけて透明から現れる。幕の下りている間に積むと、
+     * 幕が上がる 0.22 秒と重なって**両方が半透明になり、前の画面が透けて見える**
+     * （ホームの上にプロローグが乗って、両方が同時に見えた）。
+     * 幕そのものが転換なので、中の画面は最初から出来上がっていてよい。 */
+    const settled = () => {
+      build();
+      layers[layers.length - 1]?.classList.add('static');
+    };
+
+    if (grade === 'break') return Nav.wipeTo(settled);
+    // **黒のまま置く。** 落として即座に戻すと、間ではなく瞬きになる。
+    curtain.classList.add('on');
+    await sleep(260);
+    settled();
+    await sleep(220);
     curtain.classList.remove('on');
   },
 
@@ -533,36 +573,42 @@ function renderHome() {
  * **タイトルより先に出さない。** 起動直後は必ずタイトルが最前面なので、
  * ここは「一番上の階層が無くなった時」——つまり戻ってきた時にだけ確かめる。
  *
- * 順序が意味を持つ。導入（歩数を読ませる）→ 章の扉 → 完結。 */
+ * 順序が意味を持つ。導入（歩数を読ませる）→ 章の扉 → 完結。
+ *
+ * **転換の格はここで決まる**（`Nav.beat`）。ホームから場面へ入るのは、
+ * どれも「時か場所が変わる」ので `move`。新しい土地に着く扉と、
+ * 本編が終わる完結だけが `break`。 */
 function maybeInterlude() {
   if (layers.length > 0) return;
   // プロローグ。**タイトルの直後、歩数の許可を聞く前。**
   // 先に世界を見せておくと、次の画面の「歩数を読ませてほしい」に理由が付く。
   if (Prologue.active && Prologue.run()) return;
-  if (!Game.state.seenIntro) { Nav.push(introScreen()); return; }
+  if (!Game.state.seenIntro) { Nav.beat('move', () => Nav.push(introScreen())); return; }
   // チュートリアルは導入の直後、章の扉より前。**歩数ゼロのまま3戦させる**（§11-1）。
   if (Tutorial.active && Tutorial.run()) return;
+  // 章の扉は `break`。**新しい土地に着いた**ので、いちばん強い転換を当てる。
   const door = Game.pendingDoor;
-  if (door !== null) { Nav.push(chapterDoorScreen(door)); return; }
+  if (door !== null) { Nav.beat('break', () => Nav.push(chapterDoorScreen(door))); return; }
   // 章の山場。**扉の直後、活気の節目より前。** ボスを倒した話は本編の筋なので、
   // 街が戻っていく話（活気）より先に来なければ順序が入れ替わって読める。
   const story = Game.pendingStory;
   if (story) {
-    Nav.push(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines },
-      () => { Game.markStory(story.key); Nav.pop(); }));
+    Nav.beat('move', () => Nav.push(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines, shot: SHOTS[story.key] },
+      () => { Game.markStory(story.key); Nav.pop(); })));
     return;
   }
   // 通知の許可（§15-4）。**第1章クリア後に一度だけ。** 山場の場面の後に置く。
   // ボスを倒した余韻の中で聞くのが、いちばん許可率が高い（§15-4 の根拠）。
-  if (Game.progress(1).isCleared && !Game.state.seenNotifyAsk) { Nav.push(notifyAskScreen()); return; }
+  if (Game.progress(1).isCleared && !Game.state.seenNotifyAsk) { Nav.beat('move', () => Nav.push(notifyAskScreen())); return; }
   // 活気の節目（§6.1）。**扉の後、完結の前。** 街が戻っていく話は本編の進行より下の層。
   const step = Game.pendingVitalityScene;
   if (step) {
-    Nav.push(sceneScreen({ kind: 'scene', chapter: step.chapter, lines: step.lines, facility: step.step === 45 ? FACILITIES[step.chapter] : null },
-      () => { Game.markVitalityScene(step.key); Nav.pop(); }));
+    Nav.beat('move', () => Nav.push(sceneScreen({ kind: 'scene', chapter: step.chapter, lines: step.lines, shot: SHOTS[step.key], facility: step.step === 45 ? FACILITIES[step.chapter] : null },
+      () => { Game.markVitalityScene(step.key); Nav.pop(); })));
     return;
   }
-  if (Game.isFinished && !Game.state.seenEnding) { Nav.push(endingScreen()); }
+  // 完結も `break`。**本編がここで終わる。**
+  if (Game.isFinished && !Game.state.seenEnding) { Nav.beat('break', () => Nav.push(endingScreen())); }
 }
 
 /** 位の紋。**数値を四角い札に入れない。** 丸い紋章に環のゲージが回ると「格」に見える。 */
@@ -893,6 +939,7 @@ function linePlayer(box, lines, onEnd, onLine) {
   let index = -1;
   let typing = null;
   let typed = true;
+  let holding = null;   // 間（`HOLD`）の待ち。触られたら飛ばせるように持っておく
 
   const player = { finished: false, tap };
 
@@ -904,6 +951,18 @@ function linePlayer(box, lines, onEnd, onLine) {
 
   const show = (n) => {
     const line = lines[n];
+
+    /* 間（`HOLD`）。**行ではないので、札を書き換えず、踏ませもしない。**
+     * 前の行を出したまま黙って待ち、待ち終わったら自分で次へ進む。
+     * ▼ も出さない——待っているのはこちらであって、相手ではない。 */
+    if (sceneKind(line) === 'hold') {
+      box.classList.remove('waiting-tap');
+      typed = true;
+      if (n >= lines.length - 1) { finishOrMark(); return; }   // 末尾の間は意味を持たない
+      holding = setTimeout(() => { holding = null; show(++index); }, line.ms);
+      return;
+    }
+
     // **立ち絵を先に動かす。** 入場は 620ms かかるので、文字と同時に始めても間に合う。
     onLine?.(line);
     box.classList.remove('waiting-tap');
@@ -935,6 +994,8 @@ function linePlayer(box, lines, onEnd, onLine) {
 
   function tap() {
     if (player.finished) return;
+    // 間の最中に触られたら飛ばす。**待たされる読み物は二度と開かれない**（§6.3 と同じ作法）。
+    if (holding) { clearTimeout(holding); holding = null; show(++index); return; }
     if (!typed) { typing?.stop(); return; }   // 送っている途中 → その行を最後まで
     show(++index);                            // 出し終わっている → 次の行へ
   }
@@ -968,7 +1029,12 @@ function sceneScreen(stage, onDone) {
   const life = Game.vitality(chapter) / Balance.vitalityMax;
   const isWalk = stage.kind === 'walk';
 
-  const el = make('screen cover world scene', `
+  /* カメラ。**場面の意味に合わせて寄るか引くかを決める**（`stage.shot`）。
+   * 指定が無ければ既定の呼吸（`breathe`）のまま。
+   * 全場面を一律に動かすと、どの場面も同じ「動く絵」になって意味を失う。 */
+  const shot = stage.shot ? ` shot-${stage.shot}` : '';
+
+  const el = make(`screen cover world scene${shot}`, `
     ${worldLayers(chapter, life)}
     <div class="world-inner">
       <div class="grow"></div>
@@ -1116,7 +1182,7 @@ const Prologue = {
   run() {
     const stage = Game.prologueStage;
     if (!stage) return false;
-    Nav.push(sceneScreen(stage, () => { Game.advancePrologue(); Nav.pop(); }));
+    Nav.beat('move', () => Nav.push(sceneScreen(stage, () => { Game.advancePrologue(); Nav.pop(); })));
     return true;
   },
 };
@@ -1142,12 +1208,12 @@ const Tutorial = {
     Game.grantStarterShoe();
 
     if (stage.kind === 'battle') {
-      Nav.curtainTo(() => Nav.push(battleScreen(Game.startTutorialBattle(stage.node))));
+      Nav.beat('move', () => Nav.push(battleScreen(Game.startTutorialBattle(stage.node))));
       Game.advanceTutorial();
       return true;
     }
 
-    Nav.push(sceneScreen(stage, () => {
+    Nav.beat('move', () => Nav.push(sceneScreen(stage, () => {
       Game.advanceTutorial();
       // 装備を開かせる段だけ、先に装備画面を挟む。閉じれば続きへ戻る。
       if (stage.action === 'equip') {
@@ -1155,7 +1221,7 @@ const Tutorial = {
         return;
       }
       Nav.pop();
-    }));
+    })));
     return true;
   },
 };
@@ -1498,13 +1564,13 @@ function startBattle(chapter, index) {
   // 挟むのは初回のみ。周回のたびに読ませると、二度目からは飛ばす画面になる。
   const intro = index === Master.nodesPerChapter ? Game.bossIntroScene(chapter) : null;
   if (intro) {
-    Nav.push(sceneScreen({ kind: 'scene', chapter, lines: intro.lines, foe: Master.boss(chapter).asset }, () => {
+    Nav.beat('move', () => Nav.push(sceneScreen({ kind: 'scene', chapter, lines: intro.lines, shot: SHOTS[intro.key], foe: Master.boss(chapter).asset }, () => {
       Game.markStory(intro.key);
       const session = Game.startBattle(chapter, index);
       // ここで挑めなかったら地図へ戻す。**場面だけ見せて放り出さない。**
       if (session.error) { toast(session.error); Nav.pop(); return; }
       Nav.curtainTo(() => Nav.replaceTop(battleScreen(session)));
-    }));
+    })));
     return;
   }
   const session = Game.startBattle(chapter, index);
@@ -2258,8 +2324,9 @@ frame.addEventListener('click', (event) => {
 function closeResult() {
   const story = Game.pendingStory;
   if (story) {
-    Nav.replaceTop(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines },
-      () => { Game.markStory(story.key); Nav.pop(); }));
+    // 結果 → 山場の場面は `move`。**勝った直後の画面から、そのまま地続きにしない。**
+    Nav.beat('move', () => Nav.replaceTop(sceneScreen({ kind: 'scene', chapter: story.chapter, lines: story.lines, shot: SHOTS[story.key] },
+      () => { Game.markStory(story.key); Nav.pop(); })));
     return;
   }
   Nav.pop();

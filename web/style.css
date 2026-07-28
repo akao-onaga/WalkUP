@@ -149,11 +149,16 @@ img { display: block; }
 @keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
 .screen.sheet { animation: sheet-in .26s cubic-bezier(.2, .8, .3, 1) both; }
 .screen.sheet.leaving { animation: sheet-out .2s ease-in both; }
-/* 中身を作り直しただけのときは滑らせない。開き直して見えると操作が重くなる。 */
-.screen.static { animation: none; }
-
 @keyframes cover-in { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: scale(1); } }
 .screen.cover { animation: cover-in .22s ease-out both; }
+
+/* 中身を作り直しただけのときは滑らせない。開き直して見えると操作が重くなる。
+   幕（`Nav.beat`）の裏で積んだ画面にも付く——**幕が上がるのと画面が現れるのが
+   重なると、両方が半透明になって前の画面が透ける。**
+
+   **`.cover` より後に置くこと。** 同じ詳細度なので、前に置くと打ち消せない
+   （実際に長いあいだ効いていなかった）。 */
+.screen.static { animation: none; }
 
 .body {
   /* **`position` を落とさないこと。** 図版が絶対配置なので、
@@ -462,6 +467,24 @@ img { display: block; }
    ごく僅かに膨らませ続けると、空気があるように見える。**気づかれない大きさに留める。** */
 @keyframes breathe { from { transform: scale(1); } to { transform: scale(1.035); } }
 .world .world-bg, .world .world-alive { animation: breathe 24s ease-in-out infinite alternate; }
+
+/* 場面のカメラ。**呼吸を置き換える**（重ねると transform を取り合って震える）。
+   一度だけ動いて止まる（`infinite` にしない）——ずっと寄り続けると、
+   読んでいるあいだ絵が落ち着かず、文字を追えなくなる。
+
+   立つのは画面の下寄りなので、寄る時の原点は足元側に置く。
+   中心を原点にすると、人物ではなく空へ寄っていく。 */
+@keyframes shot-close { from { transform: scale(1); } to { transform: scale(1.15); } }
+@keyframes shot-wide  { from { transform: scale(1.13); } to { transform: scale(1); } }
+
+.scene.shot-close .world-bg, .scene.shot-close .world-alive {
+  transform-origin: 50% 66%;
+  animation: shot-close 22s cubic-bezier(.25,.6,.35,1) both;
+}
+.scene.shot-wide .world-bg, .scene.shot-wide .world-alive {
+  transform-origin: 50% 55%;
+  animation: shot-wide 24s cubic-bezier(.25,.6,.35,1) both;
+}
 
 /* 灯り。窓・自販機・街灯のあたりに置く暖色のにじみ。
    **輪郭を持たせない。** 円が見えると絵の上の図形になる。 */
