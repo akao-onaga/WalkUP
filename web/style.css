@@ -996,11 +996,17 @@ img { display: block; }
    誰の声か分からない。地の文とシステムでは誰も強調しない（語り手は画面の中にいない）。
    **transform は使わない。** 待機の揺れ（`bob`）が transform を握っているので、
    ここで動かすと揺れが止まる。 */
+/* **話者に光を足す。落として差を作らない。**
+   聞き手を半分の明るさまで落としたら、工房の主（焦げ茶の前掛け）が
+   夜の地面に沈んで見えなくなった。立ち絵の明るさは絵ごとに違うので、
+   引き算の演出は暗い絵から先に壊す。足し算なら、どの絵でも壊れない。 */
 .scene-hero.hushed, .scene-foe.hushed, .scene-npc.hushed {
-  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65)) brightness(.5) saturate(.7);
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65)) brightness(.82) saturate(.72);
 }
 .scene-hero.speaking, .scene-foe.speaking, .scene-npc.speaking {
-  filter: drop-shadow(0 6px 5px rgba(0,0,0,.7)) brightness(1.05);
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65))
+          drop-shadow(0 0 11px rgba(236,198,126,.34))
+          brightness(1.08);
 }
 
 /* 3人並ぶ場面（ボスの前——主人公・ダルモン・街の人）だけ詰める。

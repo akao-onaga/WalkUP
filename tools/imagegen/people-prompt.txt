@@ -1,0 +1,89 @@
+Generate ONE image using your image generation tool.
+
+This is an addition to an existing series. The attached images are approved members
+of that series: the green boy is the protagonist (the one person in this world who
+never stopped moving), and the grey-violet creature is one of the monsters that
+drained everyone else. MATCH both attachments in drawing technique — the same bold
+uniform outline weight and the same flat one-tone shading, so everything looks like
+it came from the same art book.
+
+These six are TOWNSPEOPLE who have just woken up. Their palette sits BETWEEN the two
+attachments and must not collide with either:
+- NOT the drained grey-violet of the creature. They are awake now, not inert.
+- NOT as vivid as the green boy. He must stay the brightest thing in this world.
+- Use muted warm earth tones — ochre, clay, dusty brown, faded olive, cream, soft
+  slate. Clearly warmer and more chromatic than the creature, clearly quieter and
+  less saturated than the boy.
+
+STYLE SPEC (identical for every figure in this sheet):
+
+- Flat vector illustration. Bold, uniform dark outline of consistent weight.
+- Exactly one flat shadow tone per color area. No gradients, no soft shading,
+  no texture, no highlights, no glow, no rendering.
+- Each figure stands still, full body visible, feet on an invisible line, seen at a
+  slight three-quarter angle and turned slightly toward the LEFT edge of the canvas
+  (they are speaking to someone standing to their left). No walking, no running,
+  no dramatic poses — they are ordinary people who have just started moving again.
+- Faces are simple flat features in the same bold outline: eyes, brows, a mouth.
+  No blush, no sparkle, no rendering, no exaggerated cartoon expressions.
+- Each figure is a DIFFERENT person and must be told apart by silhouette alone —
+  height, build, posture, and what they are wearing.
+- No text, no logo, no signature, no watermark, no border, no frame, no panel lines,
+  no grid lines drawn on the image.
+- Mood: ordinary working people in a small town at dusk. Tired but upright. Not
+  heroic, not cute, not sinister.
+
+LAYOUT (follow exactly):
+
+- One single square image containing SIX figures arranged in a strict grid of
+  3 ROWS by 2 COLUMNS.
+- Each figure sits in the CENTER of its own cell, standing upright, with clear even
+  margins on all four sides of that cell. A figure must NEVER cross into a
+  neighbouring cell and must never touch a cell edge.
+- Each figure occupies about 80% of its cell's height.
+- Do not draw the grid. The cells are an invisible arrangement only.
+
+BACKGROUND — read this carefully:
+
+The background must be a uniform, flat, PURE MAGENTA (#FF00FF) fill covering the
+image from edge to edge, behind and between all six figures. Do NOT make it
+transparent. Do NOT draw a checkerboard pattern (the grid pattern that represents
+transparency). No gradient, no shadow, no vignette, no texture, no ground plane.
+Do not use magenta, pink, or purple anywhere on the people or their clothes.
+
+THE SIX FIGURES, in reading order (row 1 left, row 1 right, row 2 left, row 2 right,
+row 3 left, row 3 right):
+
+1. OLD WOMAN — small and slightly stooped, in her seventies. White hair pulled back
+   into a tight bun. A plain long apron-smock over dark work clothes, sleeves pushed
+   up. Hands clasped in front of her. Her face is lined and steady; she has been
+   watching this street for a long time. Accent: a faded ochre scarf at her neck.
+
+2. WORKSHOP MASTER — a broad, heavy-set man in his fifties, the strongest silhouette
+   of the six. Thick forearms, bare to the elbow. A scuffed leather work apron over a
+   dark shirt, a wide belt with tools. Short cropped hair, stubble, a blunt friendly
+   face. He holds a small hammer loosely at his side. Accent: warm rust on the apron
+   straps.
+
+3. MARKET KEEPER — a wiry, upright woman in her forties, the most awake of the six.
+   A cloth band tied around her head, a short work coat with big front pockets, an
+   apron knotted at the waist. One hand on her hip, chin slightly raised, brisk and
+   businesslike. Accent: a clay-red sash.
+
+4. OLD SHOEMAKER — a thin, slightly hunched old man with round spectacles low on his
+   nose and a bald crown with white hair at the sides. A long dark work apron over a
+   collarless shirt. He holds ONE single worn shoe up in front of him with both hands
+   and is looking at it, not at the viewer. Accent: the amber leather of the shoe.
+
+5. BAKER — a stocky man in his forties who has only just woken up. White baker's
+   apron dusted with flour over a rolled-sleeve shirt, hair flattened and sticking up
+   on one side. Standing a little unsteadily, one hand half-raised as if he has just
+   remembered something. Dazed but not distressed. Accent: warm crust-brown on his
+   rolled sleeves.
+
+6. MAN AT THE SHUTTER — a lean man in his thirties in plain sleeping clothes, a loose
+   over-robe hanging open, barefoot. Hair mussed. He is rubbing one eye with the back
+   of his hand and squinting, as if he has just opened a shutter onto daylight and
+   does not know what time it is. Accent: a dull olive collar.
+
+Save the result and report ONLY the absolute path of the generated file.
