@@ -577,9 +577,15 @@ BestiaryEntry
 | 8 | 図鑑 | `UI/BestiaryView.swift` | ✅ |
 | 9 | 設定 | `UI/EquipmentView.swift` 内 | ✅ |
 
-戦闘演出は SwiftUI の変形のみで作っている（§15-2 / §10.1.1）。
+戦闘演出は、いまのところ SwiftUI の変形だけで作ってある。
 待機はゆっくりした上下動、被弾はフラッシュとシェイク、ダメージ数値は浮上して消える。
 **追加のアートを1枚も使っていない。**
+
+**これは現在の実装であって、制約ではない。** §15-2 が決めたのは
+「SpriteKit を使わない」ことだけで、同じ節が Metal シェーダ
+（`.colorEffect` / `.distortionEffect` / `.layerEffect`）と
+`.keyframeAnimator` / `.phaseAnimator` / `TimelineView` を使えると明記している。
+**演出を足す時に、この行を根拠に手段を狭めないこと。**
 
 ---
 
