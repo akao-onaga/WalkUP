@@ -718,8 +718,21 @@ const Game = {
     const fighter = Game.fighter;
     const log = BattleEngine.resolve(fighter, BattleEngine.enemyFighter(node.enemy), { guaranteed: true });
 
-    const alreadyOwned = node.equipment && Game.state.equipment.some((e) => e.id === node.equipment.id);
-    const reward = Rewards.forBattle(node.enemy, log.result, Game.state.hasPass, alreadyOwned ? null : node.equipment);
+    /* **チュートリアルでは装備を落とさない**（2026-07-29）。
+     *
+     * ノード2は「目覚めの靴」ATK+7 を確定で落とすので、直す前は工房に着く時点で
+     * 靴が二足あった。しかも自動装備はされない（既に履いている物がある）ので、
+     * **強い方を鞄に入れたまま弱い方を履いて**親方の「その靴」を聞くことになる。
+     * ここで教えたいのは強化なのに、装備の持ち替えという別の判断が同じ画面に並んでいた。
+     *
+     * **取り逃がしにはならない。** 地図はまだ持っていない装備を
+     * 「目覚めの靴 を入手できる」と標の札に出し（`selectionPlate`）、
+     * 討伐済みのノードにも「挑む」が残る。歩数が章のゲートに届いた後、
+     * 周回の一体目として自然に取りに行ける。
+     *
+     * 必勝の数値（§11-1 の 残HP 22 → 15 → 25）は動かない。あの計算は
+     * 元から履き古した靴 ATK+5 のままで通しており、目覚めの靴は装備されていなかった。 */
+    const reward = Rewards.forBattle(node.enemy, log.result, Game.state.hasPass, null);
 
     Game.applyReward(reward, 1, index, log.result, node.enemy);
     return { chapter: 1, nodeIndex: index, enemy: node.enemy, log, reward, player: fighter, tutorial: true };
