@@ -808,7 +808,12 @@ function row2(title, body) {
  *
  * **「クリアしました」で終わらせない。** §5.3 のとおり、ダルモン本体は倒しても
  * 世界の完全復興は達成されていない。ここで終わりだと告げると、
- * 続ける理由がその場で消える。**残っているものを見せて、復興へ渡す。** */
+ * 続ける理由がその場で消える。**残っているものを見せて、復興へ渡す。**
+ *
+ * **章の扉と作りを分けた**（2026-07-28）。`door` の額縁を共用していた頃は、
+ * 本編踏破が「新しい土地に着いた」のと同じ格に見えていた。ここは着いた場所ではなく
+ * **歩いてきた場所を見せる所**なので、額に入れず、3地域を全画面で渡る。
+ * 絵はすべて復興後の3枚——**既にあるアセットを、まだ使っていなかった向きに回すだけ。** */
 function endingScreen() {
   const remaining = [1, 2, 3]
     .map((c) => ({ chapter: c, life: Game.vitality(c), stage: Game.facilityStage(c) }))
@@ -820,46 +825,117 @@ function endingScreen() {
     ? `活気 45 で ${FACILITIES[r.chapter].name} が開く`
     : `活気 100 で ${FACILITIES[r.chapter].name} が伸びる`);
 
-  const el = make('screen cover door ending', `
-    <div class="door-inner">
-      <div class="door-no">終　章</div>
-      <div class="door-frame">
-        <div class="door-art" style="background-image:url('${bgAliveOf(3)}')"></div>
-      </div>
-      <div class="door-lines"><p class="door-line"></p></div>
-      ${remaining.length ? `
-        <div class="ending-left">
-          <span class="plate night">まだ戻っていない場所</span>
-          <div class="stack" style="margin-top:10px;width:100%">
-            ${remaining.map((r) => `<div class="ending-row">
-              <div class="row" style="gap:9px">
-                <span style="font-size:11px;color:rgba(255,255,255,.72);flex:none;width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${Master.region(r.chapter).name}</span>
-                <!-- **ゲージに flex を与える。** flex 行の中では既定で幅0まで縮む。 -->
-                <div class="meter vigor slim" style="flex:1;border-color:rgba(232,228,220,.6);background:rgba(255,255,255,.12)">
-                  <i style="width:${r.life}%"></i>
+  /* 一巡り。歩いた順に3地域を渡る。文は各1本——**地の文の作法のまま**
+   * （主語なし・過去基調・主人公の目）。灯りは全部点いた状態で見せる。
+   * ここだけは嘘ではない：直前にダルモンを倒しており、絵は「戻った瞬間」を指す。 */
+  const TOUR = [
+    { chapter: 1, line: '住宅街の窓に、ひとつずつ灯りが点いていた。' },
+    { chapter: 2, line: '商店街のシャッターが、音を立てて開いていく。' },
+    { chapter: 3, line: '灰の窪地にも、風が通っていた。' },
+  ];
+  const FINAL_LINE = 'ダルモンは融けた。それでも街の灯りは、まだ半分も戻っていない。';
+
+  // 灯りを全灯で置く。`worldLayers` を使わないのは、あれが `shownLife` を
+  // 書き換えるため——ここで 1.0 を覚えさせると、次にホームへ帰った時に
+  // 「明るい街から今の活気へ落ちていく」逆向きの遷移が出る。
+  const lampsOf = (chapter) => (LAMP_SPOTS[chapter] ?? []).map(([x, y, size], i) => `
+    <div class="lamp" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;
+      margin:${-size / 2}px 0 0 ${-size / 2}px;opacity:.9;animation-delay:${i * 1.3}s"></div>`).join('');
+
+  const motes = [...Array(16)].map((_, i) => `
+    <div class="mote" style="left:${(i * 37) % 100}%;top:${45 + (i * 17) % 45}%;
+      background:rgba(226,180,134,.7);animation-duration:${9 + (i % 5) * 2}s;
+      animation-delay:${-(i * 1.7)}s"></div>`).join('');
+
+  const el = make('screen cover world finale', `
+    ${TOUR.map((t, i) => `
+      <div class="fin-station${i === 0 ? ' on' : ''}">
+        <div class="world-bg" style="background-image:url('${bgAliveOf(t.chapter)}')"></div>
+        <div class="lamps">${lampsOf(t.chapter)}</div>
+      </div>`).join('')}
+    <div class="world-scrim"></div>
+    <div class="motes">${motes}</div>
+    <div class="fin-inner">
+      <div class="fin-no">終　章</div>
+      <div class="fin-line"><p class="door-line"></p></div>
+      <div class="fin-close" hidden>
+        ${remaining.length ? `
+          <div class="ending-left">
+            <span class="plate night">まだ戻っていない場所</span>
+            <div class="stack" style="margin-top:10px;width:100%">
+              ${remaining.map((r) => `<div class="ending-row">
+                <div class="row" style="gap:9px">
+                  <span style="font-size:11px;color:rgba(255,255,255,.72);flex:none;width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${Master.region(r.chapter).name}</span>
+                  <!-- **ゲージに flex を与える。** flex 行の中では既定で幅0まで縮む。 -->
+                  <div class="meter vigor slim" style="flex:1;border-color:rgba(232,228,220,.6);background:rgba(255,255,255,.12)">
+                    <i style="width:${r.life}%"></i>
+                  </div>
+                  <span class="num" style="font-size:11px;color:#E2B486;flex:none">${r.life}<small>/100</small></span>
                 </div>
-                <span class="num" style="font-size:11px;color:#E2B486;flex:none">${r.life}<small>/100</small></span>
-              </div>
-              <div class="ending-next">${nextThing(r)}</div>
-            </div>`).join('')}
-          </div>
-          <div class="ending-note">討伐を続けると活気が戻る。戻った分だけ、街は使えるようになる。</div>
-        </div>` : ''}
-      <div class="door-hint">画面を触って戻る</div>
+                <div class="ending-next">${nextThing(r)}</div>
+              </div>`).join('')}
+            </div>
+            <div class="ending-note">討伐を続けると活気が戻る。戻った分だけ、街は使えるようになる。</div>
+          </div>` : ''}
+      </div>
+      <div class="door-hint">画面を触って進む</div>
     </div>`);
 
-  const text = 'ダルモンは融けた。それでも街の灯りは、まだ半分も戻っていない。';
+  const stations = $$(el, '.fin-station');
+  const lineEl = $(el, '.door-line');
+  const hint = $(el, '.door-hint');
+  let station = 0;
   let typing = null;
-  setTimeout(() => { typing = typeInto($(el, '.door-line'), text, { speed: 52 }); }, 900);
+  let expected = TOUR[0].line;   // いま送っている文。途中タップの判定に使う
+  let done = false;
+
+  // **typing を先に空にする。** 前の行の promise を持ったまま次の行の待ちに入ると、
+  // 待ちの間のタップが前の行の `stop()` を呼び、前の文がこの札に書き戻される。
+  const typeLine = (text, delay, onDone) => {
+    expected = text;
+    typing = null;
+    lineEl.textContent = '';
+    setTimeout(() => {
+      typing = typeInto(lineEl, text, { speed: 48 });
+      if (onDone) typing.then(onDone);
+    }, delay);
+  };
+
+  const showStation = (i) => {
+    stations.forEach((s, j) => s.classList.toggle('on', j === i));
+    Sound.play('light');
+    // 絵が渡り終わる（1.1s）少し前に文字が走り出すと、転換と朗読が繋がる。
+    typeLine(TOUR[i].line, 800);
+  };
+
+  /* 結び。最後の地域の上で FINAL_LINE を送り、読み終えてから
+   * 「まだ戻っていない場所」を出す。**先に出さない**——結びの一文と
+   * 残タスクの一覧が同時に見えると、読む前に精算が始まる。 */
+  const showClose = () => {
+    typeLine(FINAL_LINE, 500, () => {
+      $(el, '.fin-close').hidden = false;
+      hint.textContent = '画面を触って戻る';
+      done = true;
+    });
+  };
 
   el.addEventListener('click', () => {
-    if (typing && $(el, '.door-line').textContent !== text) { typing.stop(); return; }
-    Game.state.seenEnding = true;
-    Game.save();
-    Sound.play('page');
-    Nav.pop();
+    if (done) {
+      Game.state.seenEnding = true;
+      Game.save();
+      Sound.play('page');
+      Nav.pop();
+      return;
+    }
+    // 送り切っていない行は、まず最後まで出す（途中タップ＝早送り）。
+    // 待ち時間中（typing がまだ無い）は何もしない——踏み損ないで場面を飛ばさない。
+    if (lineEl.textContent !== expected) { typing?.stop(); return; }
+    if (station < TOUR.length - 1) { showStation(++station); return; }
+    station += 1;
+    showClose();
   });
 
+  typeLine(TOUR[0].line, 1100);
   Sound.play('levelup');
   return el;
 }
@@ -1800,9 +1876,14 @@ function startBattle(chapter, index) {
 
 function battleScreen(session) {
   const { enemy, player, log } = session;
-  const el = make('screen cover battle', `
+  /* ボス戦は**空気から変える**（2026-07-28）。
+   * 差が名前の色と wind-up だけでは、章の山場が雑魚8体目と同じ見え方をする。
+   * 地を沈め、周辺を締め、背景をゆっくり寄せる——**毎ターンの速度は変えない。**
+   * 動きを重くすると周回のボス戦が §2 の「3分」を食うので、重くするのは空気だけ。 */
+  const el = make(`screen cover battle${enemy.isBoss ? ' boss-fight' : ''}`, `
     <div class="bg" style="background-image:url('${bgOf(session.chapter)}')"></div>
     <div class="scrim"></div>
+    ${enemy.isBoss ? '<div class="boss-air"></div>' : ''}
 
     <div class="inner">
       <div class="battle-tag" data-tag>第${session.chapter}章 ・ ノード ${session.nodeIndex}</div>
@@ -1858,6 +1939,12 @@ async function playBattle(el, session, meters) {
    * 圧だけは残す——低く落ちる音を、幕なしで鳴らす。 */
   if (enemy.isBoss) Sound.play('defeat');
 
+  /* ボスを倒す最後の一撃だけ重くする（2026-07-28）。
+   * 増えるのは1秒強 ×**戦闘に一度きり**——毎ターンは触らない（§2）。
+   * 負けた時は重くしない。重い演出は勝ちの記憶に付けるもので、
+   * 負けの上に載せると、負けるたびに長い敗北を見せられることになる。 */
+  const heavyFinal = enemy.isBoss && log.result === 'victory';
+
   await sleep(320);
 
   const tag = $(el, '[data-tag]');
@@ -1872,17 +1959,25 @@ async function playBattle(el, session, meters) {
 
     // 1. 踏み込み。**とどめだけ、踏み込む前に一拍置く。**
     //    速さが一定のままだと、決着の瞬間が他の手と同じ重さになる。
-    if (isFinal) { attacker.classList.add('wind-up'); await sleep(260); attacker.classList.remove('wind-up'); }
+    if (isFinal) {
+      attacker.classList.add('wind-up');
+      // ボスのとどめは、振りかぶったまま**息を止める**。地がさらに沈み、待機の揺れも止まる。
+      if (heavyFinal) { el.classList.add('gather'); await sleep(300); }
+      await sleep(260);
+      attacker.classList.remove('wind-up');
+    }
     attacker.classList.add('lunge');
     Sound.play('step');
     await sleep(beat * 0.35);
     attacker.classList.remove('lunge');
 
     // 2. 命中。HP の減少・数値・煙・振動・音を同じ瞬間に集中させる。
+    el.classList.remove('gather');   // 止めていた息は、一撃が落ちた瞬間に返す
     target.classList.add('recoil', 'flash');
     spawnDamage(target, turn.damage, hurtIsPlayer);
     spawnPuff(target);
-    inner.classList.add(isFinal ? 'shake-strong' : hurtIsPlayer ? 'shake-strong' : 'shake-light');
+    inner.classList.add(isFinal && heavyFinal ? 'shake-heavy'
+      : isFinal || hurtIsPlayer ? 'shake-strong' : 'shake-light');
     if (hurtIsPlayer) flash.style.opacity = '.22';
     if (isFinal) el.classList.add('impact');   // 画面全体を一瞬白く抜く
     Sound.play(hurtIsPlayer ? 'hurt' : 'hit');
@@ -1896,11 +1991,11 @@ async function playBattle(el, session, meters) {
     plate.classList.toggle('critical', ratio > 0 && ratio < 0.3);
 
     // **止める時間を、とどめだけ倍にする。** 手応えは動かす量ではなく止める長さで出る。
-    await sleep(isFinal ? beat * 0.7 : beat * 0.28);
+    await sleep(isFinal ? beat * 0.7 + (heavyFinal ? 260 : 0) : beat * 0.28);
 
     // 3. 戻す。
     target.classList.remove('recoil', 'flash');
-    inner.classList.remove('shake-strong', 'shake-light');
+    inner.classList.remove('shake-strong', 'shake-light', 'shake-heavy');
     el.classList.remove('impact');
     flash.style.opacity = '0';
     await sleep(beat * 0.37);
@@ -1910,7 +2005,16 @@ async function playBattle(el, session, meters) {
     foe.classList.add('melted');
     $(foe, 'img').classList.remove('bob');
     Sound.play('melt');
-    await sleep(750);
+    if (heavyFinal) {
+      /* ボスの融解は長く、大きく、**終わったら空気が晴れる**（`lifted`）。
+       * 沈めた地の色と周辺の圧をここで返す——怠惰が融けて場が軽くなる、の絵。
+       * 融け際に暖色の光を一度だけ立てる（暗いままだと勝った顔にならない）。 */
+      el.classList.add('lifted');
+      setTimeout(() => Sound.play('light'), 550);
+      await sleep(1350);
+    } else {
+      await sleep(750);
+    }
   } else {
     flash.style.opacity = '.35';
     Sound.play('defeat');

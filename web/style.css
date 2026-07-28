@@ -486,6 +486,40 @@ img { display: block; }
   animation: shot-wide 24s cubic-bezier(.25,.6,.35,1) both;
 }
 
+/* 追加の語彙（2026-07-28）。**山場にだけ使う。** 寄る・引くと同じで、
+   全場面に回すと、どの場面も同じ「動く絵」になって意味を失う。
+
+   tremor … 地鳴り。寄ったまま、細かく揺れ続ける（最後の対峙）
+   tilt   … 傾き。斜めに入って、起きようとして起き切らない（不穏）
+   orbit  … 回り込み。横へ流れながら引く（見渡す）
+
+   tremor だけ infinite にしてある。揺れは「続いている」ことが意味なので
+   一度で止めると地鳴りではなく衝撃になる。振幅は 2px 未満に抑えること——
+   これ以上大きいと、読んでいる文字の方が揺れて見える。 */
+@keyframes shot-tremor {
+  0%   { transform: scale(1.09) translate(0, 0); }
+  22%  { transform: scale(1.09) translate(1.5px, -1px); }
+  47%  { transform: scale(1.09) translate(-1.3px, .9px); }
+  71%  { transform: scale(1.09) translate(1px, .7px); }
+  100% { transform: scale(1.09) translate(0, 0); }
+}
+.scene.shot-tremor .world-bg, .scene.shot-tremor .world-alive {
+  transform-origin: 50% 66%;
+  animation: shot-tremor 1.9s linear infinite;
+}
+/* 起き切らない（0.6deg 残す）。まっすぐに戻すと、不穏が転換の途中で解決してしまう。
+   回すと四隅が覗くので、始まりの拡大は寄り（1.15）より大きく取る。 */
+@keyframes shot-tilt { from { transform: scale(1.16) rotate(2.2deg); } to { transform: scale(1.1) rotate(.6deg); } }
+.scene.shot-tilt .world-bg, .scene.shot-tilt .world-alive {
+  transform-origin: 50% 60%;
+  animation: shot-tilt 24s cubic-bezier(.25,.6,.35,1) both;
+}
+@keyframes shot-orbit { from { transform: scale(1.22) translateX(3.5%); } to { transform: scale(1.08) translateX(-2.5%); } }
+.scene.shot-orbit .world-bg, .scene.shot-orbit .world-alive {
+  transform-origin: 50% 58%;
+  animation: shot-orbit 26s cubic-bezier(.25,.6,.35,1) both;
+}
+
 /* 灯り。窓・自販機・街灯のあたりに置く暖色のにじみ。
    **輪郭を持たせない。** 円が見えると絵の上の図形になる。 */
 .lamps { position: absolute; inset: 0; pointer-events: none; }
@@ -970,6 +1004,61 @@ img { display: block; }
   animation: hint-fade 2s ease-in-out infinite alternate;
 }
 @keyframes door-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ------------------------------------------------------------------ */
+/* 6c-2. 完結（終章）                                                   */
+/* ------------------------------------------------------------------ */
+
+/* **章の扉と作りを分ける**（2026-07-28）。`door` の額縁を共用していた頃は、
+   本編踏破が「新しい土地に着いた」のと同じ格に見えていた。
+   ここは着いた場所ではなく**歩いてきた場所を見せる所**——額に入れず、
+   復興後の3枚を全画面で渡る。灯りは全灯、粒は暖色。 */
+.finale { background: #100e14; }
+.finale .fin-station {
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 1.1s ease-out;
+}
+.finale .fin-station.on { opacity: 1; }
+/* 渡りのカメラ。**出るまで止めておく**（paused）。全駅が同時に動き出すと、
+   3枚目に着く頃には動き終わっていて、最後の地域だけ止まった絵になる。 */
+.finale .fin-station .world-bg {
+  transform-origin: 50% 60%;
+  animation: fin-drift 22s ease-out both paused;
+}
+.finale .fin-station.on .world-bg { animation-play-state: running; }
+/* 隣り合う駅で流れる向きを変える。同じ向きに3回流れると、1枚の長い絵に見えてしまう。 */
+.finale .fin-station:nth-child(2) .world-bg { animation-name: fin-drift-b; }
+@keyframes fin-drift   { from { transform: scale(1.16) translateX(2.5%); }  to { transform: scale(1.05) translateX(-1.5%); } }
+@keyframes fin-drift-b { from { transform: scale(1.16) translateX(-2.5%); } to { transform: scale(1.05) translateX(1.5%); } }
+
+.finale .fin-inner {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 40px 20px 34px;
+  color: #fff;
+}
+/* 題は上に据え置く。名乗り（boss-name）と同じ、字間が収まる入り。 */
+.fin-no {
+  position: absolute; top: 56px; left: 0; right: 0;
+  text-align: center;
+  font-size: 14px; font-weight: 800; letter-spacing: .58em; text-indent: .58em;
+  color: rgba(255,255,255,.88);
+  text-shadow: 0 2px 10px rgba(0,0,0,.95);
+  animation: fin-no-in 1.7s cubic-bezier(.2, .8, .3, 1) both .4s;
+}
+@keyframes fin-no-in {
+  from { opacity: 0; letter-spacing: 1.15em; text-indent: 1.15em; }
+  to   { opacity: 1; letter-spacing: .58em;  text-indent: .58em; }
+}
+/* 行の場所は先に空けておく（door-lines と同じ理由。出るたびに下が動くと読めない）。 */
+.finale .fin-line {
+  min-height: 4.2em; max-width: 320px; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 6px;
+}
+.finale .fin-close { width: 100%; animation: door-fade .9s ease-out both; }
+.finale .fin-close[hidden] { display: none; }
 
 /* ------------------------------------------------------------------ */
 /* 6b. 場面（チュートリアル・物語）                                     */
@@ -1504,16 +1593,23 @@ img { display: block; }
 .fighter.melted::after { opacity: 0; transition: opacity .5s ease-in; }
 
 /* 溶けた跡。**CSS の楕円をやめて描いた絵にした。**
-   消えた場所に何か残らないと、ただ消えたように見える。 */
-.puddle {
+   消えた場所に何か残らないと、ただ消えたように見える。
+
+   **selector は `.fighter img.puddle` まで強めてある**（2026-07-28）。
+   `.puddle`（0,1,0）だと `.fighter img`（0,1,1）に width:100% / position:relative /
+   z-index:1 / transition:.12s を全部上書きされ、「60px・足元・0.9秒」が一つも効かない。
+   雑魚戦では融解の 0.75 秒後に結果画面が被さるので誰も気付かなかった——
+   ボスの融解を長くした途端、166px 基準×3.4 の巨大な溜まりが露出した。 */
+.fighter img.puddle {
   position: absolute; bottom: 4px; left: 50%; z-index: 0;
-  width: 60px; margin-left: -30px;
+  width: 60px; max-width: none; max-height: none; margin-left: -30px;
   opacity: 0;
+  filter: none;
   transform: scale(.35);
   transform-origin: center bottom;
   transition: transform .9s cubic-bezier(.2, .9, .3, 1), opacity .8s ease-out;
 }
-.fighter.melted .puddle { opacity: .9; transform: scale(2.6); }
+.fighter.melted img.puddle { opacity: .9; transform: scale(2.6); }
 
 /* ダメージ数値は立ち絵の**上端**に出す。中央だと顔に重なり、被弾フラッシュと
    合わさって頭が欠けたように見える。 */
@@ -1660,6 +1756,72 @@ img { display: block; }
 @keyframes shake-s { 0%{transform:translateX(0)} 25%{transform:translateX(4px)} 50%{transform:translateX(-3px)} 75%{transform:translateX(2px)} 100%{transform:translateX(0)} }
 .shake-strong { animation: shake-l .18s linear; }
 .shake-light { animation: shake-s .18s linear; }
+
+/* --- ボス戦の空気（2026-07-28）------------------------------------
+   差が名前の色と wind-up だけでは、章の山場が雑魚8体目と同じ見え方をする。
+   **空気だけを重くする**——地を沈め、周辺を締め、背景をゆっくり寄せる。
+   毎ターンの速度には触らない。周回でも通る道なので、時間を足すと §2 を食う。 */
+.battle.boss-fight .bg {
+  filter: brightness(.7) saturate(.84);
+  transition: filter 1.4s ease-out;
+  /* 逃げ場が狭まっていく圧。breathe と違い一度きりで止まる（戦闘は短い）。 */
+  animation: boss-press 26s ease-out both;
+}
+@keyframes boss-press { from { transform: scale(1); } to { transform: scale(1.07); } }
+/* 周辺の圧。scrim と別に持つのは、勝った時に**これだけ晴らす**ため。 */
+.boss-air {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 42%, rgba(0,0,0,0) 50%, rgba(8,7,11,.6) 100%);
+  transition: opacity 1.4s ease-out;
+}
+/* 名前は名乗り（.boss-name）と同じ暗い暈しの上に置く。帯にはしない（§場面転換）。 */
+.battle.boss-fight .enemy-name.boss {
+  padding: 8px 0 10px; margin: -8px 0;
+  background: radial-gradient(58% 100% at 50% 50%, rgba(8,7,11,.6), rgba(8,7,11,0) 72%);
+  text-shadow: 0 3px 12px rgba(0,0,0,.95), 0 0 22px rgba(0,0,0,.85);
+  transition: opacity 1s ease-out .2s;
+}
+
+/* --- ボスのとどめ（2026-07-28）------------------------------------
+   最後の一撃だけ、息を止めてから重く落とす。増えるのは1秒強×一度きり。 */
+/* 息を止める。地がさらに沈み、待機の揺れ（bob）も止まる。**動いていたら、まだ息をしている。** */
+.battle.gather .bg { filter: brightness(.52) saturate(.7); }
+.battle.gather .fighter img { animation-play-state: paused; }
+/* 重い揺れ。横だけでなく僅かに縦にも入れる。地面ごと踏み抜いた衝撃。 */
+@keyframes shake-h {
+  0%   { transform: translate(0, 0); }
+  18%  { transform: translate(13px, -4px); }
+  38%  { transform: translate(-10px, 3px); }
+  58%  { transform: translate(7px, -2px); }
+  78%  { transform: translate(-4px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+.shake-heavy { animation: shake-h .38s cubic-bezier(.2, .7, .3, 1); }
+/* 白抜きも長く引く。 */
+.battle.boss-fight.impact::after { animation-duration: .5s; }
+/* 融解は長く、幕も広く。雑魚の .55s に対して倍。 */
+.boss-fight .fighter.foe.melted img { transition: transform 1.1s cubic-bezier(.6, 0, .8, .4), opacity 1.1s ease-in; }
+.boss-fight .fighter.foe img.puddle { transition: transform 1.5s cubic-bezier(.2, .9, .3, 1), opacity 1.2s ease-out; }
+.boss-fight .fighter.foe.melted img.puddle { transform: scale(3.4); }
+/* 融け際の光。倒したのに暗いままだと勝った顔にならない。一度立って、消える。
+   **溜まりより上（z-index:1）に置く。** 0 だと後続の puddle に核心部が丸ごと隠れる
+   （gradient は 62% で透明になるので、見える芯は溜まりより小さい）。 */
+.boss-fight .fighter.foe.melted::before {
+  content: ""; position: absolute; z-index: 1; left: 50%; bottom: 0;
+  width: 340px; height: 320px; margin-left: -170px;
+  transform-origin: 50% 100%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 214, 150, .6), rgba(255, 190, 110, 0) 62%);
+  animation: melt-glow 1.5s ease-out .3s both;
+}
+@keyframes melt-glow {
+  from { opacity: 0; transform: scaleY(.35); }
+  45%  { opacity: 1; }
+  to   { opacity: 0; transform: scaleY(1); }
+}
+/* 空気が晴れる。沈めた地の色と周辺の圧を、倒した瞬間に返す。 */
+.battle.boss-fight.lifted .bg { filter: brightness(.96) saturate(1); }
+.battle.boss-fight.lifted .boss-air { opacity: 0; }
+.battle.boss-fight.lifted .enemy-name.boss { opacity: 0; }
 
 /* ------------------------------------------------------------------ */
 /* 9. 結果                                                             */
