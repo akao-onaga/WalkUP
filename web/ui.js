@@ -1183,7 +1183,11 @@ function sceneScreen(stage, onDone) {
    * 潰れた姿のまま立たせておき、読み終えてから起き上がらせる（`revealBoss`）。
    * 潰れているあいだは待機の揺れを与えない——揺れていたら、もう動いている。 */
   const rise = stage.boss ? BOSS_RISE[chapter] : null;
-  const foeClass = rise ? `scene-foe slump-${rise}` : 'scene-foe bob';
+  /* **潰れた姿はボスだけの物ではない**（2026-07-29）。
+   * チュートリアルのダラリも「そこから動かない」と書かれているので、同じ作法で置く。
+   * ボスと違うのは**起き上がらない**こと——`stage.stir` の行で身じろぎするだけ。 */
+  const slump = rise ?? stage.slump ?? null;
+  const foeClass = slump ? `scene-foe slump-${slump}` : 'scene-foe bob';
 
   /* プロローグ。**世界が堕ちていく話なので、世界の側を動かす。**
    *
@@ -1361,6 +1365,11 @@ function sceneScreen(stage, onDone) {
         this.classList.add('bob');
       }, { once: true });
     });
+
+    /* 身じろぎ（`stage.stir`）。**起き上がらない。**
+     * 「そこから動かない」と書いた物が立ち上がったら、直前の行が嘘になる。
+     * 踏み越えると言われて気付いただけなので、崩れた姿から僅かに動いて同じ姿へ戻る。 */
+    if (slump && stage.stir === lineNo) $(el, '.scene-foe')?.classList.add(`stir-${slump}`);
   };
 
   /** 場面を出る。**人を残して画面だけ切り替えない。**

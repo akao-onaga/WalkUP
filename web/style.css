@@ -1751,6 +1751,28 @@ img { display: block; }
 }
 .scene-foe.rise-loom { animation: rise-loom 1.45s cubic-bezier(.4,0,.35,1) both; }
 
+/* --- チュートリアルのダラリ（2026-07-29）----------------------------
+   **潰れた姿はボスだけの物ではない。** 本文が「そこから動かない」と書いているので、
+   最初に出会うダルモンも崩れたまま置く。ここで待機の揺れを与えると、
+   ボスの対峙で使う文法（**揺れていたら、もう動いている**）が最初の30秒で壊れる。
+
+   ダラリは「立っているのが面倒になった者の成れの果て。溶けかけた体のまま」で、
+   道いっぱいに広がっている個体。低く、横に潰す。 */
+.scene-foe.slump-sag { transform: scaleY(.7) scaleX(1.14); }
+
+/* 身じろぎ。**起き上がらない。** 「踏み越えていく」と言われて気付いただけなので、
+   崩れた姿から僅かに動いて、同じ姿へ戻る。ボスの `rise-*` と対にある動き。
+
+   **`[class*="slump-"]` より後ろに置くこと。** あちらが `animation: none` を持ち、
+   詳細度が同じ（クラス2つ）なので、前に置くと打ち消されて何も起きない。
+   一括指定なので `.scene-foe` の待機用 `animation-delay: .7s` も 0 に戻る。 */
+@keyframes stir-sag {
+  0%   { transform: scaleY(.7) scaleX(1.14); }
+  38%  { transform: scaleY(.77) scaleX(1.1) translateY(-3px); }
+  100% { transform: scaleY(.7) scaleX(1.14); }
+}
+.scene-foe.stir-sag { animation: stir-sag 1s cubic-bezier(.35,.7,.35,1) both; }
+
 /* 画面ごと揺らす。個々の要素ではなく画面が動くと衝撃に見える。 */
 @keyframes shake-l { 0%{transform:translateX(0)} 25%{transform:translateX(9px)} 50%{transform:translateX(-6px)} 75%{transform:translateX(4px)} 100%{transform:translateX(0)} }
 @keyframes shake-s { 0%{transform:translateX(0)} 25%{transform:translateX(4px)} 50%{transform:translateX(-3px)} 75%{transform:translateX(2px)} 100%{transform:translateX(0)} }

@@ -194,7 +194,10 @@ const emptyState = () => ({
     morning: 0, floors: 0, distance: 0,
     loreCreditedToday: 0, bountyDoneToday: [],
   },
-  equipment: [],
+  /** **最初から靴は履いている**（2026-07-29）。プロローグが「靴の紐を締め直した」で
+   *  終わる以上、履いていない状態は物語のどこにも存在しない。
+   *  チュートリアルの `grantStarterShoe` はこの変更より前の保存データ向けに残してある。 */
+  equipment: [{ ...Master.starterShoe() }],
   chapters: [1, 2, 3].map((chapterId) => ({ chapterId, nodeIndex: 0, isCleared: false })),
   regions: [],
   bestiary: [],
@@ -526,9 +529,10 @@ const Game = {
     return 0;
   },
 
-  /** 工房（靴の強化）はチュートリアルで開く。**活気には紐づけない**（§6.2）。
-   *  強化は開始直後から要る仕組みなので、周回でしか届かない値の後ろに置けない。 */
-  get forgeOpen() { return Game.state.seenTutorial; },
+  /* `forgeOpen` は落とした（2026-07-29）。どこからも参照されていない上に、
+   * **使ったら壊れる**中身だった——`seenTutorial` が真になるのは3戦を終えた後なのに、
+   * 工房が開くのは5段目。これで強化ボタンを塞ぐと、工房で頼んだ直後に開く装備画面から
+   * 強化ボタンが消える。工房が開くのは仕組みではなく話の側の出来事なので、旗を持たせない。 */
 
   /** まだ見せていない、越え済みの節目。無ければ null。
    *  小さい章・低い節目から順に出す（順番に読ませる）。 */
