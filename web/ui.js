@@ -375,23 +375,42 @@ const DISTANT_SPOTS = [[11, 60, 52], [88, 50, 46], [31, 57, 34]];
  * @param life  0...1（活気 / 100）。この一つの値で、背景の復活・灯りの数・
  *              粒の色と速さ・遠景のダルモンの濃さが決まる。
  */
+/** 灯り1つぶんの濃さ。**段階的に点す**——全部が同時に明るくなると照明のスイッチに見える。
+ *
+ * **絵そのものに灯りが描かれている以上、この層は光源ではなく「にじみ」。**
+ * 同じ強さで重ねると、窓の灯りの上にもう一つ丸い光が乗って二重に見える。
+ * 濃さを抑え、段階の合図としてだけ働かせる。
+ *
+ * `worldLayers` の外に出してあるのは、**プロローグが同じ計算を逆に回す**ため（`setLife`）。 */
+function lampOn(i, value) {
+  const threshold = [0.12, 0.45, 0.75][i] ?? 0.9;
+  const raw = value >= threshold ? Math.min(1, (value - threshold) / 0.25) : 0;
+  return raw * (HAS_ALIVE_ART ? 0.45 : 1);
+}
+
+/** 既に描いてある世界の層を、任意の生気へ動かす。
+ *
+ * `settleLife` は「保存された値へ落ち着かせる」ための物で、行くのは1回きり。
+ * こちらは**途中の値へ何度でも動かせる**。プロローグが街を落としていくのに使う
+ * （§プロローグ）。CSS 側に遷移が入っているので、代入するだけで動く。 */
+function setLife(root, life) {
+  const alive = $(root, '.world-alive');
+  if (alive) alive.style.opacity = life.toFixed(2);
+  $$(root, '.lamp').forEach((l, i) => { l.style.opacity = lampOn(i, life).toFixed(2); });
+  // 粒は色と速さで気配を出している。**活気が抜けたら灰へ、そして遅く。**
+  const tint = life > 0.4 ? 'rgba(226,180,134,.7)' : 'rgba(232,228,220,.45)';
+  $$(root, '.mote').forEach((m, i) => {
+    m.style.background = tint;
+    m.style.animationDuration = `${(16 - life * 7) + (i % 5) * 2}s`;
+  });
+}
+
 function worldLayers(chapter, life, { distant = 0 } = {}) {
   // **前に見せた状態から現在の状態へ動かす。**
   // 討伐から戻ったとき、いきなり明るい街が出ても「増えた」ことは伝わらない。
   // 前回の生気で描いてから今の値へ遷移させると、灯りが1つ増えるのが見える。
   const from = shownLife[chapter] ?? life;
   shownLife[chapter] = life;
-
-  const lampOn = (i, value) => {
-    // 段階的に点す。全部が同時に明るくなると照明のスイッチに見える。
-    //
-    // **絵そのものに灯りが描かれている以上、この層は光源ではなく「にじみ」。**
-    // 同じ強さで重ねると、窓の灯りの上にもう一つ丸い光が乗って二重に見える。
-    // 濃さを抑え、段階の合図としてだけ働かせる。
-    const threshold = [0.12, 0.45, 0.75][i] ?? 0.9;
-    const raw = value >= threshold ? Math.min(1, (value - threshold) / 0.25) : 0;
-    return raw * (HAS_ALIVE_ART ? 0.45 : 1);
-  };
 
   const lamps = (LAMP_SPOTS[chapter] ?? []).map(([x, y, size], i) => {
     return `<div class="lamp" data-on="${lampOn(i, life).toFixed(2)}"
@@ -979,7 +998,7 @@ function voiceOf(line) {
  * @param box    行を差し込む器（中身は毎回入れ替える）
  * @param lines  場面の行
  * @param onEnd  最後の行を出し終えた時に一度だけ呼ぶ
- * @param onLine 行を出す直前に呼ぶ。**文字より先に立ち絵を動かすため。**
+ * @param onLine 行を出す直前に `(line, index)` で呼ぶ。**文字より先に立ち絵を動かすため。**
  *               喋り出してから人が入ってくると、誰もいない場所から声がしたように見える
  */
 function linePlayer(box, lines, onEnd, onLine) {
@@ -1011,7 +1030,8 @@ function linePlayer(box, lines, onEnd, onLine) {
     }
 
     // **立ち絵を先に動かす。** 入場は 620ms かかるので、文字と同時に始めても間に合う。
-    onLine?.(line);
+    // 行番号も渡す。**間（`HOLD`）を跨いでも数がずれない**ようにするため。
+    onLine?.(line, n);
     box.classList.remove('waiting-tap');
     box.innerHTML = sceneLine(line);
     const target = $(box, '[data-t]');
@@ -1089,6 +1109,26 @@ function sceneScreen(stage, onDone) {
   const rise = stage.boss ? BOSS_RISE[chapter] : null;
   const foeClass = rise ? `scene-foe slump-${rise}` : 'scene-foe bob';
 
+  /* プロローグ。**世界が堕ちていく話なので、世界の側を動かす。**
+   *
+   * 直す前は、静止したダラリ1体の前で5行が送られるだけで、背景は一度も変わらなかった。
+   * だが `worldLayers` は既に「街から活気が抜ける」仕組みを持っている——
+   * **一度も逆に回していなかっただけ。** 活気のある街から始めて落としていくと、
+   * 本編の「歩いた分だけ戻る」の、そのまま対になる。
+   *
+   * - `stage.fall`     行ごとの生気（1 → 0）。灯りが消え、粒が灰になり、色が抜ける
+   * - `stage.foes`     出すダルモンの一覧。`at` はその体が現れる行
+   * - `stage.heroWalk` 主人公が歩いて入る。「足は動いた」は絵の側でも動かす */
+  const foes = stage.foes ?? (stage.foe ? [{ id: stage.foe, at: -1 }] : []);
+  const fall = stage.fall ?? null;
+
+  /* **堕ちる場面は、生きている街から描き始める。**
+   * `worldLayers` は「前に見せた生気」から今の値へ動かす作りなので、
+   * 前の値に `fall` の先頭を差し込んでおくと、最初の一枚が活気のある街になる。
+   * これをやらないと、暗い街から明るく**上がって**しまい、話が逆になる。
+   * （`worldLayers` は描いた後で「前の値」を本当の生気に戻すので、後の画面には影響しない） */
+  if (fall) shownLife[chapter] = fall[0];
+
   const el = make(`screen cover world scene${shot}`, `
     ${worldLayers(chapter, life)}
     <!-- 名乗りは world-inner の外に置く。あれは z-index 2 の重なり文脈を作るので、
@@ -1100,8 +1140,14 @@ function sceneScreen(stage, onDone) {
       <div class="scene-stage">
         <!-- **主人公を出さない場面がある。** プロローグの前半は
              「まだ誰も歩いていない世界」なので、立っていると筋が合わない。 -->
-        ${stage.hero === false ? '' : `<img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">`}
-        ${stage.foe ? `<img class="${foeClass}" src="${artOf(stage.foe)}" alt="">` : ''}
+        ${stage.hero === false ? ''
+          : stage.heroWalk
+            // **止まった絵で始めない。** 「——それでも、足は動いた」を絵の側でも動かす。
+            // 走っている絵で入り、着いたら立ち姿へ持ち替える（ホームと同じ受け渡し方）。
+            ? `<img class="scene-hero walk-in" src="${artOf('hero')}" alt="主人公">`
+            : `<img class="scene-hero bob" src="${artOf('hero_stand')}" alt="主人公">`}
+        ${foes.map((f) => `<img class="${foeClass}${f.at >= 0 ? ' waiting' : ''}"
+             data-at="${f.at}" src="${artOf(f.id)}" alt="">`).join('')}
       </div>
       ${isWalk ? `<div class="scene-gain">
         ${crest(Game.level, Game.levelProgress)}
@@ -1120,6 +1166,20 @@ function sceneScreen(stage, onDone) {
   const box = $(el, '.scene-text');
   const button = $(el, '.scene-go');
   const stageBox = $(el, '.scene-stage');
+
+  // 3体以上並ぶ場面は詰める。**34px のまま並べると、縦画面では端が切れる。**
+  if (stageBox.children.length >= 3) stageBox.classList.add('many');
+
+  // 歩いて入ってきたら、**立ち姿に持ち替えて**待機の揺れに移る。
+  // 走っている絵のまま上下に揺れると、その場で駆け足しているように見える。
+  if (stage.heroWalk) {
+    const hero = $(el, '.scene-hero');
+    hero.addEventListener('animationend', () => {
+      hero.classList.remove('walk-in');
+      hero.src = artOf('hero_stand');
+      hero.classList.add('bob');
+    }, { once: true });
+  }
 
   /* ---- 街の人の出入り -------------------------------------------------
    *
@@ -1211,6 +1271,22 @@ function sceneScreen(stage, onDone) {
     if (!entering) playMotion(speaking, voiceOf(line).motion);
   };
 
+  /* 世界が堕ちていく（プロローグ）。**行を送るたびに一段ずつ落とす。**
+   * 一息に落とすと「暗くなった」だけで、堕ちていく過程が見えない。 */
+  const world = (lineNo) => {
+    if (fall) setLife(el, fall[Math.min(lineNo, fall.length - 1)]);
+    // その行で現れるダルモン。**にじみ出させる**——歩いて来る物ではない。
+    $$(el, '.scene-foe.waiting').forEach((f) => {
+      if (Number(f.dataset.at) > lineNo) return;
+      f.classList.remove('waiting');
+      f.classList.add('npc-fade-in');
+      f.addEventListener('animationend', function settle() {
+        this.classList.remove('npc-fade-in');
+        this.classList.add('bob');
+      }, { once: true });
+    });
+  };
+
   /** 場面を出る。**人を残して画面だけ切り替えない。**
    *  次の場面へ即座に飛ぶと転換に間が無いので、去る一拍を挟んでから渡す。 */
   let leaving = false;
@@ -1272,7 +1348,7 @@ function sceneScreen(stage, onDone) {
     if (open) { open.hidden = false; Sound.play('levelup'); }
     if (rise) { revealBoss(); return; }   // ボス戦だけは、ここで起き上がりを挟む
     button.style.visibility = 'visible';
-  }, cast);
+  }, (line, index) => { world(index); cast(line); });
 
   el.addEventListener('click', (event) => {
     if (event.target.closest('.btn')) return;

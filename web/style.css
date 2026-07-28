@@ -1038,6 +1038,14 @@ img { display: block; }
 .scene-stage:has(.scene-npc):has(.scene-foe) .scene-hero { height: 150px; }
 .scene-stage:has(.scene-npc):has(.scene-foe) .scene-npc { height: 132px; max-width: 108px; }
 
+/* 3体以上が並ぶ場面（プロローグでダルモンが増えていく所）。同じく詰める。 */
+.scene-stage.many { gap: 8px; }
+.scene-stage.many .scene-foe { height: 116px; max-width: 116px; }
+
+/* 番が来るまでは場に出さない。**場所は空けない**——先に隙間があると、
+   そこに何か来ると分かってしまう。増えていく驚きが先に漏れる。 */
+.scene-foe.waiting { display: none; }
+
 /* 街の人の入り方は2通り。**歩いて来る人と、戸の内側にいる人を同じ入り方にしない。**
    老女は二階の窓から、工房の主はシャッターの隙間から声をかける。
    その人たちが右手から歩いて来ると、書いてある場所と絵が食い違う。 */
