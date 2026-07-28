@@ -963,12 +963,80 @@ img { display: block; }
   display: flex; align-items: flex-end; justify-content: center;
   gap: 34px; width: 100%;
 }
-.scene-hero { height: 168px; width: auto; filter: drop-shadow(0 5px 4px rgba(0,0,0,.65)); }
+.scene-hero { height: 168px; width: auto; }
 .scene-foe {
   height: 132px; width: auto; max-width: 168px; object-fit: contain;
-  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65));
   animation-delay: .7s;
 }
+
+/* 街の人。**主人公より少しだけ低く**する。同じ背丈で並ぶと、
+   どちらが物語を進めているのかが読めなくなる。 */
+.scene-npc {
+  display: inline-flex; align-items: flex-end;
+  height: 152px; width: auto; max-width: 132px;
+}
+.scene-npc img { height: 100%; width: auto; object-fit: contain; }
+.scene-npc .art-fallback { display: none; }
+/* 立ち絵をまだ生成していない人。**壊れた印は画面をそのまま壊す**ので影絵に落とす。 */
+.scene-npc.no-art img { display: none; }
+.scene-npc.no-art .art-fallback { display: block; height: 100%; }
+.scene-npc.no-art svg {
+  height: 100%; width: auto;
+  fill: #14121a; stroke: rgba(232,224,208,.34); stroke-width: 1.4;
+}
+
+/* 影も明るさも3者で揃える。**個別に filter を書かない**——
+   喋っている者を落とす時に drop-shadow ごと消える。 */
+.scene-hero, .scene-foe, .scene-npc {
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65));
+  transition: filter .38s ease, opacity .38s ease;
+}
+
+/* **喋っている者だけを明るくする。** 立ち絵が並ぶと、札の名前を読むまで
+   誰の声か分からない。地の文とシステムでは誰も強調しない（語り手は画面の中にいない）。
+   **transform は使わない。** 待機の揺れ（`bob`）が transform を握っているので、
+   ここで動かすと揺れが止まる。 */
+.scene-hero.hushed, .scene-foe.hushed, .scene-npc.hushed {
+  filter: drop-shadow(0 5px 4px rgba(0,0,0,.65)) brightness(.5) saturate(.7);
+}
+.scene-hero.speaking, .scene-foe.speaking, .scene-npc.speaking {
+  filter: drop-shadow(0 6px 5px rgba(0,0,0,.7)) brightness(1.05);
+}
+
+/* 3人並ぶ場面（ボスの前——主人公・ダルモン・街の人）だけ詰める。
+   34px のまま並べると、縦画面では端が切れる。 */
+.scene-stage:has(.scene-npc):has(.scene-foe) { gap: 10px; }
+.scene-stage:has(.scene-npc):has(.scene-foe) .scene-hero { height: 150px; }
+.scene-stage:has(.scene-npc):has(.scene-foe) .scene-npc { height: 132px; max-width: 108px; }
+
+/* 街の人の入り方は2通り。**歩いて来る人と、戸の内側にいる人を同じ入り方にしない。**
+   老女は二階の窓から、工房の主はシャッターの隙間から声をかける。
+   その人たちが右手から歩いて来ると、書いてある場所と絵が食い違う。 */
+@keyframes npc-in {
+  from { transform: translateX(80px); opacity: 0; }
+  35% { opacity: 1; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.npc-in { animation: npc-in .62s cubic-bezier(.22,.7,.3,1) both; }
+
+@keyframes npc-out {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(110px); opacity: 0; }
+}
+.npc-out { animation: npc-out .5s cubic-bezier(.5,0,.8,.4) both; }
+
+/* にじみ出る。**下から少しだけ上げる**——真上から降りると現れ方が幽霊になる。 */
+@keyframes npc-fade-in {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.npc-fade-in { animation: npc-fade-in .68s ease-out both; }
+
+@keyframes npc-fade-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(8px); opacity: 0; }
+}
+.npc-fade-out { animation: npc-fade-out .46s ease-in both; }
 
 /* 歩いた分を見せる一拍。**数と紋章を同じ瞬間に動かす。** */
 .scene-gain {

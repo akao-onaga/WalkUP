@@ -883,11 +883,13 @@ const sceneKind = (line) => (typeof line === 'string' ? 'n' : line.kind);
  * 触った時の挙動は2段。送っている途中なら**その行を最後まで出す**、
  * 出し終わっていれば**次の行へ**。読み終える前に飛ばされないようにする。
  *
- * @param box   行を差し込む器（中身は毎回入れ替える）
- * @param lines 場面の行
- * @param onEnd 最後の行を出し終えた時に一度だけ呼ぶ
+ * @param box    行を差し込む器（中身は毎回入れ替える）
+ * @param lines  場面の行
+ * @param onEnd  最後の行を出し終えた時に一度だけ呼ぶ
+ * @param onLine 行を出す直前に呼ぶ。**文字より先に立ち絵を動かすため。**
+ *               喋り出してから人が入ってくると、誰もいない場所から声がしたように見える
  */
-function linePlayer(box, lines, onEnd) {
+function linePlayer(box, lines, onEnd, onLine) {
   let index = -1;
   let typing = null;
   let typed = true;
@@ -902,6 +904,8 @@ function linePlayer(box, lines, onEnd) {
 
   const show = (n) => {
     const line = lines[n];
+    // **立ち絵を先に動かす。** 入場は 620ms かかるので、文字と同時に始めても間に合う。
+    onLine?.(line);
     box.classList.remove('waiting-tap');
     box.innerHTML = sceneLine(line);
     const target = $(box, '[data-t]');
@@ -941,6 +945,24 @@ function linePlayer(box, lines, onEnd) {
   });
 }
 
+/** 立ち絵が読めなかった時の影絵。**まだ生成していない人物のため。**
+ *
+ * 記号（`icon`）に人が無いので、ここだけ専用に描く。輪郭だけで顔は無い。
+ * **顔を描かない方が良い。** 影絵に目鼻を入れると、後から来る本物の立ち絵と
+ * 別人に見えるうえ、影絵のままでも成立してしまって生成が後回しになる。 */
+const PERSON_SILHOUETTE = `<svg viewBox="0 0 60 150" aria-hidden="true">
+  <path d="M30 6c7 0 12 6 12 13s-5 13-12 13-12-6-12-13S23 6 30 6z
+           M30 36c12 0 21 8 23 21l5 33-11 2-2 -20-1 78h-12l-3-46-3 46H14l-1-78-2 20-11-2 5-33C7 44 18 36 30 36z"/>
+</svg>`;
+
+/** 街の人の立ち絵。**絵が無くても画面を壊さない**（`itemArt` と同じ作法）。
+ *
+ * `PEOPLE` に無い名前は呼ばれない側で弾く。ここは絵を組むだけ。 */
+const personArt = (person) => `<span class="scene-npc person" data-who="${person.id}">
+  <img src="${personOf(person.id)}" alt="" onerror="this.closest('.person').classList.add('no-art')">
+  <span class="art-fallback">${PERSON_SILHOUETTE}</span>
+</span>`;
+
 function sceneScreen(stage, onDone) {
   const chapter = stage.chapter ?? 1;
   const life = Game.vitality(chapter) / Balance.vitalityMax;
@@ -972,18 +994,88 @@ function sceneScreen(stage, onDone) {
 
   const box = $(el, '.scene-text');
   const button = $(el, '.scene-go');
+  const stageBox = $(el, '.scene-stage');
+
+  /* ---- 街の人の出入り -------------------------------------------------
+   *
+   * **セリフだけで姿が無いと、街の人は起きていないのと同じ。**
+   * この作品の背骨は「人々を起こしていく」なので、起きた人は画面に立たせる。
+   *
+   * 配役は場面データに書かない。`S(who, …)` の who をそのまま鍵にして、
+   * **その人が初めて喋る行で入ってくる。** 書き足した場面が黙って追従する。 */
+  let onStage = null;   // いま立っている人（同時に1人まで）
+
+  /** 舞台から下ろす。歩いて来た人は歩いて去り、にじみ出た人はにじんで消える。 */
+  const dismiss = (node) => {
+    if (!node) return;
+    // **待機の揺れを外してから**去らせる。どちらも transform を握るので、
+    // 残したままだと去り際に上下へ跳ねる。
+    node.classList.remove('npc-in', 'npc-fade-in', 'bob', 'speaking', 'hushed');
+    node.classList.add(node.dataset.enter === 'walk' ? 'npc-out' : 'npc-fade-out');
+    // アニメーションが終わってから外す。先に外すと、その場で消える。
+    setTimeout(() => node.remove(), 520);
+  };
+
+  /** その行の話者に合わせて舞台を組み替える。 */
+  const cast = (line) => {
+    const who = sceneKind(line) === 's' ? line.who : null;
+    const person = who && who !== HERO ? PEOPLE[who] : null;
+
+    // 別の人が喋り出したら、先にいた人は去る。**入れ替わりを黙って差し替えない。**
+    if (person && onStage?.dataset.who !== person.id) { dismiss(onStage); onStage = null; }
+
+    if (person && !onStage) {
+      stageBox.insertAdjacentHTML('beforeend', personArt(person));
+      onStage = stageBox.lastElementChild;
+      onStage.dataset.enter = person.enter;
+      onStage.classList.add(person.enter === 'walk' ? 'npc-in' : 'npc-fade-in');
+      if (person.enter === 'walk') Sound.play('step');
+      // 入り終わったら待機の揺れへ引き渡す（ホームの主人公と同じ受け渡し方）。
+      onStage.addEventListener('animationend', function settle() {
+        // 入り終わる前に去らされていたら、揺れに渡さない（去り際に跳ねる）。
+        if (this.classList.contains('npc-out') || this.classList.contains('npc-fade-out')) return;
+        this.classList.remove('npc-in', 'npc-fade-in');
+        this.classList.add('bob');
+      }, { once: true });
+    }
+
+    /* **喋っている者だけを明るくする。** 立ち絵が2枚3枚と並ぶと、
+     * 札の名前を読むまで誰の声か分からない。地の文とシステムでは誰も強調しない
+     * ——語っているのは画面の中の誰でもないため。 */
+    const figures = $$(el, '.scene-hero, .scene-foe, .scene-npc');
+    figures.forEach((f) => f.classList.remove('speaking', 'hushed'));
+    if (!who) return;
+    // **ダルモンも喋る**（第3章の対峙）。街の人ではないので立ち絵は増やさず、
+    // 既に `foe` として立っている本体を明るくする。
+    const speaking = who === HERO ? $(el, '.scene-hero')
+      : PEOPLE[who] ? onStage : $(el, '.scene-foe');
+    // 誰にも当たらない話者なら、**全員を落とさない。** 画面が黙って暗くなるだけになる。
+    if (!speaking) return;
+    figures.forEach((f) => f.classList.add(f === speaking ? 'speaking' : 'hushed'));
+  };
+
+  /** 場面を出る。**人を残して画面だけ切り替えない。**
+   *  次の場面へ即座に飛ぶと転換に間が無いので、去る一拍を挟んでから渡す。 */
+  let leaving = false;
+  const leave = () => {
+    if (leaving) return;
+    leaving = true;
+    dismiss(onStage);
+    setTimeout(onDone, onStage ? 260 : 0);
+  };
+
   let player;
   player = linePlayer(box, stage.lines, () => {
     // 施設が開いたことは**読み終えてから**出す。途中で下に札が生えると、行が動く。
     const open = $(el, '.scene-open');
     if (open) { open.hidden = false; Sound.play('levelup'); }
     button.style.visibility = 'visible';
-  });
+  }, cast);
 
   el.addEventListener('click', (event) => {
     if (event.target.closest('.btn')) return;
     // 読み終えていれば、画面を触っても進む手と同じ扱いにする。
-    if (player.finished) { onDone(); return; }
+    if (player.finished) { leave(); return; }
     player.tap();
   });
   player.start();
@@ -1013,7 +1105,7 @@ function sceneScreen(stage, onDone) {
     }, 900);
   }
 
-  button.addEventListener('click', () => { Sound.play('page'); onDone(); });
+  button.addEventListener('click', () => { Sound.play('page'); leave(); });
   Sound.play('transition');
   return el;
 }
