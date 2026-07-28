@@ -487,6 +487,39 @@ identical — same viewpoint, same buildings, same camera, same framing):
 落としたため（DESIGN.md §18.4）。素材4点の一覧画から切り出した1枚なので
 アセットは残してあるが、コードからの参照はゼロ。
 
+### `eq_starter`（履き古した靴・2026-07-29 追加）
+
+チュートリアルで最初から履いている靴（§11-1）。**長らく絵が無く、`itemArt` の
+代替（`shoe` の記号）が出ていた**——しかもそれが出るのは装備画面と、
+チュートリアルの工房の場面。つまり**遊び始めて最初の3分**で見える所だった。
+
+既存の `eq_ch1_weapon`（目覚めの靴）を**参照画像として渡し**、同じ画風で
+「それより古く、質素で、弱く見える」ものを頼む。低い甲・締め具なし・
+すり減った靴底・ほつれた紐・つま先の当て布。差し色は琥珀を紐の先に一点だけ。
+
+```bash
+# プロンプトは**標準入力から渡す**（下の落とし穴）
+cat prompt.txt | codex exec -s read-only \
+  -i WalkUP/Assets.xcassets/Items/eq_ch1_weapon.imageset/eq_ch1_weapon.png
+
+python3 tools/imagegen/cutout.py <生成物.png> \
+  WalkUP/Assets.xcassets/Items/eq_starter.imageset/eq_starter.png \
+  --key magenta --tol 70 --ratio 0.75
+```
+
+`Contents.json` は `cutout.py` が作らないので、既存の imageset から写して置く。
+
+### `codex exec` の `-i` はプロンプトを飲み込む
+
+`-i, --image <FILE>...` は**可変長**なので、
+
+```bash
+codex exec -s read-only -i 参照画像.png 'プロンプト'   # ← 効かない
+```
+
+と書くと、プロンプトの文字列まで画像ファイルの一つとして食われ、
+`No prompt provided via stdin.` で止まる。**プロンプトは標準入力から渡すこと。**
+
 ### 一覧画で作って機械的に切る
 
 1点ずつ生成すると回数がそのまま費用になる。**格子に並べた1枚として生成し、
